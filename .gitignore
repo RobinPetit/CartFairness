@@ -1,0 +1,9 @@
+*.so
+*.html
+*.txt
+*.zip
+*.feather
+*.png
+
+__pycache__
+
