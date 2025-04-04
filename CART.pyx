@@ -314,6 +314,7 @@ cdef class CART:
                 stack.append(Node.from_ptr(dereference(node.node).right_child))
 
     cdef _Node* _build_tree(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
+        # Should use a PQ to expand the nodes in decreasing order of H/Gini
         cdef SplitChoice split = self._find_best_split(data, loss)
         cdef _Node* ret = self._create_node(data.y, depth)
         if split is None:
@@ -437,6 +438,7 @@ cdef class CART:
         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
         cdef int i
         for i in prange(n, nogil=True, schedule='runtime'):
+            # Careful: stop search in the tree on unknown modality for category var.
             ret[i] = self._predict_instance(data[i, :])
         return ret
 
