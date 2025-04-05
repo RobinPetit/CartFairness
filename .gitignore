@@ -1,9 +1,12 @@
+*.c
 *.so
 *.html
 *.txt
 *.zip
 *.feather
 *.png
+*.pyd
 
-__pycache__
+__pycache__/
+build/
 

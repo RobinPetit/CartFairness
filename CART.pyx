@@ -8,6 +8,11 @@
 cimport numpy as np
 from libc.math cimport log, fabs
 
+import cython
+from cython.operator cimport dereference
+from cython.parallel import prange
+
+
 ctypedef size_t Pyssize_t
 
 cdef extern from "_CART.h" nogil:
@@ -42,55 +47,51 @@ cdef class Node:
 
     property feature_idx:
         def __get__(self):
-            return self._feature_index
-        def __set__(self, value):
-            self._feature_index = value
+            return dereference(self.node).feature_idx
+        def __set__(self, int value):
+            dereference(self.node).feature_idx = value
 
     property threshold:
         def __get__(self):
-            return self._threshold
-        def __set__(self, value):
-            self._threshold = value
+            return dereference(self.node).threshold
+        def __set__(self, float value):
+            dereference(self.node).threshold = value
 
     property loss:
         def __get__(self):
-            return self._loss
-        def __set__(self, value):
-            self._loss = value
+            return dereference(self.node).loss
+        def __set__(self, float value):
+            dereference(self.node).loss = value
 
     property avg_value:
         def __get__(self):
-            return self.avg_value
-        def __set__(self, value):
-            self.avg_value = value
+            return dereference(self.node).avg_value
+        def __set__(self, float value):
+            dereference(self.node).avg_value = value
 
     property depth:
         def __get__(self):
-            return self._depth
-        def __set__(self, value):
-            self._depth = value
+            return dereference(self.node).depth
+        def __set__(self, int value):
+            dereference(self.node).depth = value
 
     property parent:
         def __get__(self):
-            return self._parent
-        def __set__(self, value):
-            self._parent = value
+            return Node.from_ptr(dereference(self.node).parent)
+        def __set__(self, Node value):
+            dereference(self.node).parent = value.node
 
     property left_child:
         def __get__(self):
-            return self._left_child
-        def __set__(self, value):
-            self._left_child = value
+            return Node.from_ptr(dereference(self.node).left_child)
+        def __set__(self, Node value):
+            dereference(self.node).left_child = value.node
 
     property right_child:
         def __get__(self):
-            return self._right_child
-        def __set__(self, value):
-            self._right_child = value
-
-import cython
-from cython.operator cimport dereference
-from cython.parallel import prange
+            return Node.from_ptr(dereference(self.node).right_child)
+        def __set__(self, Node value):
+            dereference(self.node).right_child = value.node
 
 import numpy as np
 import pandas as pd
@@ -289,7 +290,7 @@ cdef class CART:
     cdef Dataset data
     cdef _Node* root
 
-    cdef list nodes
+    cdef list all_nodes
 
     def __cinit__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
                   replacement=False, prop_sample=1.0, frac_valid=0.2,
@@ -318,9 +319,9 @@ cdef class CART:
 
     property nodes:
         def __get__(self):
-            return self.nodes
-        def __set__(self, value):
-            self.nodes.append(value)
+            return self.all_nodes
+        #def __set__(self, value):
+        #    self.nodes.append(value)
 
     property max_interaction_depth:
         def __get__(self):
@@ -400,13 +401,13 @@ cdef class CART:
         return self.nodes
 
     cdef void _retrieve_all_nodes(self):
-        self.nodes = list()
+        self.all_nodes = list()
         cdef Node node
         cdef list stack = []
         stack.append(Node.from_ptr(self.root))
         while len(stack) > 0:
             node = stack.pop()
-            self.nodes.append(node)
+            self.all_nodes.append(node)
             if dereference(node.node).left_child != NULL:
                 stack.append(Node.from_ptr(dereference(node.node).left_child))
             if dereference(node.node).right_child != NULL:
