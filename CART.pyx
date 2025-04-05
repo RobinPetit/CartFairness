@@ -363,7 +363,7 @@ cdef class CART:
             return self.nb_cov
         def __set__(self, value):
             self.nb_cov = value
-            
+
     def __dealloc__(self):
         clear_node(self.root)
 
@@ -397,6 +397,7 @@ cdef class CART:
         print(f"Nb nodes: {len(self.nodes)}")
         print('*******************************')
         print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
+        return self.nodes
 
     cdef void _retrieve_all_nodes(self):
         self.nodes = list()
