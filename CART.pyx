@@ -364,6 +364,12 @@ cdef class CART:
         def __set__(self, value):
             self.nb_cov = value
 
+    property nodes:
+        def __get__(self):
+            return self.nodes
+        def __set__(self, value):
+            self.nodes.append(value)
+
     def __dealloc__(self):
         clear_node(self.root)
 
