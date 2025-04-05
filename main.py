@@ -9,7 +9,7 @@ import numpy as np
 from CART import Dataset, CART as NewCART
 
 
-##################################################################################    
+##################################################################################
 VERBOSE = False
 
 # load dataset and make sure that all numerical variable are in float64

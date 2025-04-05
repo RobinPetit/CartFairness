@@ -29,6 +29,8 @@ cdef extern from "_CART.h" nogil:
     bint _is_root(_Node*)
     bint _is_leaf(_Node*)
 
+
+
 cdef class Node:
     cdef _Node* node
 
@@ -37,6 +39,54 @@ cdef class Node:
         cdef Node ret = Node.__new__(Node)
         ret.node = ptr
         return ret
+
+    property feature_idx:
+        def __get__(self):
+            return self._feature_index
+        def __set__(self, value):
+            self._feature_index = value
+
+    property threshold:
+        def __get__(self):
+            return self._threshold
+        def __set__(self, value):
+            self._threshold = value
+
+    property loss:
+        def __get__(self):
+            return self._loss
+        def __set__(self, value):
+            self._loss = value
+
+    property avg_value:
+        def __get__(self):
+            return self.avg_value
+        def __set__(self, value):
+            self.avg_value = value
+
+    property depth:
+        def __get__(self):
+            return self._depth
+        def __set__(self, value):
+            self._depth = value
+
+    property parent:
+        def __get__(self):
+            return self._parent
+        def __set__(self, value):
+            self._parent = value
+
+    property left_child:
+        def __get__(self):
+            return self._left_child
+        def __set__(self, value):
+            self._left_child = value
+
+    property right_child:
+        def __get__(self):
+            return self._right_child
+        def __set__(self, value):
+            self._right_child = value
 
 import cython
 from cython.operator cimport dereference
@@ -265,6 +315,54 @@ cdef class CART:
         }
         assert loss in LOSS_MAPPING.keys()
         self.loss_fct = LOSS_MAPPING[loss]
+
+    property nodes:
+        def __get__(self):
+            return self.nodes
+        def __set__(self, value):
+            self.nodes.append(value)
+
+    property max_interaction_depth:
+        def __get__(self):
+            return self.max_interaction_depth
+        def __set__(self, value):
+            self.max_interaction_depth = value
+
+    property minobs:
+        def __get__(self):
+            return self.minobs
+        def __set__(self, value):
+            self.minobs = value
+
+    property margin:
+        def __get__(self):
+            return self.margin
+        def __set__(self, value):
+            self.margin = value
+
+    property epsilon:
+        def __get__(self):
+            return self.epsilon
+        def __set__(self, value):
+            self.epsilon = value
+
+    property delta_loss:
+        def __get__(self):
+            return self.delta_loss
+        def __set__(self, value):
+            self.delta_loss = value
+
+    property loss:
+        def __get__(self):
+            return self.loss
+        def __set__(self, value):
+            self.loss = value
+
+    property nb_cov:
+        def __get__(self):
+            return self.nb_cov
+        def __set__(self, value):
+            self.nb_cov = value
 
     def __dealloc__(self):
         clear_node(self.root)

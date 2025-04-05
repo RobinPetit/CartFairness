@@ -10,8 +10,10 @@ pandas_include_path = "C:/Users/Admin/.conda/envs/PhD_TM/lib/site-packages/panda
 # Define the extension module
 extensions = [
     Extension(
-        name="version_simple_cython21_adj_categorical_clean_epsilon",
-        sources=["version_simple_cython21_adj_categorical_clean_epsilon.pyx"],
+        name="CART",
+        sources=["CART.pyx"],
+        #name="version_simple_cython21_adj_categorical_clean_epsilon",
+        #sources=["version_simple_cython21_adj_categorical_clean_epsilon.pyx"],
         #name="version_simple_cython21_adj_categorical_clean_epsilon",
         #sources=["version_simple_cython21_adj_categorical_clean_epsilon.pyx"],
         include_dirs=[numpy.get_include(), pandas_include_path],
