@@ -16,6 +16,8 @@ from cython.parallel import prange
 ctypedef size_t Pyssize_t
 
 cdef extern from "_CART.h" nogil:
+    cdef struct Vector:
+        pass
     cdef struct _Node:
         _Node* left_child
         _Node* right_child
@@ -26,14 +28,18 @@ cdef extern from "_CART.h" nogil:
         int feature_idx
         np.float64_t threshold
         np.float64_t loss
+        bint is_categorical
+        Vector categorical_values_left
+        Vector categorical_values_right
     _Node* new_node(size_t)
     void clear_node(_Node*)
     void _set_ys(_Node*, double, double, size_t)
+    void _set_categorical_node_left_right_values(_Node*, np.int32_t*, size_t, size_t)
     void _set_left_child(_Node*, _Node*)
     void _set_right_child(_Node*, _Node*)
     bint _is_root(_Node*)
     bint _is_leaf(_Node*)
-
+    bint vector_contains_int32(Vector*, np.int32_t)
 
 
 cdef class Node:
@@ -44,6 +50,9 @@ cdef class Node:
         cdef Node ret = Node.__new__(Node)
         ret.node = ptr
         return ret
+
+    def __eq__(self, Node other) -> bool:
+        return self.node == other.node
 
     property feature_idx:
         def __get__(self):
@@ -93,6 +102,14 @@ cdef class Node:
         def __set__(self, Node value):
             dereference(self.node).right_child = value.node
 
+    property kind:
+        def __get__(self):
+            return "Leaf" if _is_leaf(self.node) else "Node"
+
+    property nb_samples:
+        def __get__(self):
+            return dereference(self.node).nb_samples
+
 import numpy as np
 import pandas as pd
 
@@ -107,9 +124,9 @@ ctypedef enum LossFunction:
     MSE,
     POISSON
 
-cdef int indirect_binary_search(np.float64_t[:] values, np.float64_t threshold,
-                                int beg, int end,
-                                np.int64_t[:] sorted_indices) noexcept nogil:
+cdef int indirect_binary_search(
+        np.float64_t[:] values, np.float64_t threshold, int beg, int end,
+        np.int64_t[:] sorted_indices) noexcept nogil:
     cdef int mid
     while beg < end:
         mid = (beg + end) // 2
@@ -124,6 +141,13 @@ cdef int _masks(np.float64_t[:] values, np.float64_t threshold,
     return indirect_binary_search(
         values, threshold, base_idx, values.shape[0], sorted_indices
     )
+
+cdef void _mask_categorical(
+        np.float64_t[:] values, int value, np.uint8_t[:] out) noexcept nogil:
+    cdef int i
+    for i in prange(values.shape[0], nogil=True, schedule='runtime'):
+        if <int>(values[i]) == value:
+            out[i] = True
 
 cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:
     cdef np.float64_t mu = 0.
@@ -150,6 +174,14 @@ cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:
             ret += ys[i] * log((ys[i] + epsilon) / (mu + epsilon)) + (mu - ys[i])
     return 2 * ret / n
 
+cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,
+                      np.float64_t[:] sums, np.int32_t[:] sizes) noexcept nogil:
+    cdef int i
+    cdef int value
+    for i in prange(y.shape[0], nogil=True, schedule='runtime'):
+        value = <int>(X[i])
+        sums[value] += y[i]
+        sizes[value] += 1
 
 @cython.final
 cdef class Dataset:
@@ -199,9 +231,12 @@ cdef class Dataset:
         ret._size = ret._indices.shape[0]
         return ret
 
-    cdef void _labelize(self, np.ndarray[object, ndim=2] X,
-                        np.float64_t[:, :] out,
-                        int col_idx, bint compute_mapping=True):
+    cdef bint is_categorical(self, int feature_idx):
+        return self._is_categorical[feature_idx]
+
+    cdef void _labelize(
+            self, np.ndarray[object, ndim=2] X, np.float64_t[:, :] out,
+            int col_idx, bint compute_mapping=True):
         cdef int counter = 0
         if compute_mapping:
             self._reverse_mapping[col_idx] = np.unique(X[:, col_idx])
@@ -251,6 +286,14 @@ cdef class Dataset:
                 ret[:, feature_idx] = X[:, feature_idx]
         return ret
 
+    cdef np.ndarray order_categorical(self, int feature_idx):
+        cdef int size = len(self._reverse_mapping[feature_idx])
+        cdef np.ndarray ysums = np.zeros(size, dtype=np.float64)
+        cdef np.ndarray ysizes = np.zeros(size, dtype=np.int32)
+        _extract_mean_ys(self.X[:, feature_idx], self.y, ysums, ysizes)
+        ysums /= ysizes
+        return np.argsort(ysums)[::-1]
+
 @cython.final
 cdef class SplitChoice:
     cdef size_t feature_idx
@@ -258,19 +301,33 @@ cdef class SplitChoice:
     cdef np.float64_t loss, dloss
     cdef np.float64_t loss_left, loss_right
     cdef Dataset left_data, right_data
+    cdef bint is_categorical
+    cdef size_t threshold_idx
+    cdef np.int32_t[::1] labels  # Needs to be contiguous in memory!
 
-    def __cinit__(self, size_t feature_idx, np.float64_t threshold,
+
+    def __cinit__(self, size_t feature_idx, bint is_categorical,
                   np.float64_t loss, np.float64_t dloss,
                   np.float64_t left_loss, np.float64_t right_loss,
-                  Dataset left_data, Dataset right_data):
+                  Dataset left_data, Dataset right_data,
+                  np.float64_t threshold=np.inf,
+                  int threshold_idx=0, np.int32_t[::1] ordered_labels=None):
         self.feature_idx = feature_idx
-        self.threshold = threshold
         self.loss = loss
         self.dloss = dloss
         self.left_data = left_data
         self.right_data = right_data
         self.loss_left = left_loss
         self.loss_right = right_loss
+        self.is_categorical = is_categorical
+        if self.is_categorical:
+            self.threshold_idx = threshold_idx
+            self.labels = ordered_labels
+        else:
+            self.threshold = threshold
+
+    cdef bint is_better_than(self, SplitChoice other):
+        return other is None or other.dloss > self.dloss
 
 @cython.final
 cdef class CART:
@@ -320,8 +377,6 @@ cdef class CART:
     property nodes:
         def __get__(self):
             return self.all_nodes
-        #def __set__(self, value):
-        #    self.nodes.append(value)
 
     property max_interaction_depth:
         def __get__(self):
@@ -426,7 +481,12 @@ cdef class CART:
             return ret
         self.nb_nodes += 1
         ret.feature_idx = split.feature_idx
-        ret.threshold = split.threshold
+        if split.is_categorical:
+            _set_categorical_node_left_right_values(
+                ret, &split.labels[0], split.labels.shape[0], split.threshold_idx
+            )
+        else:
+            ret.threshold = split.threshold
         _set_left_child(
             ret, self._build_tree(split.left_data, depth+1, split.loss_left)
         )
@@ -471,66 +531,142 @@ cdef class CART:
             current_loss = precomputed_loss
         cdef np.float64_t prop_p0 = np.mean(np.asarray(data.p) == 0)
 
-        cdef np.ndarray values
+        cdef SplitChoice ret = None
+        cdef SplitChoice best_split
+
+        for j in range(covariates.shape[0]):
+            feature_idx = covariates[j]
+            best_split = self._find_best_threshold(
+                data, feature_idx, current_loss, prop_p0
+            )
+            if best_split.is_better_than(ret):
+                ret = best_split
+        return ret
+
+    cdef SplitChoice _find_best_threshold(
+            self, Dataset data, int feature_idx,
+            np.float64_t current_loss, np.float64_t prop_p0):
+        if data.is_categorical(feature_idx):
+            return self._find_best_threshold_categorical(
+                data, feature_idx, current_loss, prop_p0
+            )
+        else:
+            return self._find_best_threshold_numerical(
+                data, feature_idx, current_loss, prop_p0
+            )
+
+    cdef SplitChoice _find_best_threshold_numerical(
+            self, Dataset data, int feature_idx,
+            np.float64_t current_loss, np.float64_t prop_p0):
+        cdef np.ndarray values = np.unique(data.X[:, feature_idx])
+        cdef int base_idx = 0
+        cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])
+
         cdef Dataset left_data
         cdef Dataset right_data
+
         cdef np.float64_t loss_left
         cdef np.float64_t loss_right
         cdef np.float64_t threshold
         cdef np.float64_t prop_left_p0
         cdef np.float64_t prop_right_p0
-        cdef int threshold_idx
-        cdef int feature_idx
-
         cdef np.float64_t loss, dloss
-        cdef np.float64_t best_dloss = 0.
-        cdef size_t best_feature_idx = -1
-        cdef np.float64_t best_threshold = 0
 
-        cdef SplitChoice ret = None
-        cdef np.ndarray sorted_indices
-        cdef int base_idx
+        cdef SplitChoice ret  = None
+        cdef SplitChoice split
 
-        for j in range(covariates.shape[0]):
-            feature_idx = covariates[j]
-            values = np.unique(data.X[:, feature_idx])
-            base_idx = 0
-            sorted_indices = np.argsort(data.X[:, feature_idx])
-            # À faire: choisir le split des variables catégorielles
-            # sur base des valeurs moyennes de y par modalité
-            for threshold_idx in range(values.shape[0]-1):
-                # extract this into a C function
-                threshold = (values[threshold_idx] + values[threshold_idx+1]) / 2.
-                start = time()
-                base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)
-                PROBE += time() - start
-                left_data = data[:base_idx]
-                right_data = data[base_idx:]
+        for threshold_idx in range(values.shape[0]-1):
+            # extract this into a C function
+            threshold = (values[threshold_idx] + values[threshold_idx+1]) / 2.
+            start = time()
+            base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)
+            PROBE += time() - start
+            left_data = data[:base_idx]
+            right_data = data[base_idx:]
 
-                if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
-                    loss = dloss = 0.
-                    prop_left_p0 = prop_right_p0 = 0
-                else:
-                    loss_left = self._loss(left_data.y)
-                    loss_right = self._loss(right_data.y)
+            if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
+                loss = dloss = 0.
+                prop_left_p0 = prop_right_p0 = 0
+            else:
+                loss_left = self._loss(left_data.y)
+                loss_right = self._loss(right_data.y)
 
-                    prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
-                    prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
+                prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
+                prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
 
-                    loss = loss_left * left_data.get_length()
-                    loss += loss_right * right_data.get_length()
-                    dloss = current_loss - loss / data.get_length()
+                loss = loss_left * left_data.get_length()
+                loss += loss_right * right_data.get_length()
+                dloss = current_loss - loss / data.get_length()
 
-                    if dloss > best_dloss and \
-                            fabs(prop_left_p0 - prop_p0) <= self.epsilon*prop_p0 and \
-                            fabs(prop_right_p0 - prop_p0) <= self.epsilon*prop_p0:
-                        best_dloss = dloss
-                        ret = SplitChoice(
-                            feature_idx, threshold, current_loss,
-                            dloss, loss_left, loss_right,
-                            left_data, right_data
-                        )
+                if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
+                        fabs(prop_right_p0 - prop_p0) <= self.epsilon*prop_p0:
+                    continue
+                split = SplitChoice(
+                    feature_idx, False, current_loss,
+                    dloss, loss_left, loss_right,
+                    left_data, right_data,
+                    threshold=threshold
+                )
+                if split.is_better_than(ret):
+                    ret = split
         return ret
+
+    cdef _find_best_threshold_categorical(
+            self, Dataset data, int feature_idx,
+            np.float64_t current_loss, np.float64_t prop_p0):
+        cdef np.ndarray ordered = data.order_categorical(feature_idx).astype(np.int32)
+        ordered = ordered[:np.unique(data.X[:, feature_idx]).size]
+        cdef np.ndarray goes_left = np.zeros(data.get_size(), dtype=np.uint8)
+        cdef threshold_idx
+        cdef np.float64_t[:] values = data.X[:, feature_idx]
+
+        cdef Dataset left_data
+        cdef Dataset right_data
+
+        cdef np.float64_t loss_left
+        cdef np.float64_t loss_right
+        cdef np.float64_t threshold
+        cdef np.float64_t prop_left_p0
+        cdef np.float64_t prop_right_p0
+        cdef np.float64_t loss, dloss
+
+        cdef SplitChoice ret  = None
+        cdef SplitChoice split
+        cdef int threshold_value
+        for threshold_idx in range(ordered.shape[0]-1):
+            threshold_value = ordered[threshold_idx]
+            _mask_categorical(values, threshold_value, goes_left)
+            left_data = data[goes_left]
+            right_data = data[~goes_left]
+
+            if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
+                loss = dloss = 0.
+                prop_left_p0 = prop_right_p0 = 0
+            else:
+                loss_left = self._loss(left_data.y)
+                loss_right = self._loss(right_data.y)
+
+                prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
+                prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
+
+                loss = loss_left * left_data.get_length()
+                loss += loss_right * right_data.get_length()
+                dloss = current_loss - loss / data.get_length()
+
+                if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
+                        fabs(prop_right_p0 - prop_p0) <= self.epsilon*prop_p0:
+                    continue
+                split = SplitChoice(
+                    feature_idx, True, current_loss,
+                    dloss, loss_left, loss_right,
+                    left_data, right_data,
+                    threshold_idx=threshold_idx,
+                    ordered_labels=ordered
+                )
+                if split.is_better_than(ret):
+                    ret = split
+        return ret
+
 
     def predict(self, X):
         cdef np.float64_t[:, :] data = self.data.transform(X)
@@ -545,11 +681,23 @@ cdef class CART:
     cdef np.float64_t _predict_instance(self, np.float64_t[:] x) noexcept nogil:
         cdef _Node* node = self.root
         cdef np.float64_t val
+        cdef int categorical_label
         while _is_root(node):
-            val = x[node.feature_idx]
-            if val <= dereference(node).threshold:
-                node = dereference(node).left_child
+            if node.is_categorical:
+                categorical_label = <int>(x[node.feature_idx])
+                if vector_contains_int32(&node.categorical_values_left, categorical_label):
+                    node = node.left_child
+                elif vector_contains_int32(&node.categorical_values_right, categorical_label):
+                    node = node.right_child
+                else:
+                    # Stop search if modality of categorical value has never been
+                    # seen at this point
+                    break
             else:
-                node = dereference(node).right_child
-        return dereference(node).avg_value
+                val = x[node.feature_idx]
+                if val <= node.threshold:
+                    node = node.left_child
+                else:
+                    node = node.right_child
+        return node.avg_value
 

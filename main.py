@@ -79,6 +79,17 @@ range_nb_obs = [1000*k for k in range(1, 6)]
 bootstrap = 'No'
 ##################################################################################
 
+# dataset = Dataset(X_train, y_train, p_train, dtypes)
+# start_time = time.perf_counter()
+# cart3 = NewCART(
+#     epsilon=margin, id=0, nb_cov=nb_cov, replacement=True, prop_sample=1.0, frac_valid=1.0,
+#     max_interaction_depth=depth, minobs=minobs, name="DiscriTree", loss="poisson",
+#     parallel="No", pruning="No", bootstrap="No")
+# nodes = cart3.fit(dataset)
+# print(nodes)
+# for node in cart3.nodes:
+#     print(node.loss)
+# exit()
 
 # Timing Cython function
 models = [NewCART, CARTRegressor_cython, CARTRegressor_python]
