@@ -16,3 +16,5 @@ clean:
 	rm -f *.so *.c
 
 .PHONY: clean
+
+.SECONDARY: ${NEW_EXTENSION}.c

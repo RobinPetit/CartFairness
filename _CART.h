@@ -123,6 +123,8 @@ static inline struct _Node* new_node(size_t depth) {
     struct _Node* ret = (struct _Node*)malloc(sizeof(struct _Node));
     ret->left_child = ret->right_child = ret->parent = NULL;
     ret->depth = depth;
+    init_vector(&ret->categorical_values_left, 0);
+    init_vector(&ret->categorical_values_right, 0);
     return ret;
 }
 

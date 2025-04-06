@@ -17,7 +17,9 @@ ctypedef size_t Pyssize_t
 
 cdef extern from "_CART.h" nogil:
     cdef struct Vector:
-        pass
+        void* _base
+        size_t allocated
+        size_t n
     cdef struct _Node:
         _Node* left_child
         _Node* right_child
@@ -109,6 +111,20 @@ cdef class Node:
     property nb_samples:
         def __get__(self):
             return dereference(self.node).nb_samples
+
+    property is_categorical:
+        def __get__(self):
+            return self.node.is_categorical
+
+    cpdef list get_left_modalities(self, Dataset data):
+        if not self.node.is_categorical:
+            raise ValueError('Not a categorical split')
+        cdef list ret = []
+        cdef size_t i
+        cdef Vector* vec = &self.node.categorical_values_left
+        for i in range(vec.n):
+            ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
+        return ret
 
 import numpy as np
 import pandas as pd
@@ -229,9 +245,10 @@ cdef class Dataset:
         ret._is_categorical = self._is_categorical
         ret._indices = np.asarray(self._indices)[indices]
         ret._size = ret._indices.shape[0]
+        ret._reverse_mapping = self._reverse_mapping
         return ret
 
-    cdef bint is_categorical(self, int feature_idx):
+    cpdef bint is_categorical(self, int feature_idx):
         return self._is_categorical[feature_idx]
 
     cdef void _labelize(
@@ -292,7 +309,7 @@ cdef class Dataset:
         cdef np.ndarray ysizes = np.zeros(size, dtype=np.int32)
         _extract_mean_ys(self.X[:, feature_idx], self.y, ysums, ysizes)
         ysums /= ysizes
-        return np.argsort(ysums)[::-1]
+        return np.argsort(ysums)#[::-1]
 
 @cython.final
 cdef class SplitChoice:
@@ -327,7 +344,7 @@ cdef class SplitChoice:
             self.threshold = threshold
 
     cdef bint is_better_than(self, SplitChoice other):
-        return other is None or other.dloss > self.dloss
+        return other is None or other.dloss <= self.dloss
 
 @cython.final
 cdef class CART:
@@ -512,7 +529,6 @@ cdef class CART:
         return node
 
     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):
-        global PROBE
         cdef np.uint8_t[:] usable = np.ones(data.X.shape[1], dtype=np.uint8)
         cdef int j
         for j in range(usable.shape[0]):
@@ -558,6 +574,7 @@ cdef class CART:
     cdef SplitChoice _find_best_threshold_numerical(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
+        global PROBE
         cdef np.ndarray values = np.unique(data.X[:, feature_idx])
         cdef int base_idx = 0
         cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])
@@ -599,7 +616,7 @@ cdef class CART:
                 dloss = current_loss - loss / data.get_length()
 
                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
-                        fabs(prop_right_p0 - prop_p0) <= self.epsilon*prop_p0:
+                        fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
                     continue
                 split = SplitChoice(
                     feature_idx, False, current_loss,
@@ -614,9 +631,10 @@ cdef class CART:
     cdef _find_best_threshold_categorical(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
+        global PROBE
         cdef np.ndarray ordered = data.order_categorical(feature_idx).astype(np.int32)
         ordered = ordered[:np.unique(data.X[:, feature_idx]).size]
-        cdef np.ndarray goes_left = np.zeros(data.get_size(), dtype=np.uint8)
+        cdef np.ndarray goes_left = np.zeros(data.get_length(), dtype=bool)
         cdef threshold_idx
         cdef np.float64_t[:] values = data.X[:, feature_idx]
 
@@ -654,7 +672,7 @@ cdef class CART:
                 dloss = current_loss - loss / data.get_length()
 
                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
-                        fabs(prop_right_p0 - prop_p0) <= self.epsilon*prop_p0:
+                        fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
                     continue
                 split = SplitChoice(
                     feature_idx, True, current_loss,
@@ -674,7 +692,6 @@ cdef class CART:
         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
         cdef int i
         for i in prange(n, nogil=True, schedule='runtime'):
-            # Careful: stop search in the tree on unknown modality for category var.
             ret[i] = self._predict_instance(data[i, :])
         return ret
 
