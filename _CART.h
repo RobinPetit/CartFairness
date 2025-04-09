@@ -26,7 +26,7 @@ struct _Node {
     struct _Node* left_child;
     struct _Node* right_child;
 
-    double avg_value, threshold, loss;
+    double avg_value, threshold, loss, dloss;
     size_t nb_samples, depth, feature_idx;
     bool is_categorical;
     Vector categorical_values_left;
@@ -148,8 +148,9 @@ static inline void _set_ys(struct _Node* node, double avg, double loss, size_t s
 
 static inline void _set_categorical_node_left_right_values(
         struct _Node* node, const int32_t* const labels, size_t n, size_t threshold_idx) {
-    init_vector_from_int_ptr(&node->categorical_values_left, labels, threshold_idx);
-    init_vector_from_int_ptr(&node->categorical_values_right, labels+threshold_idx, n-threshold_idx);
+    node->is_categorical = true;
+    init_vector_from_int_ptr(&node->categorical_values_left, labels, threshold_idx+1);
+    init_vector_from_int_ptr(&node->categorical_values_right, labels+threshold_idx+1, n-threshold_idx-1);
 }
 
 static inline void _set_left_child(struct _Node* root, struct _Node* child) {

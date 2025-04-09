@@ -30,6 +30,7 @@ cdef extern from "_CART.h" nogil:
         int feature_idx
         np.float64_t threshold
         np.float64_t loss
+        np.float64_t dloss
         bint is_categorical
         Vector categorical_values_left
         Vector categorical_values_right
@@ -122,6 +123,16 @@ cdef class Node:
         cdef list ret = []
         cdef size_t i
         cdef Vector* vec = &self.node.categorical_values_left
+        for i in range(vec.n):
+            ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
+        return ret
+
+    cpdef list get_right_modalities(self, Dataset data):
+        if not self.node.is_categorical:
+            raise ValueError('Not a categorical split')
+        cdef list ret = []
+        cdef size_t i
+        cdef Vector* vec = &self.node.categorical_values_right
         for i in range(vec.n):
             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
         return ret
@@ -307,9 +318,12 @@ cdef class Dataset:
         cdef int size = len(self._reverse_mapping[feature_idx])
         cdef np.ndarray ysums = np.zeros(size, dtype=np.float64)
         cdef np.ndarray ysizes = np.zeros(size, dtype=np.int32)
-        _extract_mean_ys(self.X[:, feature_idx], self.y, ysums, ysizes)
-        ysums /= ysizes
-        return np.argsort(ysums)#[::-1]
+        _extract_mean_ys(self.X[:, feature_idx], self.y[:], ysums, ysizes)
+        cdef np.ndarray mask = np.where(ysizes > 0)[0]
+        ysums[mask] /= ysizes[mask]
+        cdef np.ndarray ret = np.argsort(ysums)
+        ret = ret[ysizes[ret] > 0]  # TODO: optimize me
+        return ret
 
 @cython.final
 cdef class SplitChoice:
@@ -344,7 +358,7 @@ cdef class SplitChoice:
             self.threshold = threshold
 
     cdef bint is_better_than(self, SplitChoice other):
-        return other is None or other.dloss <= self.dloss
+        return other is None or other.dloss < self.dloss
 
 @cython.final
 cdef class CART:
@@ -360,6 +374,7 @@ cdef class CART:
     cdef size_t max_depth
     cdef int max_interaction_depth
     cdef int nb_nodes
+    cdef int nb_splitting_nodes
     cdef bint pruning
     cdef Dataset data
     cdef _Node* root
@@ -382,6 +397,7 @@ cdef class CART:
         self.minobs = minobs
         self.max_depth = 0
         self.nb_nodes = 0
+        self.nb_splitting_nodes = 0
         self.max_interaction_depth = max_interaction_depth
         loss = loss.lower()
         LOSS_MAPPING = {
@@ -496,20 +512,17 @@ cdef class CART:
         if split.left_data.get_length() <= self.minobs or \
                 split.right_data.get_length() <= self.minobs or \
                 split.dloss < self.delta_loss or split.loss <= 0 or \
-                self.nb_nodes > self.max_interaction_depth:
+                self.nb_splitting_nodes > self.max_interaction_depth:
             return ret
+        self.nb_splitting_nodes += 1
+        ret.dloss = split.dloss
         if split.is_categorical:
             _set_categorical_node_left_right_values(
                 ret, &split.labels[0], split.labels.shape[0], split.threshold_idx
             )
+            ret.threshold = split.threshold_idx + .5
         else:
             ret.threshold = split.threshold
-        _set_left_child(
-            ret, self._build_tree(split.left_data, depth+1, split.loss_left)
-        )
-        _set_right_child(
-            ret, self._build_tree(split.right_data, depth+1, split.loss_right)
-        )
         cdef size_t _depth = dereference(ret).depth
         cdef bint   _kind = _is_root(ret)
         cdef int    _idx = dereference(ret).feature_idx
@@ -518,14 +531,20 @@ cdef class CART:
         cdef np.float64_t _avg = dereference(ret).avg_value
         cdef str kind = 'Node' if _kind else 'Leaf'
         print(f"{'  ' * _depth} {kind}, Depth: {_depth}, "
-              f"Feature: {_idx}, Threshold: {_threshold}, Loss: {_loss}"
+              f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
               f", Mean_value: {_avg}")
+        _set_left_child(
+            ret, self._build_tree(split.left_data, depth+1, split.loss_left)
+        )
+        _set_right_child(
+            ret, self._build_tree(split.right_data, depth+1, split.loss_right)
+        )
         return ret
 
     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):
         self.max_depth = max(depth, self.max_depth)
         cdef _Node* node = new_node(depth)
-        _set_ys(node, np.mean(ys), self._loss(ys), ys.shape[0])
+        _set_ys(node, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])
         return node
 
     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):
@@ -549,6 +568,8 @@ cdef class CART:
 
         cdef SplitChoice ret = None
         cdef SplitChoice best_split
+
+        cdef int feature_idx = 0
 
         for j in range(covariates.shape[0]):
             feature_idx = covariates[j]
@@ -598,21 +619,20 @@ cdef class CART:
             start = time()
             base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)
             PROBE += time() - start
-            left_data = data[:base_idx]
-            right_data = data[base_idx:]
+            left_data = data[sorted_indices[:base_idx]]
+            right_data = data[sorted_indices[base_idx:]]
 
             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
                 loss = dloss = 0.
                 prop_left_p0 = prop_right_p0 = 0
             else:
-                loss_left = self._loss(left_data.y)
-                loss_right = self._loss(right_data.y)
+                loss_left = self._loss(left_data.y) * left_data.get_length()
+                loss_right = self._loss(right_data.y) * right_data.get_length()
 
                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
 
-                loss = loss_left * left_data.get_length()
-                loss += loss_right * right_data.get_length()
+                loss = loss_left + loss_right
                 dloss = current_loss - loss #/ data.get_length()
 
                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
@@ -633,7 +653,6 @@ cdef class CART:
             np.float64_t current_loss, np.float64_t prop_p0):
         global PROBE
         cdef np.ndarray ordered = data.order_categorical(feature_idx).astype(np.int32)
-        ordered = ordered[:np.unique(data.X[:, feature_idx]).size]
         cdef np.ndarray goes_left = np.zeros(data.get_length(), dtype=bool)
         cdef threshold_idx
         cdef np.float64_t[:] values = data.X[:, feature_idx]
@@ -661,14 +680,13 @@ cdef class CART:
                 loss = dloss = 0.
                 prop_left_p0 = prop_right_p0 = 0
             else:
-                loss_left = self._loss(left_data.y)
-                loss_right = self._loss(right_data.y)
+                loss_left = self._loss(left_data.y) * left_data.get_length()
+                loss_right = self._loss(right_data.y) * right_data.get_length()
 
                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
 
-                loss = loss_left * left_data.get_length()
-                loss += loss_right * right_data.get_length()
+                loss = loss_left + loss_right
                 dloss = current_loss - loss #/ data.get_length()
 
                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \

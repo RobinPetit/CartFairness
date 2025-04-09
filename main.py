@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+
+import warnings
+warnings.simplefilter("error")
+
 # compare.py
 from version_simple_cython21_adj_categorical_clean_epsilon import CARTRegressor_cython, preprocess_data
 from version_simple_python_cat_clean_epsilon import CARTRegressor_python
@@ -13,7 +18,7 @@ from CART import Dataset, CART as NewCART
 VERBOSE = False
 
 # load dataset and make sure that all numerical variable are in float64
-nb_observation = 100_000
+nb_observation = 1_000_000
 df_fictif, col_features, col_response, col_protected = load_dataset(nb_obs=nb_observation, verbose=VERBOSE)
 df_fictif.dropna(inplace=True)
 if VERBOSE:
@@ -72,7 +77,7 @@ if VERBOSE:
 margin = 1.0
 nb_cov = len(col_features)
 it = 1
-depth = 3
+depth = 10
 minobs = 10
 range_nb_obs = [1000*k for k in range(1, 6)]
 # bootstrap = "Yes"  # "No" # For model replication (dataset is not boostraped so we must end up with same trees) => for benchmarking computation time is better to let it True
@@ -80,6 +85,7 @@ bootstrap = 'No'
 ##################################################################################
 
 # dataset = Dataset(X_train, y_train, p_train, dtypes)
+# print(np.array([dataset.is_categorical(j) for j in range(len(dtypes))]))
 # start_time = time.perf_counter()
 # cart3 = NewCART(
 #     epsilon=margin, id=0, nb_cov=nb_cov, replacement=True, prop_sample=1.0, frac_valid=1.0,
@@ -88,22 +94,30 @@ bootstrap = 'No'
 # nodes = cart3.fit(dataset)
 # print(nodes)
 # for node in cart3.nodes:
-#     print(node.loss)
+#     print(node.loss, end=' ')
+#     if node.is_categorical:
+#         print('(categorical)')
+#     else:
+#         print('(numerical)')
 # exit()
 
 # Timing Cython function
 models = [NewCART, CARTRegressor_cython, CARTRegressor_python]
 model_names = ['Cython (new)', 'Cython (original)', 'Python']
+model_names.pop(1)
+models.pop(1)
 
 timers = [list() for _ in range(len(models))]
 
 dataset = Dataset(X_train, y_train, p_train, dtypes)
+print('Categorical:')
+print(np.where(np.array([dataset.is_categorical(j) for j in range(len(dtypes))]))[0])
 
 def mse(y, y_pred):
     return np.mean((y-y_pred)**2)
 
 for i, (model, model_name) in enumerate(zip(models, model_names)):
-    for _ in range_nb_obs:
+    for _ in range_nb_obs[:1]:
         print(f'Fitting {model_name} model')
         start_time = time.time()
         cart = model(
@@ -123,7 +137,7 @@ for i, (model, model_name) in enumerate(zip(models, model_names)):
 means = np.mean(timers, axis=1)
 
 timers = [
-    [timers[2][j] / timers[i][j] for j in range(len(timers[i]))]
+    [timers[-1][j] / timers[i][j] for j in range(len(timers[i]))]
     for i in range(len(timers))
 ]
 

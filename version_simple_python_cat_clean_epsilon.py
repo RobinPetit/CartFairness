@@ -252,7 +252,7 @@ class CARTRegressor_python:
         # We consider only covariates with more than one unique value
         covariates = [self.name_cov[i] for i in range(X.shape[1]) if len(np.unique(X[:, i]))>1]
         #print(self.nb_cov, len(covariates), covariates)
-        if self.nb_cov>len(covariates):
+        if self.nb_cov >= len(covariates):
             retained_cov = covariates
         else:
             retained_cov = np.random.choice(covariates, self.nb_cov, replace=False)
@@ -299,8 +299,9 @@ class CARTRegressor_python:
                         prop_right_p0 = y_right_p0.shape[0] / y_right.shape[0]
 
                         # Compute the loss function and the variation of loss between parent node and children nodes
-                        loss =                 loss_left * y_left.shape[0] + loss_right * y_right.shape[0]
-                        dloss = loss_parent - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0]) / y.shape[0]
+                        loss = loss_left * y_left.shape[0] + loss_right * y_right.shape[0]
+                        dloss = loss_parent*y.shape[0]
+                        dloss -= (loss_left * y_left.shape[0] + loss_right * y_right.shape[0])
 
                     else:
                         loss = 0
@@ -410,10 +411,9 @@ class CARTRegressor_python:
             loss_left = self._loss(y_left)
             loss_right = self._loss(y_right)
 
-            loss_decrease = loss - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0])/y.shape[0]
+            loss_decrease = loss*y.shape[0] - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0])
             self.interaction_depth = len([c for c in self.nodes if c.kind == 'Node']) + 1
 
-            # print(f"Node loss: {loss}, Node loss decrease: {loss_decrease}, Feature: {self.name_cov[feature_index]}, Threshold: {threshold}")
 
             # If the required condition to continue to grow the tree are met then
             if y_left.shape[0] > self.minobs and y_right.shape[0] > self.minobs and \
@@ -433,6 +433,10 @@ class CARTRegressor_python:
 
                 self.nodes.append(node)
 
+                print(f"{'  ' * node.depth} {node.kind}, Depth: {node.depth}, "
+                      f"Feature: {node.feature_index}, Threshold: {node.threshold}, DLoss: {node.loss_decrease}"
+                      f", Mean_value: {node.average_value}")
+
                 # Reiterate procedure for child nodes
                 left_child = self._build_tree(X_left, y_left, p_left, node, "left")
                 node.left_child = left_child
@@ -441,10 +445,6 @@ class CARTRegressor_python:
                 right_child = self._build_tree(X_right, y_right, p_right, node, "right")
                 node.right_child = right_child
                 right_child.parent_node = node
-
-                print(f"{'  ' * node.depth} {node.kind}, Depth: {node.depth}, "
-                      f"Feature: {node.feature_index}, Threshold: {node.threshold}, Loss: {node.loss}"
-                      f", Mean_value: {node.average_value}")
 
             # If not grow a leaf
             else:
@@ -547,7 +547,7 @@ class CARTRegressor_python:
             print('*******************************')
 
     def _predict_instance(self, x, node):
-        """
+        r"""
         Function used to make a prediction based on a single observation x \in X at a specific node of the tree.
         If the node is not a terminal node then, the observations continues is path inside the tree until finishing in
         the leaf where the prediction associated is the mean response observed (attribute average_value).
