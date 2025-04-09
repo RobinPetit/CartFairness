@@ -31,7 +31,7 @@ cdef double _mse(double[:] y):
 cpdef double _poisson_deviance_simp2(double[:] y, double[:] y_pred):
     # compute poisson deviance loss function if chosen in _loss
 
-    cdef double epsilon = 1e-18
+    cdef double epsilon = 10**-18
     cdef double dev = 0.0
     cdef Py_ssize_t n = y.shape[0]
     cdef Py_ssize_t i
@@ -320,21 +320,21 @@ cdef class CARTRegressor_cython:
 
     cdef object tree
 
-    cdef double[:,:] X
-    cdef double[:] y
-    cdef double[:] p
+    #cdef double[:,:] X
+    #cdef double[:] y
+    #cdef double[:] p
 
     #cdef double[:,:] X_train
     #cdef double[:] y_train
     #cdef double[:] p_train
 
-    cdef double[:,:] X_test
-    cdef double[:] y_test
-    cdef double[:] p_test
+    #cdef double[:,:] X_test
+    #cdef double[:] y_test
+    #cdef double[:] p_test
 
-    cdef double[:,:] X_shuffle
-    cdef double[:] y_shuffle
-    cdef double[:] p_shuffle
+    #cdef double[:,:] X_shuffle
+    #cdef double[:] y_shuffle
+    #cdef double[:] p_shuffle
 
     #cdef np.ndarray[object, ndim=2] X
     #cdef np.ndarray[np.float64_t, ndim=1] y
@@ -678,7 +678,7 @@ cdef class CARTRegressor_cython:
 
                         # Compute the loss function and the variation of loss between parent node and children nodes
                         loss = loss_parent * y.shape[0]
-                        dloss = loss_parent - (loss_left * y_left.shape[0] + loss_right*y_right.shape[0]) /y.shape[0]
+                        dloss = loss_parent * y.shape[0] - (loss_left * y_left.shape[0] + loss_right*y_right.shape[0])
 
                     else:
                         loss = 0
@@ -852,7 +852,7 @@ cdef class CARTRegressor_cython:
 
             # If the required condition to continue to grow the tree are met then
             if y_left.shape[0] > self.minobs and y_right.shape[0] > self.minobs and \
-                    loss_decrease >= self.delta_loss and loss > 0 and self.interaction_depth<self.max_interaction_depth+1 :# and self.tree_depth < self.max_depth + 1:
+                    loss_decrease >= self.delta_loss and loss > 0 and self.interaction_depth<self.max_interaction_depth :# and self.tree_depth < self.max_depth + 1:
                 #print("Depth: %s, Max depth: %s" % (depth, self.max_depth))
                 #print(f"loss parent ({y.shape[0]}): {loss}, loss left ({y_left.shape[0]}): {loss_left}, loss right ({y_right.shape[0]}): {loss_right}, loss decrease: {loss_decrease}")
 
@@ -899,7 +899,7 @@ cdef class CARTRegressor_cython:
 
         return node
 
-    cpdef tuple sample_arrays(self, np.ndarray[object, ndim=2] X, np.ndarray[np.float64_t, ndim=1] y, np.ndarray[np.float64_t, ndim=1] p, float prop_sample, bint replacement):
+    cdef tuple sample_arrays(self, np.ndarray[object, ndim=2] X, np.ndarray[np.float64_t, ndim=1] y, np.ndarray[np.float64_t, ndim=1] p, float prop_sample, bint replacement):
         """
         Function used to sample randomly the original X_train, y_train, p_train for the boostrap process before fitting the tree.
         """

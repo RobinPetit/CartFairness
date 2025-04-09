@@ -542,7 +542,7 @@ cdef class CART:
 
         cdef np.float64_t current_loss
         if precomputed_loss == np.inf:
-            current_loss = self._loss(data.y)
+            current_loss = self._loss(data.y) * data.get_length()
         else:
             current_loss = precomputed_loss
         cdef np.float64_t prop_p0 = np.mean(np.asarray(data.p) == 0)
@@ -613,7 +613,7 @@ cdef class CART:
 
                 loss = loss_left * left_data.get_length()
                 loss += loss_right * right_data.get_length()
-                dloss = current_loss - loss / data.get_length()
+                dloss = current_loss - loss #/ data.get_length()
 
                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
@@ -669,7 +669,7 @@ cdef class CART:
 
                 loss = loss_left * left_data.get_length()
                 loss += loss_right * right_data.get_length()
-                dloss = current_loss - loss / data.get_length()
+                dloss = current_loss - loss #/ data.get_length()
 
                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
