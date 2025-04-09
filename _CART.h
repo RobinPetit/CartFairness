@@ -6,12 +6,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 
-#ifdef _MSC_VER
-#define __INLINE__
-#else
-#define __INLINE__ inline
-#endif
-
 #define __EPSILON 1e-10
 #define CLOSE_ENOUGH(a, b) (fabs(a-b) < __EPSILON)
 
@@ -39,13 +33,15 @@ struct _Node {
     Vector categorical_values_right;
 };
 
-static __INLINE__ size_t __max(size_t a, size_t b) {
+#ifndef __max
+static inline size_t __max(size_t a, size_t b) {
     return (a > b) ? a : b;
 }
+#endif
 
 #define __ARRAY_ELEM_SIZE __max(sizeof(void*), sizeof(double))
 
-static __INLINE__ void init_vector(Vector* vector, size_t n) {
+static inline void init_vector(Vector* vector, size_t n) {
     vector->n = 0;
     vector->allocated = n;
     if(n > 0)
@@ -54,7 +50,7 @@ static __INLINE__ void init_vector(Vector* vector, size_t n) {
         vector->_base = NULL;
 }
 
-static __INLINE__ void free_vector(Vector* vector) {
+static inline void free_vector(Vector* vector) {
     if(vector->_base != NULL) {
         free(vector->_base);
         vector->allocated = vector->n = 0;
@@ -62,7 +58,7 @@ static __INLINE__ void free_vector(Vector* vector) {
     }
 }
 
-static __INLINE__ bool vector_contains_int32(const Vector* vector, int32_t x) {
+static inline bool vector_contains_int32(const Vector* vector, int32_t x) {
     size_t i;
     for(i = 0; i < vector->n; ++i)
         if(((int32_t*)(vector->_base))[i] == x)
@@ -70,7 +66,7 @@ static __INLINE__ bool vector_contains_int32(const Vector* vector, int32_t x) {
     return false;
 }
 
-static __INLINE__ bool vector_contains_double(const Vector* vector, double x) {
+static inline bool vector_contains_double(const Vector* vector, double x) {
     size_t i;
     for(i = 0; i < vector->n; ++i)
         if(CLOSE_ENOUGH(((double*)(vector->_base))[i], x))
@@ -78,32 +74,32 @@ static __INLINE__ bool vector_contains_double(const Vector* vector, double x) {
     return false;
 }
 
-static __INLINE__ void _ensure_sufficient_size(Vector* vector) {
+static inline void _ensure_sufficient_size(Vector* vector) {
     if(vector->n == vector->allocated) {
         vector->allocated <<= 1;
         vector->_base = realloc(vector->_base, __ARRAY_ELEM_SIZE*vector->allocated);
     }
 }
 
-static __INLINE__ void insert_ptr_in_vector(Vector* vector, void* entry) {
+static inline void insert_ptr_in_vector(Vector* vector, void* entry) {
     _ensure_sufficient_size(vector);
     ((void**)(vector->_base))[vector->n] = entry;
     ++vector->n;
 }
 
-static __INLINE__ void insert_int32_in_vector(Vector* vector, int32_t entry) {
+static inline void insert_int32_in_vector(Vector* vector, int32_t entry) {
     _ensure_sufficient_size(vector);
     ((int32_t*)(vector->_base))[vector->n] = entry;
     ++vector->n;
 }
 
-static __INLINE__ void insert_double_in_vector(Vector* vector, double entry) {
+static inline void insert_double_in_vector(Vector* vector, double entry) {
     _ensure_sufficient_size(vector);
     ((double*)(vector->_base))[vector->n] = entry;
     ++vector->n;
 }
 
-static __INLINE__ void init_vector_from_int_ptr(
+static inline void init_vector_from_int_ptr(
         Vector* vector, const int32_t* const data, size_t n) {
     free_vector(vector);
     init_vector(vector, n);
@@ -113,19 +109,19 @@ static __INLINE__ void init_vector_from_int_ptr(
 }
 
 
-static __INLINE__ void init_PQ(PQ* pq, size_t n) {
+static inline void init_PQ(PQ* pq, size_t n) {
     pq->n = n;
     init_vector(&pq->data, n);
     init_vector(&pq->priorities, n);
 }
 
-static __INLINE__ void free_PQ(PQ* pq) {
+static inline void free_PQ(PQ* pq) {
     free_vector(&pq->priorities);
     free_vector(&pq->data);
     pq->n = 0;
 }
 
-static __INLINE__ struct _Node* new_node(size_t depth) {
+static inline struct _Node* new_node(size_t depth) {
     struct _Node* ret = (struct _Node*)malloc(sizeof(struct _Node));
     ret->left_child = ret->right_child = ret->parent = NULL;
     ret->depth = depth;
@@ -134,7 +130,7 @@ static __INLINE__ struct _Node* new_node(size_t depth) {
     return ret;
 }
 
-static __INLINE__ void clear_node(struct _Node* root) {
+static inline void clear_node(struct _Node* root) {
     if(root->left_child != NULL)
         clear_node(root->left_child);
     if(root->right_child != NULL)
@@ -144,33 +140,33 @@ static __INLINE__ void clear_node(struct _Node* root) {
     free(root);
 }
 
-static __INLINE__ void _set_ys(struct _Node* node, double avg, double loss, size_t size) {
+static inline void _set_ys(struct _Node* node, double avg, double loss, size_t size) {
     node->avg_value = avg;
     node->loss = loss;
     node->nb_samples = size;
 }
 
-static __INLINE__ void _set_categorical_node_left_right_values(
+static inline void _set_categorical_node_left_right_values(
         struct _Node* node, const int32_t* const labels, size_t n, size_t threshold_idx) {
     init_vector_from_int_ptr(&node->categorical_values_left, labels, threshold_idx);
     init_vector_from_int_ptr(&node->categorical_values_right, labels+threshold_idx, n-threshold_idx);
 }
 
-static __INLINE__ void _set_left_child(struct _Node* root, struct _Node* child) {
+static inline void _set_left_child(struct _Node* root, struct _Node* child) {
     root->left_child = child;
     child->parent = root;
 }
 
-static __INLINE__ void _set_right_child(struct _Node* root, struct _Node* child) {
+static inline void _set_right_child(struct _Node* root, struct _Node* child) {
     root->right_child = child;
     child->parent = root;
 }
 
-static __INLINE__ bool _is_root(struct _Node* root) {
+static inline bool _is_root(struct _Node* root) {
     return root->parent == NULL;
 }
 
-static __INLINE__ bool _is_leaf(struct _Node* root) {
+static inline bool _is_leaf(struct _Node* root) {
     return root->left_child == NULL || root->right_child == NULL;
 }
 #endif

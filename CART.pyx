@@ -491,13 +491,13 @@ cdef class CART:
         cdef _Node* ret = self._create_node(data.y, depth)
         if split is None:
             return ret
+        self.nb_nodes += 1
+        ret.feature_idx = split.feature_idx
         if split.left_data.get_length() <= self.minobs or \
                 split.right_data.get_length() <= self.minobs or \
                 split.dloss < self.delta_loss or split.loss <= 0 or \
                 self.nb_nodes > self.max_interaction_depth:
             return ret
-        self.nb_nodes += 1
-        ret.feature_idx = split.feature_idx
         if split.is_categorical:
             _set_categorical_node_left_right_values(
                 ret, &split.labels[0], split.labels.shape[0], split.threshold_idx
