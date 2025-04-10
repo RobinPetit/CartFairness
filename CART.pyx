@@ -541,7 +541,7 @@ cdef class CART:
         ret.dloss = 0.
         if split is None or split.left_data.get_length() <= self.minobs or \
                 split.right_data.get_length() <= self.minobs or \
-                split.dloss < self.delta_loss or split.loss <= 0 or \
+                split.dloss <= self.delta_loss or split.loss <= 0 or \
                 self.nb_splitting_nodes > self.max_interaction_depth:
             return ret
         ret.feature_idx = split.feature_idx
