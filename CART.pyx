@@ -109,7 +109,12 @@ cdef class Node:
 
     property kind:
         def __get__(self):
-            return "Leaf" if _is_leaf(self.node) else "Node"
+            if _is_leaf(self.node):
+                return 'Leaf'
+            elif _is_root(self.node):
+                return 'Root'
+            else:
+                return 'Node'
 
     property nb_samples:
         def __get__(self):
@@ -365,6 +370,10 @@ cdef class SplitChoice:
     cdef bint is_better_than(self, SplitChoice other):
         return other is None or other.dloss < self.dloss
 
+ctypedef enum _SplitType:
+    BEST,
+    DEPTH
+
 @cython.final
 cdef class CART:
     cdef bint bootstrap
@@ -383,6 +392,7 @@ cdef class CART:
     cdef bint pruning
     cdef Dataset data
     cdef _Node* root
+    cdef _SplitType split_type
 
     cdef list all_nodes
 
@@ -392,7 +402,8 @@ cdef class CART:
                   replacement=False, prop_sample=1.0, frac_valid=0.2,
                   max_interaction_depth=0, max_depth=0, margin="absolute",
                   minobs=1, delta_loss=0, loss="MSE", name=None,
-                  parallel="Yes", pruning="No", bootstrap="No"):
+                  parallel="Yes", pruning="No", bootstrap="No",
+                  split='depth'):
         self.bootstrap = (bootstrap == 'Yes')
         self.pruning = (pruning == 'Yes')
         self.replacement = replacement
@@ -414,6 +425,13 @@ cdef class CART:
         }
         assert loss in LOSS_MAPPING.keys()
         self.loss_fct = LOSS_MAPPING[loss]
+        split = split.lower()
+        if split == 'best':
+            self.split_type = _SplitType.BEST
+        elif split == 'depth':
+            self.split_type = _SplitType.DEPTH
+        else:
+            raise ValueError('Unknown split type: ' + str(split))
 
     property nodes:
         def __get__(self):
@@ -514,8 +532,15 @@ cdef class CART:
                 stack.append(Node.from_ptr(dereference(node.node).left_child))
             if dereference(node.node).right_child != NULL:
                 stack.append(Node.from_ptr(dereference(node.node).right_child))
+        self.all_nodes.sort(key=lambda n: n.index)
 
-    cdef _Node* _build_tree(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
+    cdef _Node* _build_tree(self, Dataset data):
+        if self.split_type == _SplitType.DEPTH:
+            return self._build_tree_depth_first(data)
+        elif self.split_type == _SplitType.BEST:
+            return self._build_tree_best_first(data)
+
+    cdef _Node* _build_tree_depth_first(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
         # Should use a PQ to expand the nodes in decreasing order of H/Gini
         cdef SplitChoice split = self._find_best_split(data, loss)
         cdef _Node* ret = self._create_node(data.y, depth)
@@ -549,12 +574,15 @@ cdef class CART:
               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
               f", Mean_value: {_avg}")
         _set_left_child(
-            ret, self._build_tree(split.left_data, depth+1, split.loss_left)
+            ret, self._build_tree_depth_first(split.left_data, depth+1, split.loss_left)
         )
         _set_right_child(
-            ret, self._build_tree(split.right_data, depth+1, split.loss_right)
+            ret, self._build_tree_depth_first(split.right_data, depth+1, split.loss_right)
         )
         return ret
+
+    cdef _Node* _build_tree_best_first(self, Dataset data):
+        pass
 
     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):
         self.max_depth = max(depth, self.max_depth)
