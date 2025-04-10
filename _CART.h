@@ -27,10 +27,11 @@ struct _Node {
     struct _Node* right_child;
 
     double avg_value, threshold, loss, dloss;
-    size_t nb_samples, depth, feature_idx;
+    size_t nb_samples, depth, feature_idx, idx;
     bool is_categorical;
     Vector categorical_values_left;
     Vector categorical_values_right;
+
 };
 
 #ifndef __max
@@ -140,7 +141,8 @@ static inline void clear_node(struct _Node* root) {
     free(root);
 }
 
-static inline void _set_ys(struct _Node* node, double avg, double loss, size_t size) {
+static inline void _set_ys(struct _Node* node, size_t idx, double avg, double loss, size_t size) {
+    node->index = idx;
     node->avg_value = avg;
     node->loss = loss;
     node->nb_samples = size;

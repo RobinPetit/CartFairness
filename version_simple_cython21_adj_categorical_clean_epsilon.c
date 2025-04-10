@@ -16178,7 +16178,7 @@ static PyObject *__pyx_f_53version_simple_cython21_adj_categorical_clean_epsilon
  *             loss_left = _loss(y_left)
  *             loss_right = _loss(y_right)             # <<<<<<<<<<<<<<
  * 
- *             loss_decrease = loss - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0])/ <double>size_parent
+ *             loss_decrease = loss*<double>size_parent - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0]) #/ <double>size_parent
  */
     __pyx_t_44 = __Pyx_PyObject_to_MemoryviewSlice_ds_double(((PyObject *)__pyx_v_y_right), PyBUF_WRITABLE); if (unlikely(!__pyx_t_44.memview)) __PYX_ERR(0, 843, __pyx_L1_error)
     __pyx_v_loss_right = __pyx_f_53version_simple_cython21_adj_categorical_clean_epsilon__loss(__pyx_t_44, 0);
@@ -16189,16 +16189,11 @@ static PyObject *__pyx_f_53version_simple_cython21_adj_categorical_clean_epsilon
     /* "version_simple_cython21_adj_categorical_clean_epsilon.pyx":845
  *             loss_right = _loss(y_right)
  * 
- *             loss_decrease = loss - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0])/ <double>size_parent             # <<<<<<<<<<<<<<
+ *             loss_decrease = loss*<double>size_parent - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0]) #/ <double>size_parent             # <<<<<<<<<<<<<<
  *             #loss_decrease = loss - (loss_left + loss_right) #/ <double>size_parent
  *             #loss_decrease = (_loss(y)*len(y) - (_loss(y_left) * len(y_left) + _loss(y_right) * len(y_right)))
  */
-    __pyx_t_11 = ((__pyx_v_loss_left * (__pyx_v_y_left->dimensions[0])) + (__pyx_v_loss_right * (__pyx_v_y_right->dimensions[0])));
-    if (unlikely(((double)__pyx_v_size_parent) == 0)) {
-      PyErr_SetString(PyExc_ZeroDivisionError, "float division");
-      __PYX_ERR(0, 845, __pyx_L1_error)
-    }
-    __pyx_v_loss_decrease = (__pyx_v_loss - (__pyx_t_11 / ((double)__pyx_v_size_parent)));
+    __pyx_v_loss_decrease = ((__pyx_v_loss * ((double)__pyx_v_size_parent)) - ((__pyx_v_loss_left * (__pyx_v_y_left->dimensions[0])) + (__pyx_v_loss_right * (__pyx_v_y_right->dimensions[0]))));
 
     /* "version_simple_cython21_adj_categorical_clean_epsilon.pyx":848
  *             #loss_decrease = loss - (loss_left + loss_right) #/ <double>size_parent

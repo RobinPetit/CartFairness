@@ -343,7 +343,7 @@ class CARTRegressor_python:
         node.position = position
         node.parent_node = parent_node
         node.index = self.idx
-        node.loss = self._loss(y)
+        node.loss = self._loss(y) * y.shape[0]
         self.nodes.append(node)
 
         #print(f"Leaf idx: {node.index}, Parent node: {node.parent_node.index}")
@@ -421,7 +421,7 @@ class CARTRegressor_python:
 
                 #print(f"loss parent ({y.shape[0]}): {loss}, loss left ({y_left.shape[0]}): {loss_left}, loss right ({y_right.shape[0]}): {loss_right}, loss decrease: {loss_decrease}")
 
-                node = Node(feature_index=feature_index, threshold=threshold, loss=loss, kind=kind,
+                node = Node(feature_index=feature_index, threshold=threshold, loss=loss*y.shape[0], kind=kind,
                             average_value=np.mean(y, dtype="float64"), depth=depth, loss_decrease=loss_decrease,
                             mapping=dic_map, nb_samples=y.shape[0])
 

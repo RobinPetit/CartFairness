@@ -842,7 +842,7 @@ cdef class CARTRegressor_cython:
             loss_left = _loss(y_left)
             loss_right = _loss(y_right)
 
-            loss_decrease = loss - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0])/ <double>size_parent
+            loss_decrease = loss*<double>size_parent - (loss_left * y_left.shape[0] + loss_right * y_right.shape[0]) #/ <double>size_parent
             #loss_decrease = loss - (loss_left + loss_right) #/ <double>size_parent
             #loss_decrease = (_loss(y)*len(y) - (_loss(y_left) * len(y_left) + _loss(y_right) * len(y_right)))
             self.interaction_depth = len([c for c in self.nodes if c.kind == 'Node']) + 1

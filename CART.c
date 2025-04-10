@@ -1404,7 +1404,7 @@ struct __pyx_opt_args_4CART_7Dataset__labelize;
 struct __pyx_opt_args_4CART_4CART__build_tree;
 struct __pyx_opt_args_4CART_4CART__find_best_split;
 
-/* "CART.pyx":139
+/* "CART.pyx":156
  *     pass
  * 
  * ctypedef enum LossFunction:             # <<<<<<<<<<<<<<
@@ -1417,7 +1417,7 @@ enum __pyx_t_4CART_LossFunction {
 };
 typedef enum __pyx_t_4CART_LossFunction __pyx_t_4CART_LossFunction;
 
-/* "CART.pyx":254
+/* "CART.pyx":271
  *         return self._is_categorical[feature_idx]
  * 
  *     cdef void _labelize(             # <<<<<<<<<<<<<<
@@ -1429,7 +1429,7 @@ struct __pyx_opt_args_4CART_7Dataset__labelize {
   int compute_mapping;
 };
 
-/* "CART.pyx":488
+/* "CART.pyx":518
  *                 stack.append(Node.from_ptr(dereference(node.node).right_child))
  * 
  *     cdef _Node* _build_tree(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):             # <<<<<<<<<<<<<<
@@ -1442,7 +1442,7 @@ struct __pyx_opt_args_4CART_4CART__build_tree {
   __pyx_t_5numpy_float64_t loss;
 };
 
-/* "CART.pyx":531
+/* "CART.pyx":565
  *         return node
  * 
  *     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):             # <<<<<<<<<<<<<<
@@ -1454,7 +1454,7 @@ struct __pyx_opt_args_4CART_4CART__find_best_split {
   __pyx_t_5numpy_float64_t precomputed_loss;
 };
 
-/* "CART.pyx":47
+/* "CART.pyx":50
  * 
  * 
  * cdef class Node:             # <<<<<<<<<<<<<<
@@ -1468,7 +1468,7 @@ struct __pyx_obj_4CART_Node {
 };
 
 
-/* "CART.pyx":203
+/* "CART.pyx":220
  * 
  * @cython.final
  * cdef class Dataset:             # <<<<<<<<<<<<<<
@@ -1488,7 +1488,7 @@ struct __pyx_obj_4CART_Dataset {
 };
 
 
-/* "CART.pyx":315
+/* "CART.pyx":335
  * 
  * @cython.final
  * cdef class SplitChoice:             # <<<<<<<<<<<<<<
@@ -1512,7 +1512,7 @@ struct __pyx_obj_4CART_SplitChoice {
 };
 
 
-/* "CART.pyx":350
+/* "CART.pyx":369
  * 
  * @cython.final
  * cdef class CART:             # <<<<<<<<<<<<<<
@@ -1534,10 +1534,12 @@ struct __pyx_obj_4CART_CART {
   size_t max_depth;
   int max_interaction_depth;
   int nb_nodes;
+  int nb_splitting_nodes;
   int pruning;
   struct __pyx_obj_4CART_Dataset *data;
   struct _Node *root;
   PyObject *all_nodes;
+  int idx_nodes;
 };
 
 
@@ -1619,7 +1621,7 @@ struct __pyx_memoryviewslice_obj {
 
 
 
-/* "CART.pyx":47
+/* "CART.pyx":50
  * 
  * 
  * cdef class Node:             # <<<<<<<<<<<<<<
@@ -1630,11 +1632,12 @@ struct __pyx_memoryviewslice_obj {
 struct __pyx_vtabstruct_4CART_Node {
   struct __pyx_obj_4CART_Node *(*from_ptr)(struct _Node *);
   PyObject *(*get_left_modalities)(struct __pyx_obj_4CART_Node *, struct __pyx_obj_4CART_Dataset *, int __pyx_skip_dispatch);
+  PyObject *(*get_right_modalities)(struct __pyx_obj_4CART_Node *, struct __pyx_obj_4CART_Dataset *, int __pyx_skip_dispatch);
 };
 static struct __pyx_vtabstruct_4CART_Node *__pyx_vtabptr_4CART_Node;
 
 
-/* "CART.pyx":203
+/* "CART.pyx":220
  * 
  * @cython.final
  * cdef class Dataset:             # <<<<<<<<<<<<<<
@@ -1661,7 +1664,7 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_transform(struct __pyx_obj_4CART_Da
 static PyArrayObject *__pyx_f_4CART_7Dataset_order_categorical(struct __pyx_obj_4CART_Dataset *, int);
 
 
-/* "CART.pyx":315
+/* "CART.pyx":335
  * 
  * @cython.final
  * cdef class SplitChoice:             # <<<<<<<<<<<<<<
@@ -1676,7 +1679,7 @@ static struct __pyx_vtabstruct_4CART_SplitChoice *__pyx_vtabptr_4CART_SplitChoic
 static int __pyx_f_4CART_11SplitChoice_is_better_than(struct __pyx_obj_4CART_SplitChoice *, struct __pyx_obj_4CART_SplitChoice *);
 
 
-/* "CART.pyx":350
+/* "CART.pyx":369
  * 
  * @cython.final
  * cdef class CART:             # <<<<<<<<<<<<<<
@@ -2391,6 +2394,12 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_FromDouble(double value);
 #define __Pyx_PyInt_FromDouble(value) PyLong_FromDouble(value)
 #endif
 
+/* SliceObject.proto */
+static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(
+        PyObject* obj, Py_ssize_t cstart, Py_ssize_t cstop,
+        PyObject** py_start, PyObject** py_stop, PyObject** py_slice,
+        int has_cstart, int has_cstop, int wraparound);
+
 /* PyErrExceptionMatches.proto */
 #if CYTHON_FAST_THREAD_STATE
 #define __Pyx_PyErr_ExceptionMatches(err) __Pyx_PyErr_ExceptionMatchesInState(__pyx_tstate, err)
@@ -2559,12 +2568,6 @@ static PyObject* __Pyx_PyInt_AddObjC(PyObject *op1, PyObject *op2, long intval, 
 #define __Pyx_PyInt_AddObjC(op1, op2, intval, inplace, zerodivision_check)\
     (inplace ? PyNumber_InPlaceAdd(op1, op2) : PyNumber_Add(op1, op2))
 #endif
-
-/* SliceObject.proto */
-static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(
-        PyObject* obj, Py_ssize_t cstart, Py_ssize_t cstop,
-        PyObject** py_start, PyObject** py_stop, PyObject** py_slice,
-        int has_cstart, int has_cstop, int wraparound);
 
 /* Import.proto */
 static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level);
@@ -2998,6 +3001,7 @@ static int __Pyx_InitStrings(__Pyx_StringTabEntry *t);
 
 static struct __pyx_obj_4CART_Node *__pyx_f_4CART_4Node_from_ptr(struct _Node *__pyx_v_ptr); /* proto*/
 static PyObject *__pyx_f_4CART_4Node_get_left_modalities(struct __pyx_obj_4CART_Node *__pyx_v_self, struct __pyx_obj_4CART_Dataset *__pyx_v_data, int __pyx_skip_dispatch); /* proto*/
+static PyObject *__pyx_f_4CART_4Node_get_right_modalities(struct __pyx_obj_4CART_Node *__pyx_v_self, struct __pyx_obj_4CART_Dataset *__pyx_v_data, int __pyx_skip_dispatch); /* proto*/
 static int __pyx_f_4CART_7Dataset_is_categorical(struct __pyx_obj_4CART_Dataset *__pyx_v_self, int __pyx_v_feature_idx, CYTHON_UNUSED int __pyx_skip_dispatch); /* proto*/
 static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__pyx_v_self, PyArrayObject *__pyx_v_X, __Pyx_memviewslice __pyx_v_out, int __pyx_v_col_idx, struct __pyx_opt_args_4CART_7Dataset__labelize *__pyx_optional_args); /* proto*/
 static struct __pyx_obj_4CART_Dataset *__pyx_f_4CART_7Dataset_sample(struct __pyx_obj_4CART_Dataset *__pyx_v_self, float __pyx_v_prop_sample, int __pyx_v_replacement); /* proto*/
@@ -3169,6 +3173,7 @@ static const char __pyx_k__19[] = " ";
 static const char __pyx_k_cov[] = ", cov=";
 static const char __pyx_k_doc[] = "__doc__";
 static const char __pyx_k_fiu[] = "fiu";
+static const char __pyx_k_idx[] = "idx";
 static const char __pyx_k_inf[] = "inf";
 static const char __pyx_k_mse[] = "mse";
 static const char __pyx_k_new[] = "__new__";
@@ -3177,7 +3182,6 @@ static const char __pyx_k_pop[] = "pop";
 static const char __pyx_k_3_2f[] = "3.2f";
 static const char __pyx_k_CART[] = "CART";
 static const char __pyx_k_Leaf[] = "Leaf";
-static const char __pyx_k_Loss[] = ", Loss: ";
 static const char __pyx_k_Node[] = "Node";
 static const char __pyx_k_None[] = "None";
 static const char __pyx_k_Tree[] = "Tree ";
@@ -3200,6 +3204,7 @@ static const char __pyx_k_stop[] = "stop";
 static const char __pyx_k_test[] = "__test__";
 static const char __pyx_k_time[] = "time";
 static const char __pyx_k_ASCII[] = "ASCII";
+static const char __pyx_k_DLoss[] = ", DLoss: ";
 static const char __pyx_k_Depth[] = ", Depth: ";
 static const char __pyx_k_PROBE[] = "PROBE";
 static const char __pyx_k_class[] = "__class__";
@@ -3311,6 +3316,7 @@ static const char __pyx_k_pyx_unpickle_Enum[] = "__pyx_unpickle_Enum";
 static const char __pyx_k_cline_in_traceback[] = "cline_in_traceback";
 static const char __pyx_k_strided_and_direct[] = "<strided and direct>";
 static const char __pyx_k_get_left_modalities[] = "get_left_modalities";
+static const char __pyx_k_get_right_modalities[] = "get_right_modalities";
 static const char __pyx_k_pyx_unpickle_Dataset[] = "__pyx_unpickle_Dataset";
 static const char __pyx_k_strided_and_indirect[] = "<strided and indirect>";
 static const char __pyx_k_contiguous_and_direct[] = "<contiguous and direct>";
@@ -3351,6 +3357,7 @@ static PyObject *__pyx_kp_s_Cannot_assign_to_read_only_memor;
 static PyObject *__pyx_kp_s_Cannot_create_writable_memory_vi;
 static PyObject *__pyx_kp_s_Cannot_index_with_type_s;
 static PyObject *__pyx_n_s_CategoricalDtype;
+static PyObject *__pyx_kp_u_DLoss;
 static PyObject *__pyx_n_s_Dataset;
 static PyObject *__pyx_kp_u_Depth;
 static PyObject *__pyx_n_s_Ellipsis;
@@ -3364,7 +3371,6 @@ static PyObject *__pyx_kp_s_Indirect_dimensions_not_supporte;
 static PyObject *__pyx_kp_s_Invalid_mode_expected_c_or_fortr;
 static PyObject *__pyx_kp_s_Invalid_shape_in_axis_d_d;
 static PyObject *__pyx_n_u_Leaf;
-static PyObject *__pyx_kp_u_Loss;
 static PyObject *__pyx_n_u_MSE;
 static PyObject *__pyx_kp_u_Mean_value;
 static PyObject *__pyx_n_s_MemoryError;
@@ -3440,9 +3446,11 @@ static PyObject *__pyx_n_s_fortran;
 static PyObject *__pyx_n_u_fortran;
 static PyObject *__pyx_n_s_frac_valid;
 static PyObject *__pyx_n_s_get_left_modalities;
+static PyObject *__pyx_n_s_get_right_modalities;
 static PyObject *__pyx_n_s_getstate;
 static PyObject *__pyx_kp_s_got_differing_extents_in_dimensi;
 static PyObject *__pyx_n_s_id;
+static PyObject *__pyx_n_s_idx;
 static PyObject *__pyx_n_s_import;
 static PyObject *__pyx_n_s_inf;
 static PyObject *__pyx_n_s_int32;
@@ -3558,9 +3566,11 @@ static int __pyx_pf_4CART_4Node_11right_child_2__set__(struct __pyx_obj_4CART_No
 static PyObject *__pyx_pf_4CART_4Node_4kind___get__(struct __pyx_obj_4CART_Node *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_4CART_4Node_10nb_samples___get__(struct __pyx_obj_4CART_Node *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_4CART_4Node_14is_categorical___get__(struct __pyx_obj_4CART_Node *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_4CART_4Node_5index___get__(struct __pyx_obj_4CART_Node *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_4CART_4Node_2get_left_modalities(struct __pyx_obj_4CART_Node *__pyx_v_self, struct __pyx_obj_4CART_Dataset *__pyx_v_data); /* proto */
-static PyObject *__pyx_pf_4CART_4Node_4__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_4CART_Node *__pyx_v_self); /* proto */
-static PyObject *__pyx_pf_4CART_4Node_6__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_4CART_Node *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
+static PyObject *__pyx_pf_4CART_4Node_4get_right_modalities(struct __pyx_obj_4CART_Node *__pyx_v_self, struct __pyx_obj_4CART_Dataset *__pyx_v_data); /* proto */
+static PyObject *__pyx_pf_4CART_4Node_6__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_4CART_Node *__pyx_v_self); /* proto */
+static PyObject *__pyx_pf_4CART_4Node_8__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_4CART_Node *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state); /* proto */
 static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__pyx_v_self, PyArrayObject *__pyx_v_X, PyArrayObject *__pyx_v_y, PyArrayObject *__pyx_v_p, PyArrayObject *__pyx_v_dtypes); /* proto */
 static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dataset *__pyx_v_self, PyObject *__pyx_v_indices); /* proto */
 static PyObject *__pyx_pf_4CART_7Dataset_4is_categorical(struct __pyx_obj_4CART_Dataset *__pyx_v_self, int __pyx_v_feature_idx); /* proto */
@@ -3588,6 +3598,8 @@ static PyObject *__pyx_pf_4CART_4CART_4loss___get__(struct __pyx_obj_4CART_CART 
 static int __pyx_pf_4CART_4CART_4loss_2__set__(struct __pyx_obj_4CART_CART *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
 static PyObject *__pyx_pf_4CART_4CART_6nb_cov___get__(struct __pyx_obj_4CART_CART *__pyx_v_self); /* proto */
 static int __pyx_pf_4CART_4CART_6nb_cov_2__set__(struct __pyx_obj_4CART_CART *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
+static PyObject *__pyx_pf_4CART_4CART_9idx_nodes___get__(struct __pyx_obj_4CART_CART *__pyx_v_self); /* proto */
+static int __pyx_pf_4CART_4CART_9idx_nodes_2__set__(struct __pyx_obj_4CART_CART *__pyx_v_self, PyObject *__pyx_v_value); /* proto */
 static void __pyx_pf_4CART_4CART_2__dealloc__(struct __pyx_obj_4CART_CART *__pyx_v_self); /* proto */
 static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_self, struct __pyx_obj_4CART_Dataset *__pyx_v_dataset); /* proto */
 static PyObject *__pyx_pf_4CART_4CART_6predict(struct __pyx_obj_4CART_CART *__pyx_v_self, PyObject *__pyx_v_X); /* proto */
@@ -3708,7 +3720,7 @@ static PyObject *__pyx_codeobj__23;
 static PyObject *__pyx_codeobj__44;
 /* Late includes */
 
-/* "CART.pyx":51
+/* "CART.pyx":54
  * 
  *     @staticmethod
  *     cdef Node from_ptr(_Node* ptr):             # <<<<<<<<<<<<<<
@@ -3726,45 +3738,45 @@ static struct __pyx_obj_4CART_Node *__pyx_f_4CART_4Node_from_ptr(struct _Node *_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("from_ptr", 0);
-  __Pyx_TraceCall("from_ptr", __pyx_f[0], 51, 0, __PYX_ERR(0, 51, __pyx_L1_error));
+  __Pyx_TraceCall("from_ptr", __pyx_f[0], 54, 0, __PYX_ERR(0, 54, __pyx_L1_error));
 
-  /* "CART.pyx":52
+  /* "CART.pyx":55
  *     @staticmethod
  *     cdef Node from_ptr(_Node* ptr):
  *         cdef Node ret = Node.__new__(Node)             # <<<<<<<<<<<<<<
  *         ret.node = ptr
  *         return ret
  */
-  __Pyx_TraceLine(52,0,__PYX_ERR(0, 52, __pyx_L1_error))
-  __pyx_t_1 = ((PyObject *)__pyx_tp_new_4CART_Node(((PyTypeObject *)__pyx_ptype_4CART_Node), __pyx_empty_tuple, NULL)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 52, __pyx_L1_error)
+  __Pyx_TraceLine(55,0,__PYX_ERR(0, 55, __pyx_L1_error))
+  __pyx_t_1 = ((PyObject *)__pyx_tp_new_4CART_Node(((PyTypeObject *)__pyx_ptype_4CART_Node), __pyx_empty_tuple, NULL)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 55, __pyx_L1_error)
   __Pyx_GOTREF(((PyObject *)__pyx_t_1));
   __pyx_v_ret = ((struct __pyx_obj_4CART_Node *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":53
+  /* "CART.pyx":56
  *     cdef Node from_ptr(_Node* ptr):
  *         cdef Node ret = Node.__new__(Node)
  *         ret.node = ptr             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-  __Pyx_TraceLine(53,0,__PYX_ERR(0, 53, __pyx_L1_error))
+  __Pyx_TraceLine(56,0,__PYX_ERR(0, 56, __pyx_L1_error))
   __pyx_v_ret->node = __pyx_v_ptr;
 
-  /* "CART.pyx":54
+  /* "CART.pyx":57
  *         cdef Node ret = Node.__new__(Node)
  *         ret.node = ptr
  *         return ret             # <<<<<<<<<<<<<<
  * 
  *     def __eq__(self, Node other) -> bool:
  */
-  __Pyx_TraceLine(54,0,__PYX_ERR(0, 54, __pyx_L1_error))
+  __Pyx_TraceLine(57,0,__PYX_ERR(0, 57, __pyx_L1_error))
   __Pyx_XDECREF(((PyObject *)__pyx_r));
   __Pyx_INCREF(((PyObject *)__pyx_v_ret));
   __pyx_r = __pyx_v_ret;
   goto __pyx_L0;
 
-  /* "CART.pyx":51
+  /* "CART.pyx":54
  * 
  *     @staticmethod
  *     cdef Node from_ptr(_Node* ptr):             # <<<<<<<<<<<<<<
@@ -3785,7 +3797,7 @@ static struct __pyx_obj_4CART_Node *__pyx_f_4CART_4Node_from_ptr(struct _Node *_
   return __pyx_r;
 }
 
-/* "CART.pyx":56
+/* "CART.pyx":59
  *         return ret
  * 
  *     def __eq__(self, Node other) -> bool:             # <<<<<<<<<<<<<<
@@ -3802,7 +3814,7 @@ static PyObject *__pyx_pw_4CART_4Node_1__eq__(PyObject *__pyx_v_self, PyObject *
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__eq__ (wrapper)", 0);
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_other), __pyx_ptype_4CART_Node, 1, "other", 0))) __PYX_ERR(0, 56, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_other), __pyx_ptype_4CART_Node, 1, "other", 0))) __PYX_ERR(0, 59, __pyx_L1_error)
   __pyx_r = __pyx_pf_4CART_4Node___eq__(((struct __pyx_obj_4CART_Node *)__pyx_v_self), ((struct __pyx_obj_4CART_Node *)__pyx_v_other));
 
   /* function exit code */
@@ -3823,24 +3835,24 @@ static PyObject *__pyx_pf_4CART_4Node___eq__(struct __pyx_obj_4CART_Node *__pyx_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__eq__", 0);
-  __Pyx_TraceCall("__eq__", __pyx_f[0], 56, 0, __PYX_ERR(0, 56, __pyx_L1_error));
+  __Pyx_TraceCall("__eq__", __pyx_f[0], 59, 0, __PYX_ERR(0, 59, __pyx_L1_error));
 
-  /* "CART.pyx":57
+  /* "CART.pyx":60
  * 
  *     def __eq__(self, Node other) -> bool:
  *         return self.node == other.node             # <<<<<<<<<<<<<<
  * 
  *     property feature_idx:
  */
-  __Pyx_TraceLine(57,0,__PYX_ERR(0, 57, __pyx_L1_error))
+  __Pyx_TraceLine(60,0,__PYX_ERR(0, 60, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong((__pyx_v_self->node == __pyx_v_other->node)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 57, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong((__pyx_v_self->node == __pyx_v_other->node)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 60, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":56
+  /* "CART.pyx":59
  *         return ret
  * 
  *     def __eq__(self, Node other) -> bool:             # <<<<<<<<<<<<<<
@@ -3860,7 +3872,7 @@ static PyObject *__pyx_pf_4CART_4Node___eq__(struct __pyx_obj_4CART_Node *__pyx_
   return __pyx_r;
 }
 
-/* "CART.pyx":60
+/* "CART.pyx":63
  * 
  *     property feature_idx:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -3890,24 +3902,24 @@ static PyObject *__pyx_pf_4CART_4Node_11feature_idx___get__(struct __pyx_obj_4CA
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 60, 0, __PYX_ERR(0, 60, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 63, 0, __PYX_ERR(0, 63, __pyx_L1_error));
 
-  /* "CART.pyx":61
+  /* "CART.pyx":64
  *     property feature_idx:
  *         def __get__(self):
  *             return dereference(self.node).feature_idx             # <<<<<<<<<<<<<<
  *         def __set__(self, int value):
  *             dereference(self.node).feature_idx = value
  */
-  __Pyx_TraceLine(61,0,__PYX_ERR(0, 61, __pyx_L1_error))
+  __Pyx_TraceLine(64,0,__PYX_ERR(0, 64, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_int((*__pyx_v_self->node).feature_idx); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 61, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int((*__pyx_v_self->node).feature_idx); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 64, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":60
+  /* "CART.pyx":63
  * 
  *     property feature_idx:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -3927,7 +3939,7 @@ static PyObject *__pyx_pf_4CART_4Node_11feature_idx___get__(struct __pyx_obj_4CA
   return __pyx_r;
 }
 
-/* "CART.pyx":62
+/* "CART.pyx":65
  *         def __get__(self):
  *             return dereference(self.node).feature_idx
  *         def __set__(self, int value):             # <<<<<<<<<<<<<<
@@ -3946,7 +3958,7 @@ static int __pyx_pw_4CART_4Node_11feature_idx_3__set__(PyObject *__pyx_v_self, P
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
   assert(__pyx_arg_value); {
-    __pyx_v_value = __Pyx_PyInt_As_int(__pyx_arg_value); if (unlikely((__pyx_v_value == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 62, __pyx_L3_error)
+    __pyx_v_value = __Pyx_PyInt_As_int(__pyx_arg_value); if (unlikely((__pyx_v_value == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 65, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -3969,19 +3981,19 @@ static int __pyx_pf_4CART_4Node_11feature_idx_2__set__(struct __pyx_obj_4CART_No
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 62, 0, __PYX_ERR(0, 62, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 65, 0, __PYX_ERR(0, 65, __pyx_L1_error));
 
-  /* "CART.pyx":63
+  /* "CART.pyx":66
  *             return dereference(self.node).feature_idx
  *         def __set__(self, int value):
  *             dereference(self.node).feature_idx = value             # <<<<<<<<<<<<<<
  * 
  *     property threshold:
  */
-  __Pyx_TraceLine(63,0,__PYX_ERR(0, 63, __pyx_L1_error))
+  __Pyx_TraceLine(66,0,__PYX_ERR(0, 66, __pyx_L1_error))
   (*__pyx_v_self->node).feature_idx = __pyx_v_value;
 
-  /* "CART.pyx":62
+  /* "CART.pyx":65
  *         def __get__(self):
  *             return dereference(self.node).feature_idx
  *         def __set__(self, int value):             # <<<<<<<<<<<<<<
@@ -4001,7 +4013,7 @@ static int __pyx_pf_4CART_4Node_11feature_idx_2__set__(struct __pyx_obj_4CART_No
   return __pyx_r;
 }
 
-/* "CART.pyx":66
+/* "CART.pyx":69
  * 
  *     property threshold:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4031,24 +4043,24 @@ static PyObject *__pyx_pf_4CART_4Node_9threshold___get__(struct __pyx_obj_4CART_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 66, 0, __PYX_ERR(0, 66, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 69, 0, __PYX_ERR(0, 69, __pyx_L1_error));
 
-  /* "CART.pyx":67
+  /* "CART.pyx":70
  *     property threshold:
  *         def __get__(self):
  *             return dereference(self.node).threshold             # <<<<<<<<<<<<<<
  *         def __set__(self, float value):
  *             dereference(self.node).threshold = value
  */
-  __Pyx_TraceLine(67,0,__PYX_ERR(0, 67, __pyx_L1_error))
+  __Pyx_TraceLine(70,0,__PYX_ERR(0, 70, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyFloat_FromDouble((*__pyx_v_self->node).threshold); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 67, __pyx_L1_error)
+  __pyx_t_1 = PyFloat_FromDouble((*__pyx_v_self->node).threshold); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 70, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":66
+  /* "CART.pyx":69
  * 
  *     property threshold:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4068,7 +4080,7 @@ static PyObject *__pyx_pf_4CART_4Node_9threshold___get__(struct __pyx_obj_4CART_
   return __pyx_r;
 }
 
-/* "CART.pyx":68
+/* "CART.pyx":71
  *         def __get__(self):
  *             return dereference(self.node).threshold
  *         def __set__(self, float value):             # <<<<<<<<<<<<<<
@@ -4087,7 +4099,7 @@ static int __pyx_pw_4CART_4Node_9threshold_3__set__(PyObject *__pyx_v_self, PyOb
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
   assert(__pyx_arg_value); {
-    __pyx_v_value = __pyx_PyFloat_AsFloat(__pyx_arg_value); if (unlikely((__pyx_v_value == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 68, __pyx_L3_error)
+    __pyx_v_value = __pyx_PyFloat_AsFloat(__pyx_arg_value); if (unlikely((__pyx_v_value == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 71, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4110,19 +4122,19 @@ static int __pyx_pf_4CART_4Node_9threshold_2__set__(struct __pyx_obj_4CART_Node 
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 68, 0, __PYX_ERR(0, 68, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 71, 0, __PYX_ERR(0, 71, __pyx_L1_error));
 
-  /* "CART.pyx":69
+  /* "CART.pyx":72
  *             return dereference(self.node).threshold
  *         def __set__(self, float value):
  *             dereference(self.node).threshold = value             # <<<<<<<<<<<<<<
  * 
  *     property loss:
  */
-  __Pyx_TraceLine(69,0,__PYX_ERR(0, 69, __pyx_L1_error))
+  __Pyx_TraceLine(72,0,__PYX_ERR(0, 72, __pyx_L1_error))
   (*__pyx_v_self->node).threshold = __pyx_v_value;
 
-  /* "CART.pyx":68
+  /* "CART.pyx":71
  *         def __get__(self):
  *             return dereference(self.node).threshold
  *         def __set__(self, float value):             # <<<<<<<<<<<<<<
@@ -4142,7 +4154,7 @@ static int __pyx_pf_4CART_4Node_9threshold_2__set__(struct __pyx_obj_4CART_Node 
   return __pyx_r;
 }
 
-/* "CART.pyx":72
+/* "CART.pyx":75
  * 
  *     property loss:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4172,24 +4184,24 @@ static PyObject *__pyx_pf_4CART_4Node_4loss___get__(struct __pyx_obj_4CART_Node 
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 72, 0, __PYX_ERR(0, 72, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 75, 0, __PYX_ERR(0, 75, __pyx_L1_error));
 
-  /* "CART.pyx":73
+  /* "CART.pyx":76
  *     property loss:
  *         def __get__(self):
  *             return dereference(self.node).loss             # <<<<<<<<<<<<<<
  *         def __set__(self, float value):
  *             dereference(self.node).loss = value
  */
-  __Pyx_TraceLine(73,0,__PYX_ERR(0, 73, __pyx_L1_error))
+  __Pyx_TraceLine(76,0,__PYX_ERR(0, 76, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyFloat_FromDouble((*__pyx_v_self->node).loss); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 73, __pyx_L1_error)
+  __pyx_t_1 = PyFloat_FromDouble((*__pyx_v_self->node).loss); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 76, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":72
+  /* "CART.pyx":75
  * 
  *     property loss:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4209,7 +4221,7 @@ static PyObject *__pyx_pf_4CART_4Node_4loss___get__(struct __pyx_obj_4CART_Node 
   return __pyx_r;
 }
 
-/* "CART.pyx":74
+/* "CART.pyx":77
  *         def __get__(self):
  *             return dereference(self.node).loss
  *         def __set__(self, float value):             # <<<<<<<<<<<<<<
@@ -4228,7 +4240,7 @@ static int __pyx_pw_4CART_4Node_4loss_3__set__(PyObject *__pyx_v_self, PyObject 
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
   assert(__pyx_arg_value); {
-    __pyx_v_value = __pyx_PyFloat_AsFloat(__pyx_arg_value); if (unlikely((__pyx_v_value == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 74, __pyx_L3_error)
+    __pyx_v_value = __pyx_PyFloat_AsFloat(__pyx_arg_value); if (unlikely((__pyx_v_value == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 77, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4251,19 +4263,19 @@ static int __pyx_pf_4CART_4Node_4loss_2__set__(struct __pyx_obj_4CART_Node *__py
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 74, 0, __PYX_ERR(0, 74, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 77, 0, __PYX_ERR(0, 77, __pyx_L1_error));
 
-  /* "CART.pyx":75
+  /* "CART.pyx":78
  *             return dereference(self.node).loss
  *         def __set__(self, float value):
  *             dereference(self.node).loss = value             # <<<<<<<<<<<<<<
  * 
  *     property avg_value:
  */
-  __Pyx_TraceLine(75,0,__PYX_ERR(0, 75, __pyx_L1_error))
+  __Pyx_TraceLine(78,0,__PYX_ERR(0, 78, __pyx_L1_error))
   (*__pyx_v_self->node).loss = __pyx_v_value;
 
-  /* "CART.pyx":74
+  /* "CART.pyx":77
  *         def __get__(self):
  *             return dereference(self.node).loss
  *         def __set__(self, float value):             # <<<<<<<<<<<<<<
@@ -4283,7 +4295,7 @@ static int __pyx_pf_4CART_4Node_4loss_2__set__(struct __pyx_obj_4CART_Node *__py
   return __pyx_r;
 }
 
-/* "CART.pyx":78
+/* "CART.pyx":81
  * 
  *     property avg_value:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4313,24 +4325,24 @@ static PyObject *__pyx_pf_4CART_4Node_9avg_value___get__(struct __pyx_obj_4CART_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 78, 0, __PYX_ERR(0, 78, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 81, 0, __PYX_ERR(0, 81, __pyx_L1_error));
 
-  /* "CART.pyx":79
+  /* "CART.pyx":82
  *     property avg_value:
  *         def __get__(self):
  *             return dereference(self.node).avg_value             # <<<<<<<<<<<<<<
  *         def __set__(self, float value):
  *             dereference(self.node).avg_value = value
  */
-  __Pyx_TraceLine(79,0,__PYX_ERR(0, 79, __pyx_L1_error))
+  __Pyx_TraceLine(82,0,__PYX_ERR(0, 82, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyFloat_FromDouble((*__pyx_v_self->node).avg_value); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 79, __pyx_L1_error)
+  __pyx_t_1 = PyFloat_FromDouble((*__pyx_v_self->node).avg_value); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 82, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":78
+  /* "CART.pyx":81
  * 
  *     property avg_value:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4350,7 +4362,7 @@ static PyObject *__pyx_pf_4CART_4Node_9avg_value___get__(struct __pyx_obj_4CART_
   return __pyx_r;
 }
 
-/* "CART.pyx":80
+/* "CART.pyx":83
  *         def __get__(self):
  *             return dereference(self.node).avg_value
  *         def __set__(self, float value):             # <<<<<<<<<<<<<<
@@ -4369,7 +4381,7 @@ static int __pyx_pw_4CART_4Node_9avg_value_3__set__(PyObject *__pyx_v_self, PyOb
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
   assert(__pyx_arg_value); {
-    __pyx_v_value = __pyx_PyFloat_AsFloat(__pyx_arg_value); if (unlikely((__pyx_v_value == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 80, __pyx_L3_error)
+    __pyx_v_value = __pyx_PyFloat_AsFloat(__pyx_arg_value); if (unlikely((__pyx_v_value == (float)-1) && PyErr_Occurred())) __PYX_ERR(0, 83, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4392,19 +4404,19 @@ static int __pyx_pf_4CART_4Node_9avg_value_2__set__(struct __pyx_obj_4CART_Node 
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 80, 0, __PYX_ERR(0, 80, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 83, 0, __PYX_ERR(0, 83, __pyx_L1_error));
 
-  /* "CART.pyx":81
+  /* "CART.pyx":84
  *             return dereference(self.node).avg_value
  *         def __set__(self, float value):
  *             dereference(self.node).avg_value = value             # <<<<<<<<<<<<<<
  * 
  *     property depth:
  */
-  __Pyx_TraceLine(81,0,__PYX_ERR(0, 81, __pyx_L1_error))
+  __Pyx_TraceLine(84,0,__PYX_ERR(0, 84, __pyx_L1_error))
   (*__pyx_v_self->node).avg_value = __pyx_v_value;
 
-  /* "CART.pyx":80
+  /* "CART.pyx":83
  *         def __get__(self):
  *             return dereference(self.node).avg_value
  *         def __set__(self, float value):             # <<<<<<<<<<<<<<
@@ -4424,7 +4436,7 @@ static int __pyx_pf_4CART_4Node_9avg_value_2__set__(struct __pyx_obj_4CART_Node 
   return __pyx_r;
 }
 
-/* "CART.pyx":84
+/* "CART.pyx":87
  * 
  *     property depth:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4454,24 +4466,24 @@ static PyObject *__pyx_pf_4CART_4Node_5depth___get__(struct __pyx_obj_4CART_Node
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 84, 0, __PYX_ERR(0, 84, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 87, 0, __PYX_ERR(0, 87, __pyx_L1_error));
 
-  /* "CART.pyx":85
+  /* "CART.pyx":88
  *     property depth:
  *         def __get__(self):
  *             return dereference(self.node).depth             # <<<<<<<<<<<<<<
  *         def __set__(self, int value):
  *             dereference(self.node).depth = value
  */
-  __Pyx_TraceLine(85,0,__PYX_ERR(0, 85, __pyx_L1_error))
+  __Pyx_TraceLine(88,0,__PYX_ERR(0, 88, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_FromSize_t((*__pyx_v_self->node).depth); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 85, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_FromSize_t((*__pyx_v_self->node).depth); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 88, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":84
+  /* "CART.pyx":87
  * 
  *     property depth:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4491,7 +4503,7 @@ static PyObject *__pyx_pf_4CART_4Node_5depth___get__(struct __pyx_obj_4CART_Node
   return __pyx_r;
 }
 
-/* "CART.pyx":86
+/* "CART.pyx":89
  *         def __get__(self):
  *             return dereference(self.node).depth
  *         def __set__(self, int value):             # <<<<<<<<<<<<<<
@@ -4510,7 +4522,7 @@ static int __pyx_pw_4CART_4Node_5depth_3__set__(PyObject *__pyx_v_self, PyObject
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
   assert(__pyx_arg_value); {
-    __pyx_v_value = __Pyx_PyInt_As_int(__pyx_arg_value); if (unlikely((__pyx_v_value == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 86, __pyx_L3_error)
+    __pyx_v_value = __Pyx_PyInt_As_int(__pyx_arg_value); if (unlikely((__pyx_v_value == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 89, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -4533,19 +4545,19 @@ static int __pyx_pf_4CART_4Node_5depth_2__set__(struct __pyx_obj_4CART_Node *__p
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 86, 0, __PYX_ERR(0, 86, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 89, 0, __PYX_ERR(0, 89, __pyx_L1_error));
 
-  /* "CART.pyx":87
+  /* "CART.pyx":90
  *             return dereference(self.node).depth
  *         def __set__(self, int value):
  *             dereference(self.node).depth = value             # <<<<<<<<<<<<<<
  * 
  *     property parent:
  */
-  __Pyx_TraceLine(87,0,__PYX_ERR(0, 87, __pyx_L1_error))
+  __Pyx_TraceLine(90,0,__PYX_ERR(0, 90, __pyx_L1_error))
   (*__pyx_v_self->node).depth = __pyx_v_value;
 
-  /* "CART.pyx":86
+  /* "CART.pyx":89
  *         def __get__(self):
  *             return dereference(self.node).depth
  *         def __set__(self, int value):             # <<<<<<<<<<<<<<
@@ -4565,7 +4577,7 @@ static int __pyx_pf_4CART_4Node_5depth_2__set__(struct __pyx_obj_4CART_Node *__p
   return __pyx_r;
 }
 
-/* "CART.pyx":90
+/* "CART.pyx":93
  * 
  *     property parent:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4595,24 +4607,24 @@ static PyObject *__pyx_pf_4CART_4Node_6parent___get__(struct __pyx_obj_4CART_Nod
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 90, 0, __PYX_ERR(0, 90, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 93, 0, __PYX_ERR(0, 93, __pyx_L1_error));
 
-  /* "CART.pyx":91
+  /* "CART.pyx":94
  *     property parent:
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).parent)             # <<<<<<<<<<<<<<
  *         def __set__(self, Node value):
  *             dereference(self.node).parent = value.node
  */
-  __Pyx_TraceLine(91,0,__PYX_ERR(0, 91, __pyx_L1_error))
+  __Pyx_TraceLine(94,0,__PYX_ERR(0, 94, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_self->node).parent)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 91, __pyx_L1_error)
+  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_self->node).parent)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 94, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":90
+  /* "CART.pyx":93
  * 
  *     property parent:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4632,7 +4644,7 @@ static PyObject *__pyx_pf_4CART_4Node_6parent___get__(struct __pyx_obj_4CART_Nod
   return __pyx_r;
 }
 
-/* "CART.pyx":92
+/* "CART.pyx":95
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).parent)
  *         def __set__(self, Node value):             # <<<<<<<<<<<<<<
@@ -4649,7 +4661,7 @@ static int __pyx_pw_4CART_4Node_6parent_3__set__(PyObject *__pyx_v_self, PyObjec
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_value), __pyx_ptype_4CART_Node, 1, "value", 0))) __PYX_ERR(0, 92, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_value), __pyx_ptype_4CART_Node, 1, "value", 0))) __PYX_ERR(0, 95, __pyx_L1_error)
   __pyx_r = __pyx_pf_4CART_4Node_6parent_2__set__(((struct __pyx_obj_4CART_Node *)__pyx_v_self), ((struct __pyx_obj_4CART_Node *)__pyx_v_value));
 
   /* function exit code */
@@ -4670,20 +4682,20 @@ static int __pyx_pf_4CART_4Node_6parent_2__set__(struct __pyx_obj_4CART_Node *__
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 92, 0, __PYX_ERR(0, 92, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 95, 0, __PYX_ERR(0, 95, __pyx_L1_error));
 
-  /* "CART.pyx":93
+  /* "CART.pyx":96
  *             return Node.from_ptr(dereference(self.node).parent)
  *         def __set__(self, Node value):
  *             dereference(self.node).parent = value.node             # <<<<<<<<<<<<<<
  * 
  *     property left_child:
  */
-  __Pyx_TraceLine(93,0,__PYX_ERR(0, 93, __pyx_L1_error))
+  __Pyx_TraceLine(96,0,__PYX_ERR(0, 96, __pyx_L1_error))
   __pyx_t_1 = __pyx_v_value->node;
   (*__pyx_v_self->node).parent = __pyx_t_1;
 
-  /* "CART.pyx":92
+  /* "CART.pyx":95
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).parent)
  *         def __set__(self, Node value):             # <<<<<<<<<<<<<<
@@ -4703,7 +4715,7 @@ static int __pyx_pf_4CART_4Node_6parent_2__set__(struct __pyx_obj_4CART_Node *__
   return __pyx_r;
 }
 
-/* "CART.pyx":96
+/* "CART.pyx":99
  * 
  *     property left_child:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4733,24 +4745,24 @@ static PyObject *__pyx_pf_4CART_4Node_10left_child___get__(struct __pyx_obj_4CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 96, 0, __PYX_ERR(0, 96, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 99, 0, __PYX_ERR(0, 99, __pyx_L1_error));
 
-  /* "CART.pyx":97
+  /* "CART.pyx":100
  *     property left_child:
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).left_child)             # <<<<<<<<<<<<<<
  *         def __set__(self, Node value):
  *             dereference(self.node).left_child = value.node
  */
-  __Pyx_TraceLine(97,0,__PYX_ERR(0, 97, __pyx_L1_error))
+  __Pyx_TraceLine(100,0,__PYX_ERR(0, 100, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_self->node).left_child)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 97, __pyx_L1_error)
+  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_self->node).left_child)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 100, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":96
+  /* "CART.pyx":99
  * 
  *     property left_child:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4770,7 +4782,7 @@ static PyObject *__pyx_pf_4CART_4Node_10left_child___get__(struct __pyx_obj_4CAR
   return __pyx_r;
 }
 
-/* "CART.pyx":98
+/* "CART.pyx":101
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).left_child)
  *         def __set__(self, Node value):             # <<<<<<<<<<<<<<
@@ -4787,7 +4799,7 @@ static int __pyx_pw_4CART_4Node_10left_child_3__set__(PyObject *__pyx_v_self, Py
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_value), __pyx_ptype_4CART_Node, 1, "value", 0))) __PYX_ERR(0, 98, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_value), __pyx_ptype_4CART_Node, 1, "value", 0))) __PYX_ERR(0, 101, __pyx_L1_error)
   __pyx_r = __pyx_pf_4CART_4Node_10left_child_2__set__(((struct __pyx_obj_4CART_Node *)__pyx_v_self), ((struct __pyx_obj_4CART_Node *)__pyx_v_value));
 
   /* function exit code */
@@ -4808,20 +4820,20 @@ static int __pyx_pf_4CART_4Node_10left_child_2__set__(struct __pyx_obj_4CART_Nod
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 98, 0, __PYX_ERR(0, 98, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 101, 0, __PYX_ERR(0, 101, __pyx_L1_error));
 
-  /* "CART.pyx":99
+  /* "CART.pyx":102
  *             return Node.from_ptr(dereference(self.node).left_child)
  *         def __set__(self, Node value):
  *             dereference(self.node).left_child = value.node             # <<<<<<<<<<<<<<
  * 
  *     property right_child:
  */
-  __Pyx_TraceLine(99,0,__PYX_ERR(0, 99, __pyx_L1_error))
+  __Pyx_TraceLine(102,0,__PYX_ERR(0, 102, __pyx_L1_error))
   __pyx_t_1 = __pyx_v_value->node;
   (*__pyx_v_self->node).left_child = __pyx_t_1;
 
-  /* "CART.pyx":98
+  /* "CART.pyx":101
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).left_child)
  *         def __set__(self, Node value):             # <<<<<<<<<<<<<<
@@ -4841,7 +4853,7 @@ static int __pyx_pf_4CART_4Node_10left_child_2__set__(struct __pyx_obj_4CART_Nod
   return __pyx_r;
 }
 
-/* "CART.pyx":102
+/* "CART.pyx":105
  * 
  *     property right_child:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4871,24 +4883,24 @@ static PyObject *__pyx_pf_4CART_4Node_11right_child___get__(struct __pyx_obj_4CA
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 102, 0, __PYX_ERR(0, 102, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 105, 0, __PYX_ERR(0, 105, __pyx_L1_error));
 
-  /* "CART.pyx":103
+  /* "CART.pyx":106
  *     property right_child:
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).right_child)             # <<<<<<<<<<<<<<
  *         def __set__(self, Node value):
  *             dereference(self.node).right_child = value.node
  */
-  __Pyx_TraceLine(103,0,__PYX_ERR(0, 103, __pyx_L1_error))
+  __Pyx_TraceLine(106,0,__PYX_ERR(0, 106, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_self->node).right_child)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 103, __pyx_L1_error)
+  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_self->node).right_child)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 106, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":102
+  /* "CART.pyx":105
  * 
  *     property right_child:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -4908,7 +4920,7 @@ static PyObject *__pyx_pf_4CART_4Node_11right_child___get__(struct __pyx_obj_4CA
   return __pyx_r;
 }
 
-/* "CART.pyx":104
+/* "CART.pyx":107
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).right_child)
  *         def __set__(self, Node value):             # <<<<<<<<<<<<<<
@@ -4925,7 +4937,7 @@ static int __pyx_pw_4CART_4Node_11right_child_3__set__(PyObject *__pyx_v_self, P
   int __pyx_r;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_value), __pyx_ptype_4CART_Node, 1, "value", 0))) __PYX_ERR(0, 104, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_value), __pyx_ptype_4CART_Node, 1, "value", 0))) __PYX_ERR(0, 107, __pyx_L1_error)
   __pyx_r = __pyx_pf_4CART_4Node_11right_child_2__set__(((struct __pyx_obj_4CART_Node *)__pyx_v_self), ((struct __pyx_obj_4CART_Node *)__pyx_v_value));
 
   /* function exit code */
@@ -4946,20 +4958,20 @@ static int __pyx_pf_4CART_4Node_11right_child_2__set__(struct __pyx_obj_4CART_No
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 104, 0, __PYX_ERR(0, 104, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 107, 0, __PYX_ERR(0, 107, __pyx_L1_error));
 
-  /* "CART.pyx":105
+  /* "CART.pyx":108
  *             return Node.from_ptr(dereference(self.node).right_child)
  *         def __set__(self, Node value):
  *             dereference(self.node).right_child = value.node             # <<<<<<<<<<<<<<
  * 
  *     property kind:
  */
-  __Pyx_TraceLine(105,0,__PYX_ERR(0, 105, __pyx_L1_error))
+  __Pyx_TraceLine(108,0,__PYX_ERR(0, 108, __pyx_L1_error))
   __pyx_t_1 = __pyx_v_value->node;
   (*__pyx_v_self->node).right_child = __pyx_t_1;
 
-  /* "CART.pyx":104
+  /* "CART.pyx":107
  *         def __get__(self):
  *             return Node.from_ptr(dereference(self.node).right_child)
  *         def __set__(self, Node value):             # <<<<<<<<<<<<<<
@@ -4979,7 +4991,7 @@ static int __pyx_pf_4CART_4Node_11right_child_2__set__(struct __pyx_obj_4CART_No
   return __pyx_r;
 }
 
-/* "CART.pyx":108
+/* "CART.pyx":111
  * 
  *     property kind:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -5009,16 +5021,16 @@ static PyObject *__pyx_pf_4CART_4Node_4kind___get__(struct __pyx_obj_4CART_Node 
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 108, 0, __PYX_ERR(0, 108, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 111, 0, __PYX_ERR(0, 111, __pyx_L1_error));
 
-  /* "CART.pyx":109
+  /* "CART.pyx":112
  *     property kind:
  *         def __get__(self):
  *             return "Leaf" if _is_leaf(self.node) else "Node"             # <<<<<<<<<<<<<<
  * 
  *     property nb_samples:
  */
-  __Pyx_TraceLine(109,0,__PYX_ERR(0, 109, __pyx_L1_error))
+  __Pyx_TraceLine(112,0,__PYX_ERR(0, 112, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
   if ((_is_leaf(__pyx_v_self->node) != 0)) {
     __Pyx_INCREF(__pyx_n_u_Leaf);
@@ -5031,7 +5043,7 @@ static PyObject *__pyx_pf_4CART_4Node_4kind___get__(struct __pyx_obj_4CART_Node 
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":108
+  /* "CART.pyx":111
  * 
  *     property kind:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -5051,7 +5063,7 @@ static PyObject *__pyx_pf_4CART_4Node_4kind___get__(struct __pyx_obj_4CART_Node 
   return __pyx_r;
 }
 
-/* "CART.pyx":112
+/* "CART.pyx":115
  * 
  *     property nb_samples:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -5081,24 +5093,24 @@ static PyObject *__pyx_pf_4CART_4Node_10nb_samples___get__(struct __pyx_obj_4CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 112, 0, __PYX_ERR(0, 112, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 115, 0, __PYX_ERR(0, 115, __pyx_L1_error));
 
-  /* "CART.pyx":113
+  /* "CART.pyx":116
  *     property nb_samples:
  *         def __get__(self):
  *             return dereference(self.node).nb_samples             # <<<<<<<<<<<<<<
  * 
  *     property is_categorical:
  */
-  __Pyx_TraceLine(113,0,__PYX_ERR(0, 113, __pyx_L1_error))
+  __Pyx_TraceLine(116,0,__PYX_ERR(0, 116, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_FromSize_t((*__pyx_v_self->node).nb_samples); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 113, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_FromSize_t((*__pyx_v_self->node).nb_samples); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 116, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":112
+  /* "CART.pyx":115
  * 
  *     property nb_samples:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -5118,7 +5130,7 @@ static PyObject *__pyx_pf_4CART_4Node_10nb_samples___get__(struct __pyx_obj_4CAR
   return __pyx_r;
 }
 
-/* "CART.pyx":116
+/* "CART.pyx":119
  * 
  *     property is_categorical:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -5148,24 +5160,24 @@ static PyObject *__pyx_pf_4CART_4Node_14is_categorical___get__(struct __pyx_obj_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 116, 0, __PYX_ERR(0, 116, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 119, 0, __PYX_ERR(0, 119, __pyx_L1_error));
 
-  /* "CART.pyx":117
+  /* "CART.pyx":120
  *     property is_categorical:
  *         def __get__(self):
  *             return self.node.is_categorical             # <<<<<<<<<<<<<<
  * 
- *     cpdef list get_left_modalities(self, Dataset data):
+ *     property index:
  */
-  __Pyx_TraceLine(117,0,__PYX_ERR(0, 117, __pyx_L1_error))
+  __Pyx_TraceLine(120,0,__PYX_ERR(0, 120, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_v_self->node->is_categorical); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 117, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_v_self->node->is_categorical); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 120, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":116
+  /* "CART.pyx":119
  * 
  *     property is_categorical:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -5185,8 +5197,75 @@ static PyObject *__pyx_pf_4CART_4Node_14is_categorical___get__(struct __pyx_obj_
   return __pyx_r;
 }
 
-/* "CART.pyx":119
- *             return self.node.is_categorical
+/* "CART.pyx":123
+ * 
+ *     property index:
+ *         def __get__(self):             # <<<<<<<<<<<<<<
+ *             return self.idx
+ * 
+ */
+
+/* Python wrapper */
+static PyObject *__pyx_pw_4CART_4Node_5index_1__get__(PyObject *__pyx_v_self); /*proto*/
+static PyObject *__pyx_pw_4CART_4Node_5index_1__get__(PyObject *__pyx_v_self) {
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("__get__ (wrapper)", 0);
+  __pyx_r = __pyx_pf_4CART_4Node_5index___get__(((struct __pyx_obj_4CART_Node *)__pyx_v_self));
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_4CART_4Node_5index___get__(struct __pyx_obj_4CART_Node *__pyx_v_self) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_TraceDeclarations
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("__get__", 0);
+  __Pyx_TraceCall("__get__", __pyx_f[0], 123, 0, __PYX_ERR(0, 123, __pyx_L1_error));
+
+  /* "CART.pyx":124
+ *     property index:
+ *         def __get__(self):
+ *             return self.idx             # <<<<<<<<<<<<<<
+ * 
+ *     cpdef list get_left_modalities(self, Dataset data):
+ */
+  __Pyx_TraceLine(124,0,__PYX_ERR(0, 124, __pyx_L1_error))
+  __Pyx_XDECREF(__pyx_r);
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_idx); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 124, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_r = __pyx_t_1;
+  __pyx_t_1 = 0;
+  goto __pyx_L0;
+
+  /* "CART.pyx":123
+ * 
+ *     property index:
+ *         def __get__(self):             # <<<<<<<<<<<<<<
+ *             return self.idx
+ * 
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("CART.Node.index.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_TraceReturn(__pyx_r, 0);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "CART.pyx":126
+ *             return self.idx
  * 
  *     cpdef list get_left_modalities(self, Dataset data):             # <<<<<<<<<<<<<<
  *         if not self.node.is_categorical:
@@ -5214,7 +5293,7 @@ static PyObject *__pyx_f_4CART_4Node_get_left_modalities(struct __pyx_obj_4CART_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_left_modalities", 0);
-  __Pyx_TraceCall("get_left_modalities", __pyx_f[0], 119, 0, __PYX_ERR(0, 119, __pyx_L1_error));
+  __Pyx_TraceCall("get_left_modalities", __pyx_f[0], 126, 0, __PYX_ERR(0, 126, __pyx_L1_error));
   /* Check if called by wrapper */
   if (unlikely(__pyx_skip_dispatch)) ;
   /* Check if overridden in Python */
@@ -5224,7 +5303,7 @@ static PyObject *__pyx_f_4CART_4Node_get_left_modalities(struct __pyx_obj_4CART_
     if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
       PY_UINT64_T __pyx_type_dict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
       #endif
-      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_get_left_modalities); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 119, __pyx_L1_error)
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_get_left_modalities); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 126, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       if (!PyCFunction_Check(__pyx_t_1) || (PyCFunction_GET_FUNCTION(__pyx_t_1) != (PyCFunction)(void*)__pyx_pw_4CART_4Node_3get_left_modalities)) {
         __Pyx_XDECREF(__pyx_r);
@@ -5241,10 +5320,10 @@ static PyObject *__pyx_f_4CART_4Node_get_left_modalities(struct __pyx_obj_4CART_
         }
         __pyx_t_2 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, ((PyObject *)__pyx_v_data)) : __Pyx_PyObject_CallOneArg(__pyx_t_3, ((PyObject *)__pyx_v_data));
         __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 119, __pyx_L1_error)
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 126, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-        if (!(likely(PyList_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||((void)PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "list", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 119, __pyx_L1_error)
+        if (!(likely(PyList_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||((void)PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "list", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 126, __pyx_L1_error)
         __pyx_r = ((PyObject*)__pyx_t_2);
         __pyx_t_2 = 0;
         __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
@@ -5263,32 +5342,32 @@ static PyObject *__pyx_f_4CART_4Node_get_left_modalities(struct __pyx_obj_4CART_
     #endif
   }
 
-  /* "CART.pyx":120
+  /* "CART.pyx":127
  * 
  *     cpdef list get_left_modalities(self, Dataset data):
  *         if not self.node.is_categorical:             # <<<<<<<<<<<<<<
  *             raise ValueError('Not a categorical split')
  *         cdef list ret = []
  */
-  __Pyx_TraceLine(120,0,__PYX_ERR(0, 120, __pyx_L1_error))
+  __Pyx_TraceLine(127,0,__PYX_ERR(0, 127, __pyx_L1_error))
   __pyx_t_5 = ((!(__pyx_v_self->node->is_categorical != 0)) != 0);
   if (unlikely(__pyx_t_5)) {
 
-    /* "CART.pyx":121
+    /* "CART.pyx":128
  *     cpdef list get_left_modalities(self, Dataset data):
  *         if not self.node.is_categorical:
  *             raise ValueError('Not a categorical split')             # <<<<<<<<<<<<<<
  *         cdef list ret = []
  *         cdef size_t i
  */
-    __Pyx_TraceLine(121,0,__PYX_ERR(0, 121, __pyx_L1_error))
-    __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_tuple_, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 121, __pyx_L1_error)
+    __Pyx_TraceLine(128,0,__PYX_ERR(0, 128, __pyx_L1_error))
+    __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_tuple_, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 128, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_Raise(__pyx_t_1, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __PYX_ERR(0, 121, __pyx_L1_error)
+    __PYX_ERR(0, 128, __pyx_L1_error)
 
-    /* "CART.pyx":120
+    /* "CART.pyx":127
  * 
  *     cpdef list get_left_modalities(self, Dataset data):
  *         if not self.node.is_categorical:             # <<<<<<<<<<<<<<
@@ -5297,78 +5376,78 @@ static PyObject *__pyx_f_4CART_4Node_get_left_modalities(struct __pyx_obj_4CART_
  */
   }
 
-  /* "CART.pyx":122
+  /* "CART.pyx":129
  *         if not self.node.is_categorical:
  *             raise ValueError('Not a categorical split')
  *         cdef list ret = []             # <<<<<<<<<<<<<<
  *         cdef size_t i
  *         cdef Vector* vec = &self.node.categorical_values_left
  */
-  __Pyx_TraceLine(122,0,__PYX_ERR(0, 122, __pyx_L1_error))
-  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 122, __pyx_L1_error)
+  __Pyx_TraceLine(129,0,__PYX_ERR(0, 129, __pyx_L1_error))
+  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 129, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_ret = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":124
+  /* "CART.pyx":131
  *         cdef list ret = []
  *         cdef size_t i
  *         cdef Vector* vec = &self.node.categorical_values_left             # <<<<<<<<<<<<<<
  *         for i in range(vec.n):
  *             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
  */
-  __Pyx_TraceLine(124,0,__PYX_ERR(0, 124, __pyx_L1_error))
+  __Pyx_TraceLine(131,0,__PYX_ERR(0, 131, __pyx_L1_error))
   __pyx_v_vec = (&__pyx_v_self->node->categorical_values_left);
 
-  /* "CART.pyx":125
+  /* "CART.pyx":132
  *         cdef size_t i
  *         cdef Vector* vec = &self.node.categorical_values_left
  *         for i in range(vec.n):             # <<<<<<<<<<<<<<
  *             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
  *         return ret
  */
-  __Pyx_TraceLine(125,0,__PYX_ERR(0, 125, __pyx_L1_error))
+  __Pyx_TraceLine(132,0,__PYX_ERR(0, 132, __pyx_L1_error))
   __pyx_t_6 = __pyx_v_vec->n;
   __pyx_t_7 = __pyx_t_6;
   for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
     __pyx_v_i = __pyx_t_8;
 
-    /* "CART.pyx":126
+    /* "CART.pyx":133
  *         cdef Vector* vec = &self.node.categorical_values_left
  *         for i in range(vec.n):
  *             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-    __Pyx_TraceLine(126,0,__PYX_ERR(0, 126, __pyx_L1_error))
+    __Pyx_TraceLine(133,0,__PYX_ERR(0, 133, __pyx_L1_error))
     if (unlikely(__pyx_v_data->_reverse_mapping == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-      __PYX_ERR(0, 126, __pyx_L1_error)
+      __PYX_ERR(0, 133, __pyx_L1_error)
     }
-    __pyx_t_1 = __Pyx_GetItemInt_List(__pyx_v_data->_reverse_mapping, __pyx_v_self->node->feature_idx, int, 1, __Pyx_PyInt_From_int, 1, 1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 126, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_GetItemInt_List(__pyx_v_data->_reverse_mapping, __pyx_v_self->node->feature_idx, int, 1, __Pyx_PyInt_From_int, 1, 1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 133, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = __Pyx_GetItemInt(__pyx_t_1, (((__pyx_t_5numpy_int32_t *)__pyx_v_vec->_base)[__pyx_v_i]), __pyx_t_5numpy_int32_t, 1, __Pyx_PyInt_From_npy_int32, 0, 1, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 126, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_GetItemInt(__pyx_t_1, (((__pyx_t_5numpy_int32_t *)__pyx_v_vec->_base)[__pyx_v_i]), __pyx_t_5numpy_int32_t, 1, __Pyx_PyInt_From_npy_int32, 0, 1, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 133, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __pyx_t_9 = __Pyx_PyList_Append(__pyx_v_ret, __pyx_t_2); if (unlikely(__pyx_t_9 == ((int)-1))) __PYX_ERR(0, 126, __pyx_L1_error)
+    __pyx_t_9 = __Pyx_PyList_Append(__pyx_v_ret, __pyx_t_2); if (unlikely(__pyx_t_9 == ((int)-1))) __PYX_ERR(0, 133, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   }
 
-  /* "CART.pyx":127
+  /* "CART.pyx":134
  *         for i in range(vec.n):
  *             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
  *         return ret             # <<<<<<<<<<<<<<
  * 
- * import numpy as np
+ *     cpdef list get_right_modalities(self, Dataset data):
  */
-  __Pyx_TraceLine(127,0,__PYX_ERR(0, 127, __pyx_L1_error))
+  __Pyx_TraceLine(134,0,__PYX_ERR(0, 134, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
   __Pyx_INCREF(__pyx_v_ret);
   __pyx_r = __pyx_v_ret;
   goto __pyx_L0;
 
-  /* "CART.pyx":119
- *             return self.node.is_categorical
+  /* "CART.pyx":126
+ *             return self.idx
  * 
  *     cpdef list get_left_modalities(self, Dataset data):             # <<<<<<<<<<<<<<
  *         if not self.node.is_categorical:
@@ -5400,7 +5479,7 @@ static PyObject *__pyx_pw_4CART_4Node_3get_left_modalities(PyObject *__pyx_v_sel
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("get_left_modalities (wrapper)", 0);
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_data), __pyx_ptype_4CART_Dataset, 1, "data", 0))) __PYX_ERR(0, 119, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_data), __pyx_ptype_4CART_Dataset, 1, "data", 0))) __PYX_ERR(0, 126, __pyx_L1_error)
   __pyx_r = __pyx_pf_4CART_4Node_2get_left_modalities(((struct __pyx_obj_4CART_Node *)__pyx_v_self), ((struct __pyx_obj_4CART_Dataset *)__pyx_v_data));
 
   /* function exit code */
@@ -5421,9 +5500,9 @@ static PyObject *__pyx_pf_4CART_4Node_2get_left_modalities(struct __pyx_obj_4CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("get_left_modalities", 0);
-  __Pyx_TraceCall("get_left_modalities (wrapper)", __pyx_f[0], 119, 0, __PYX_ERR(0, 119, __pyx_L1_error));
+  __Pyx_TraceCall("get_left_modalities (wrapper)", __pyx_f[0], 126, 0, __PYX_ERR(0, 126, __pyx_L1_error));
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __pyx_f_4CART_4Node_get_left_modalities(__pyx_v_self, __pyx_v_data, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 119, __pyx_L1_error)
+  __pyx_t_1 = __pyx_f_4CART_4Node_get_left_modalities(__pyx_v_self, __pyx_v_data, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 126, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -5441,6 +5520,262 @@ static PyObject *__pyx_pf_4CART_4Node_2get_left_modalities(struct __pyx_obj_4CAR
   return __pyx_r;
 }
 
+/* "CART.pyx":136
+ *         return ret
+ * 
+ *     cpdef list get_right_modalities(self, Dataset data):             # <<<<<<<<<<<<<<
+ *         if not self.node.is_categorical:
+ *             raise ValueError('Not a categorical split')
+ */
+
+static PyObject *__pyx_pw_4CART_4Node_5get_right_modalities(PyObject *__pyx_v_self, PyObject *__pyx_v_data); /*proto*/
+static PyObject *__pyx_f_4CART_4Node_get_right_modalities(struct __pyx_obj_4CART_Node *__pyx_v_self, struct __pyx_obj_4CART_Dataset *__pyx_v_data, int __pyx_skip_dispatch) {
+  PyObject *__pyx_v_ret = 0;
+  size_t __pyx_v_i;
+  struct Vector *__pyx_v_vec;
+  PyObject *__pyx_r = NULL;
+  __Pyx_TraceDeclarations
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  PyObject *__pyx_t_2 = NULL;
+  PyObject *__pyx_t_3 = NULL;
+  PyObject *__pyx_t_4 = NULL;
+  int __pyx_t_5;
+  size_t __pyx_t_6;
+  size_t __pyx_t_7;
+  size_t __pyx_t_8;
+  int __pyx_t_9;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("get_right_modalities", 0);
+  __Pyx_TraceCall("get_right_modalities", __pyx_f[0], 136, 0, __PYX_ERR(0, 136, __pyx_L1_error));
+  /* Check if called by wrapper */
+  if (unlikely(__pyx_skip_dispatch)) ;
+  /* Check if overridden in Python */
+  else if (unlikely((Py_TYPE(((PyObject *)__pyx_v_self))->tp_dictoffset != 0) || (Py_TYPE(((PyObject *)__pyx_v_self))->tp_flags & (Py_TPFLAGS_IS_ABSTRACT | Py_TPFLAGS_HEAPTYPE)))) {
+    #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS
+    static PY_UINT64_T __pyx_tp_dict_version = __PYX_DICT_VERSION_INIT, __pyx_obj_dict_version = __PYX_DICT_VERSION_INIT;
+    if (unlikely(!__Pyx_object_dict_version_matches(((PyObject *)__pyx_v_self), __pyx_tp_dict_version, __pyx_obj_dict_version))) {
+      PY_UINT64_T __pyx_type_dict_guard = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
+      #endif
+      __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_get_right_modalities); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 136, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_1);
+      if (!PyCFunction_Check(__pyx_t_1) || (PyCFunction_GET_FUNCTION(__pyx_t_1) != (PyCFunction)(void*)__pyx_pw_4CART_4Node_5get_right_modalities)) {
+        __Pyx_XDECREF(__pyx_r);
+        __Pyx_INCREF(__pyx_t_1);
+        __pyx_t_3 = __pyx_t_1; __pyx_t_4 = NULL;
+        if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
+          __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_3);
+          if (likely(__pyx_t_4)) {
+            PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
+            __Pyx_INCREF(__pyx_t_4);
+            __Pyx_INCREF(function);
+            __Pyx_DECREF_SET(__pyx_t_3, function);
+          }
+        }
+        __pyx_t_2 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, ((PyObject *)__pyx_v_data)) : __Pyx_PyObject_CallOneArg(__pyx_t_3, ((PyObject *)__pyx_v_data));
+        __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+        if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 136, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_2);
+        __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+        if (!(likely(PyList_CheckExact(__pyx_t_2))||((__pyx_t_2) == Py_None)||((void)PyErr_Format(PyExc_TypeError, "Expected %.16s, got %.200s", "list", Py_TYPE(__pyx_t_2)->tp_name), 0))) __PYX_ERR(0, 136, __pyx_L1_error)
+        __pyx_r = ((PyObject*)__pyx_t_2);
+        __pyx_t_2 = 0;
+        __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+        goto __pyx_L0;
+      }
+      #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS
+      __pyx_tp_dict_version = __Pyx_get_tp_dict_version(((PyObject *)__pyx_v_self));
+      __pyx_obj_dict_version = __Pyx_get_object_dict_version(((PyObject *)__pyx_v_self));
+      if (unlikely(__pyx_type_dict_guard != __pyx_tp_dict_version)) {
+        __pyx_tp_dict_version = __pyx_obj_dict_version = __PYX_DICT_VERSION_INIT;
+      }
+      #endif
+      __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+      #if CYTHON_USE_DICT_VERSIONS && CYTHON_USE_PYTYPE_LOOKUP && CYTHON_USE_TYPE_SLOTS
+    }
+    #endif
+  }
+
+  /* "CART.pyx":137
+ * 
+ *     cpdef list get_right_modalities(self, Dataset data):
+ *         if not self.node.is_categorical:             # <<<<<<<<<<<<<<
+ *             raise ValueError('Not a categorical split')
+ *         cdef list ret = []
+ */
+  __Pyx_TraceLine(137,0,__PYX_ERR(0, 137, __pyx_L1_error))
+  __pyx_t_5 = ((!(__pyx_v_self->node->is_categorical != 0)) != 0);
+  if (unlikely(__pyx_t_5)) {
+
+    /* "CART.pyx":138
+ *     cpdef list get_right_modalities(self, Dataset data):
+ *         if not self.node.is_categorical:
+ *             raise ValueError('Not a categorical split')             # <<<<<<<<<<<<<<
+ *         cdef list ret = []
+ *         cdef size_t i
+ */
+    __Pyx_TraceLine(138,0,__PYX_ERR(0, 138, __pyx_L1_error))
+    __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_ValueError, __pyx_tuple_, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 138, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __Pyx_Raise(__pyx_t_1, 0, 0, 0);
+    __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+    __PYX_ERR(0, 138, __pyx_L1_error)
+
+    /* "CART.pyx":137
+ * 
+ *     cpdef list get_right_modalities(self, Dataset data):
+ *         if not self.node.is_categorical:             # <<<<<<<<<<<<<<
+ *             raise ValueError('Not a categorical split')
+ *         cdef list ret = []
+ */
+  }
+
+  /* "CART.pyx":139
+ *         if not self.node.is_categorical:
+ *             raise ValueError('Not a categorical split')
+ *         cdef list ret = []             # <<<<<<<<<<<<<<
+ *         cdef size_t i
+ *         cdef Vector* vec = &self.node.categorical_values_right
+ */
+  __Pyx_TraceLine(139,0,__PYX_ERR(0, 139, __pyx_L1_error))
+  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 139, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_v_ret = ((PyObject*)__pyx_t_1);
+  __pyx_t_1 = 0;
+
+  /* "CART.pyx":141
+ *         cdef list ret = []
+ *         cdef size_t i
+ *         cdef Vector* vec = &self.node.categorical_values_right             # <<<<<<<<<<<<<<
+ *         for i in range(vec.n):
+ *             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
+ */
+  __Pyx_TraceLine(141,0,__PYX_ERR(0, 141, __pyx_L1_error))
+  __pyx_v_vec = (&__pyx_v_self->node->categorical_values_right);
+
+  /* "CART.pyx":142
+ *         cdef size_t i
+ *         cdef Vector* vec = &self.node.categorical_values_right
+ *         for i in range(vec.n):             # <<<<<<<<<<<<<<
+ *             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
+ *         return ret
+ */
+  __Pyx_TraceLine(142,0,__PYX_ERR(0, 142, __pyx_L1_error))
+  __pyx_t_6 = __pyx_v_vec->n;
+  __pyx_t_7 = __pyx_t_6;
+  for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
+    __pyx_v_i = __pyx_t_8;
+
+    /* "CART.pyx":143
+ *         cdef Vector* vec = &self.node.categorical_values_right
+ *         for i in range(vec.n):
+ *             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])             # <<<<<<<<<<<<<<
+ *         return ret
+ * 
+ */
+    __Pyx_TraceLine(143,0,__PYX_ERR(0, 143, __pyx_L1_error))
+    if (unlikely(__pyx_v_data->_reverse_mapping == Py_None)) {
+      PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
+      __PYX_ERR(0, 143, __pyx_L1_error)
+    }
+    __pyx_t_1 = __Pyx_GetItemInt_List(__pyx_v_data->_reverse_mapping, __pyx_v_self->node->feature_idx, int, 1, __Pyx_PyInt_From_int, 1, 1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 143, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_1);
+    __pyx_t_2 = __Pyx_GetItemInt(__pyx_t_1, (((__pyx_t_5numpy_int32_t *)__pyx_v_vec->_base)[__pyx_v_i]), __pyx_t_5numpy_int32_t, 1, __Pyx_PyInt_From_npy_int32, 0, 1, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 143, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_2);
+    __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+    __pyx_t_9 = __Pyx_PyList_Append(__pyx_v_ret, __pyx_t_2); if (unlikely(__pyx_t_9 == ((int)-1))) __PYX_ERR(0, 143, __pyx_L1_error)
+    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  }
+
+  /* "CART.pyx":144
+ *         for i in range(vec.n):
+ *             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
+ *         return ret             # <<<<<<<<<<<<<<
+ * 
+ * import numpy as np
+ */
+  __Pyx_TraceLine(144,0,__PYX_ERR(0, 144, __pyx_L1_error))
+  __Pyx_XDECREF(__pyx_r);
+  __Pyx_INCREF(__pyx_v_ret);
+  __pyx_r = __pyx_v_ret;
+  goto __pyx_L0;
+
+  /* "CART.pyx":136
+ *         return ret
+ * 
+ *     cpdef list get_right_modalities(self, Dataset data):             # <<<<<<<<<<<<<<
+ *         if not self.node.is_categorical:
+ *             raise ValueError('Not a categorical split')
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_XDECREF(__pyx_t_2);
+  __Pyx_XDECREF(__pyx_t_3);
+  __Pyx_XDECREF(__pyx_t_4);
+  __Pyx_AddTraceback("CART.Node.get_right_modalities", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = 0;
+  __pyx_L0:;
+  __Pyx_XDECREF(__pyx_v_ret);
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_TraceReturn(__pyx_r, 0);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* Python wrapper */
+static PyObject *__pyx_pw_4CART_4Node_5get_right_modalities(PyObject *__pyx_v_self, PyObject *__pyx_v_data); /*proto*/
+static PyObject *__pyx_pw_4CART_4Node_5get_right_modalities(PyObject *__pyx_v_self, PyObject *__pyx_v_data) {
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("get_right_modalities (wrapper)", 0);
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_data), __pyx_ptype_4CART_Dataset, 1, "data", 0))) __PYX_ERR(0, 136, __pyx_L1_error)
+  __pyx_r = __pyx_pf_4CART_4Node_4get_right_modalities(((struct __pyx_obj_4CART_Node *)__pyx_v_self), ((struct __pyx_obj_4CART_Dataset *)__pyx_v_data));
+
+  /* function exit code */
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_4CART_4Node_4get_right_modalities(struct __pyx_obj_4CART_Node *__pyx_v_self, struct __pyx_obj_4CART_Dataset *__pyx_v_data) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_TraceDeclarations
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("get_right_modalities", 0);
+  __Pyx_TraceCall("get_right_modalities (wrapper)", __pyx_f[0], 136, 0, __PYX_ERR(0, 136, __pyx_L1_error));
+  __Pyx_XDECREF(__pyx_r);
+  __pyx_t_1 = __pyx_f_4CART_4Node_get_right_modalities(__pyx_v_self, __pyx_v_data, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_r = __pyx_t_1;
+  __pyx_t_1 = 0;
+  goto __pyx_L0;
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("CART.Node.get_right_modalities", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_TraceReturn(__pyx_r, 0);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
 /* "(tree fragment)":1
  * def __reduce_cython__(self):             # <<<<<<<<<<<<<<
  *     raise TypeError("self.node cannot be converted to a Python object for pickling")
@@ -5448,19 +5783,19 @@ static PyObject *__pyx_pf_4CART_4Node_2get_left_modalities(struct __pyx_obj_4CAR
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_4CART_4Node_5__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
-static PyObject *__pyx_pw_4CART_4Node_5__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
+static PyObject *__pyx_pw_4CART_4Node_7__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused); /*proto*/
+static PyObject *__pyx_pw_4CART_4Node_7__reduce_cython__(PyObject *__pyx_v_self, CYTHON_UNUSED PyObject *unused) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__reduce_cython__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_4CART_4Node_4__reduce_cython__(((struct __pyx_obj_4CART_Node *)__pyx_v_self));
+  __pyx_r = __pyx_pf_4CART_4Node_6__reduce_cython__(((struct __pyx_obj_4CART_Node *)__pyx_v_self));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_4CART_4Node_4__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_4CART_Node *__pyx_v_self) {
+static PyObject *__pyx_pf_4CART_4Node_6__reduce_cython__(CYTHON_UNUSED struct __pyx_obj_4CART_Node *__pyx_v_self) {
   PyObject *__pyx_r = NULL;
   __Pyx_TraceDeclarations
   __Pyx_RefNannyDeclarations
@@ -5509,19 +5844,19 @@ static PyObject *__pyx_pf_4CART_4Node_4__reduce_cython__(CYTHON_UNUSED struct __
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_4CART_4Node_7__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state); /*proto*/
-static PyObject *__pyx_pw_4CART_4Node_7__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pw_4CART_4Node_9__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state); /*proto*/
+static PyObject *__pyx_pw_4CART_4Node_9__setstate_cython__(PyObject *__pyx_v_self, PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__setstate_cython__ (wrapper)", 0);
-  __pyx_r = __pyx_pf_4CART_4Node_6__setstate_cython__(((struct __pyx_obj_4CART_Node *)__pyx_v_self), ((PyObject *)__pyx_v___pyx_state));
+  __pyx_r = __pyx_pf_4CART_4Node_8__setstate_cython__(((struct __pyx_obj_4CART_Node *)__pyx_v_self), ((PyObject *)__pyx_v___pyx_state));
 
   /* function exit code */
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_4CART_4Node_6__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_4CART_Node *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state) {
+static PyObject *__pyx_pf_4CART_4Node_8__setstate_cython__(CYTHON_UNUSED struct __pyx_obj_4CART_Node *__pyx_v_self, CYTHON_UNUSED PyObject *__pyx_v___pyx_state) {
   PyObject *__pyx_r = NULL;
   __Pyx_TraceDeclarations
   __Pyx_RefNannyDeclarations
@@ -5562,7 +5897,7 @@ static PyObject *__pyx_pf_4CART_4Node_6__setstate_cython__(CYTHON_UNUSED struct 
   return __pyx_r;
 }
 
-/* "CART.pyx":143
+/* "CART.pyx":160
  *     POISSON
  * 
  * cdef int indirect_binary_search(             # <<<<<<<<<<<<<<
@@ -5580,38 +5915,38 @@ static int __pyx_f_4CART_indirect_binary_search(__Pyx_memviewslice __pyx_v_value
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("indirect_binary_search", __pyx_f[0], 143, 1, __PYX_ERR(0, 143, __pyx_L1_error));
+  __Pyx_TraceCall("indirect_binary_search", __pyx_f[0], 160, 1, __PYX_ERR(0, 160, __pyx_L1_error));
 
-  /* "CART.pyx":147
+  /* "CART.pyx":164
  *         np.int64_t[:] sorted_indices) noexcept nogil:
  *     cdef int mid
  *     while beg < end:             # <<<<<<<<<<<<<<
  *         mid = (beg + end) // 2
  *         if values[sorted_indices[mid]] <= threshold:
  */
-  __Pyx_TraceLine(147,1,__PYX_ERR(0, 147, __pyx_L1_error))
+  __Pyx_TraceLine(164,1,__PYX_ERR(0, 164, __pyx_L1_error))
   while (1) {
     __pyx_t_1 = ((__pyx_v_beg < __pyx_v_end) != 0);
     if (!__pyx_t_1) break;
 
-    /* "CART.pyx":148
+    /* "CART.pyx":165
  *     cdef int mid
  *     while beg < end:
  *         mid = (beg + end) // 2             # <<<<<<<<<<<<<<
  *         if values[sorted_indices[mid]] <= threshold:
  *             beg = mid+1
  */
-    __Pyx_TraceLine(148,1,__PYX_ERR(0, 148, __pyx_L1_error))
+    __Pyx_TraceLine(165,1,__PYX_ERR(0, 165, __pyx_L1_error))
     __pyx_v_mid = __Pyx_div_long((__pyx_v_beg + __pyx_v_end), 2);
 
-    /* "CART.pyx":149
+    /* "CART.pyx":166
  *     while beg < end:
  *         mid = (beg + end) // 2
  *         if values[sorted_indices[mid]] <= threshold:             # <<<<<<<<<<<<<<
  *             beg = mid+1
  *         else:
  */
-    __Pyx_TraceLine(149,1,__PYX_ERR(0, 149, __pyx_L1_error))
+    __Pyx_TraceLine(166,1,__PYX_ERR(0, 166, __pyx_L1_error))
     __pyx_t_2 = __pyx_v_mid;
     if (__pyx_t_2 < 0) __pyx_t_2 += __pyx_v_sorted_indices.shape[0];
     __pyx_t_3 = (*((__pyx_t_5numpy_int64_t *) ( /* dim=0 */ (__pyx_v_sorted_indices.data + __pyx_t_2 * __pyx_v_sorted_indices.strides[0]) )));
@@ -5619,17 +5954,17 @@ static int __pyx_f_4CART_indirect_binary_search(__Pyx_memviewslice __pyx_v_value
     __pyx_t_1 = (((*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_values.data + __pyx_t_3 * __pyx_v_values.strides[0]) ))) <= __pyx_v_threshold) != 0);
     if (__pyx_t_1) {
 
-      /* "CART.pyx":150
+      /* "CART.pyx":167
  *         mid = (beg + end) // 2
  *         if values[sorted_indices[mid]] <= threshold:
  *             beg = mid+1             # <<<<<<<<<<<<<<
  *         else:
  *             end = mid
  */
-      __Pyx_TraceLine(150,1,__PYX_ERR(0, 150, __pyx_L1_error))
+      __Pyx_TraceLine(167,1,__PYX_ERR(0, 167, __pyx_L1_error))
       __pyx_v_beg = (__pyx_v_mid + 1);
 
-      /* "CART.pyx":149
+      /* "CART.pyx":166
  *     while beg < end:
  *         mid = (beg + end) // 2
  *         if values[sorted_indices[mid]] <= threshold:             # <<<<<<<<<<<<<<
@@ -5639,32 +5974,32 @@ static int __pyx_f_4CART_indirect_binary_search(__Pyx_memviewslice __pyx_v_value
       goto __pyx_L5;
     }
 
-    /* "CART.pyx":152
+    /* "CART.pyx":169
  *             beg = mid+1
  *         else:
  *             end = mid             # <<<<<<<<<<<<<<
  *     return beg
  * 
  */
-    __Pyx_TraceLine(152,1,__PYX_ERR(0, 152, __pyx_L1_error))
+    __Pyx_TraceLine(169,1,__PYX_ERR(0, 169, __pyx_L1_error))
     /*else*/ {
       __pyx_v_end = __pyx_v_mid;
     }
     __pyx_L5:;
   }
 
-  /* "CART.pyx":153
+  /* "CART.pyx":170
  *         else:
  *             end = mid
  *     return beg             # <<<<<<<<<<<<<<
  * 
  * cdef int _masks(np.float64_t[:] values, np.float64_t threshold,
  */
-  __Pyx_TraceLine(153,1,__PYX_ERR(0, 153, __pyx_L1_error))
+  __Pyx_TraceLine(170,1,__PYX_ERR(0, 170, __pyx_L1_error))
   __pyx_r = __pyx_v_beg;
   goto __pyx_L0;
 
-  /* "CART.pyx":143
+  /* "CART.pyx":160
  *     POISSON
  * 
  * cdef int indirect_binary_search(             # <<<<<<<<<<<<<<
@@ -5681,7 +6016,7 @@ static int __pyx_f_4CART_indirect_binary_search(__Pyx_memviewslice __pyx_v_value
   return __pyx_r;
 }
 
-/* "CART.pyx":155
+/* "CART.pyx":172
  *     return beg
  * 
  * cdef int _masks(np.float64_t[:] values, np.float64_t threshold,             # <<<<<<<<<<<<<<
@@ -5695,20 +6030,20 @@ static int __pyx_f_4CART__masks(__Pyx_memviewslice __pyx_v_values, __pyx_t_5nump
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("_masks", __pyx_f[0], 155, 1, __PYX_ERR(0, 155, __pyx_L1_error));
+  __Pyx_TraceCall("_masks", __pyx_f[0], 172, 1, __PYX_ERR(0, 172, __pyx_L1_error));
 
-  /* "CART.pyx":157
+  /* "CART.pyx":174
  * cdef int _masks(np.float64_t[:] values, np.float64_t threshold,
  *                 int base_idx, np.int64_t[:] sorted_indices) noexcept nogil:
  *     return indirect_binary_search(             # <<<<<<<<<<<<<<
  *         values, threshold, base_idx, values.shape[0], sorted_indices
  *     )
  */
-  __Pyx_TraceLine(157,1,__PYX_ERR(0, 157, __pyx_L1_error))
+  __Pyx_TraceLine(174,1,__PYX_ERR(0, 174, __pyx_L1_error))
   __pyx_r = __pyx_f_4CART_indirect_binary_search(__pyx_v_values, __pyx_v_threshold, __pyx_v_base_idx, (__pyx_v_values.shape[0]), __pyx_v_sorted_indices);
   goto __pyx_L0;
 
-  /* "CART.pyx":155
+  /* "CART.pyx":172
  *     return beg
  * 
  * cdef int _masks(np.float64_t[:] values, np.float64_t threshold,             # <<<<<<<<<<<<<<
@@ -5725,7 +6060,7 @@ static int __pyx_f_4CART__masks(__Pyx_memviewslice __pyx_v_values, __pyx_t_5nump
   return __pyx_r;
 }
 
-/* "CART.pyx":161
+/* "CART.pyx":178
  *     )
  * 
  * cdef void _mask_categorical(             # <<<<<<<<<<<<<<
@@ -5744,16 +6079,16 @@ static void __pyx_f_4CART__mask_categorical(__Pyx_memviewslice __pyx_v_values, i
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("_mask_categorical", __pyx_f[0], 161, 1, __PYX_ERR(0, 161, __pyx_L1_error));
+  __Pyx_TraceCall("_mask_categorical", __pyx_f[0], 178, 1, __PYX_ERR(0, 178, __pyx_L1_error));
 
-  /* "CART.pyx":164
+  /* "CART.pyx":181
  *         np.float64_t[:] values, int value, np.uint8_t[:] out) noexcept nogil:
  *     cdef int i
  *     for i in prange(values.shape[0], nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         if <int>(values[i]) == value:
  *             out[i] = True
  */
-  __Pyx_TraceLine(164,1,__PYX_ERR(0, 164, __pyx_L1_error))
+  __Pyx_TraceLine(181,1,__PYX_ERR(0, 181, __pyx_L1_error))
   {
       #ifdef WITH_THREAD
       PyThreadState *_save;
@@ -5796,32 +6131,32 @@ static void __pyx_f_4CART__mask_categorical(__Pyx_memviewslice __pyx_v_values, i
                         {
                             __pyx_v_i = (int)(0 + 1 * __pyx_t_2);
 
-                            /* "CART.pyx":165
+                            /* "CART.pyx":182
  *     cdef int i
  *     for i in prange(values.shape[0], nogil=True, schedule='runtime'):
  *         if <int>(values[i]) == value:             # <<<<<<<<<<<<<<
  *             out[i] = True
  * 
  */
-                            __Pyx_TraceLine(165,1,__PYX_ERR(0, 165, __pyx_L8_error))
+                            __Pyx_TraceLine(182,1,__PYX_ERR(0, 182, __pyx_L8_error))
                             __pyx_t_4 = __pyx_v_i;
                             if (__pyx_t_4 < 0) __pyx_t_4 += __pyx_v_values.shape[0];
                             __pyx_t_5 = ((((int)(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_values.data + __pyx_t_4 * __pyx_v_values.strides[0]) )))) == __pyx_v_value) != 0);
                             if (__pyx_t_5) {
 
-                              /* "CART.pyx":166
+                              /* "CART.pyx":183
  *     for i in prange(values.shape[0], nogil=True, schedule='runtime'):
  *         if <int>(values[i]) == value:
  *             out[i] = True             # <<<<<<<<<<<<<<
  * 
  * cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:
  */
-                              __Pyx_TraceLine(166,1,__PYX_ERR(0, 166, __pyx_L8_error))
+                              __Pyx_TraceLine(183,1,__PYX_ERR(0, 183, __pyx_L8_error))
                               __pyx_t_4 = __pyx_v_i;
                               if (__pyx_t_4 < 0) __pyx_t_4 += __pyx_v_out.shape[0];
                               *((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_out.data + __pyx_t_4 * __pyx_v_out.strides[0]) )) = 1;
 
-                              /* "CART.pyx":165
+                              /* "CART.pyx":182
  *     cdef int i
  *     for i in prange(values.shape[0], nogil=True, schedule='runtime'):
  *         if <int>(values[i]) == value:             # <<<<<<<<<<<<<<
@@ -5910,14 +6245,14 @@ static void __pyx_f_4CART__mask_categorical(__Pyx_memviewslice __pyx_v_values, i
         #endif
       }
 
-      /* "CART.pyx":164
+      /* "CART.pyx":181
  *         np.float64_t[:] values, int value, np.uint8_t[:] out) noexcept nogil:
  *     cdef int i
  *     for i in prange(values.shape[0], nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         if <int>(values[i]) == value:
  *             out[i] = True
  */
-      __Pyx_TraceLine(164,1,__PYX_ERR(0, 164, __pyx_L4_error))
+      __Pyx_TraceLine(181,1,__PYX_ERR(0, 181, __pyx_L4_error))
       /*finally:*/ {
         /*normal exit:*/{
           #ifdef WITH_THREAD
@@ -5937,7 +6272,7 @@ static void __pyx_f_4CART__mask_categorical(__Pyx_memviewslice __pyx_v_values, i
       }
   }
 
-  /* "CART.pyx":161
+  /* "CART.pyx":178
  *     )
  * 
  * cdef void _mask_categorical(             # <<<<<<<<<<<<<<
@@ -5953,7 +6288,7 @@ static void __pyx_f_4CART__mask_categorical(__Pyx_memviewslice __pyx_v_values, i
   __Pyx_TraceReturn(Py_None, 1);
 }
 
-/* "CART.pyx":168
+/* "CART.pyx":185
  *             out[i] = True
  * 
  * cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -5976,56 +6311,56 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_mse(__Pyx_memviewslice __pyx_v_ys)
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("mse", __pyx_f[0], 168, 1, __PYX_ERR(0, 168, __pyx_L1_error));
+  __Pyx_TraceCall("mse", __pyx_f[0], 185, 1, __PYX_ERR(0, 185, __pyx_L1_error));
 
-  /* "CART.pyx":169
+  /* "CART.pyx":186
  * 
  * cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:
  *     cdef np.float64_t mu = 0.             # <<<<<<<<<<<<<<
  *     cdef np.float64_t sum_square = 0.
  *     cdef size_t n = ys.shape[0]
  */
-  __Pyx_TraceLine(169,1,__PYX_ERR(0, 169, __pyx_L1_error))
+  __Pyx_TraceLine(186,1,__PYX_ERR(0, 186, __pyx_L1_error))
   __pyx_v_mu = 0.;
 
-  /* "CART.pyx":170
+  /* "CART.pyx":187
  * cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:
  *     cdef np.float64_t mu = 0.
  *     cdef np.float64_t sum_square = 0.             # <<<<<<<<<<<<<<
  *     cdef size_t n = ys.shape[0]
  *     cdef size_t i = 0
  */
-  __Pyx_TraceLine(170,1,__PYX_ERR(0, 170, __pyx_L1_error))
+  __Pyx_TraceLine(187,1,__PYX_ERR(0, 187, __pyx_L1_error))
   __pyx_v_sum_square = 0.;
 
-  /* "CART.pyx":171
+  /* "CART.pyx":188
  *     cdef np.float64_t mu = 0.
  *     cdef np.float64_t sum_square = 0.
  *     cdef size_t n = ys.shape[0]             # <<<<<<<<<<<<<<
  *     cdef size_t i = 0
  *     for i in prange(n, nogil=True, schedule='runtime'):
  */
-  __Pyx_TraceLine(171,1,__PYX_ERR(0, 171, __pyx_L1_error))
+  __Pyx_TraceLine(188,1,__PYX_ERR(0, 188, __pyx_L1_error))
   __pyx_v_n = (__pyx_v_ys.shape[0]);
 
-  /* "CART.pyx":172
+  /* "CART.pyx":189
  *     cdef np.float64_t sum_square = 0.
  *     cdef size_t n = ys.shape[0]
  *     cdef size_t i = 0             # <<<<<<<<<<<<<<
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         mu += ys[i]
  */
-  __Pyx_TraceLine(172,1,__PYX_ERR(0, 172, __pyx_L1_error))
+  __Pyx_TraceLine(189,1,__PYX_ERR(0, 189, __pyx_L1_error))
   __pyx_v_i = 0;
 
-  /* "CART.pyx":173
+  /* "CART.pyx":190
  *     cdef size_t n = ys.shape[0]
  *     cdef size_t i = 0
  *     for i in prange(n, nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         mu += ys[i]
  *         sum_square += ys[i]*ys[i]
  */
-  __Pyx_TraceLine(173,1,__PYX_ERR(0, 173, __pyx_L1_error))
+  __Pyx_TraceLine(190,1,__PYX_ERR(0, 190, __pyx_L1_error))
   {
       #ifdef WITH_THREAD
       PyThreadState *_save;
@@ -6070,25 +6405,25 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_mse(__Pyx_memviewslice __pyx_v_ys)
                         {
                             __pyx_v_i = (size_t)(0 + 1 * __pyx_t_2);
 
-                            /* "CART.pyx":174
+                            /* "CART.pyx":191
  *     cdef size_t i = 0
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         mu += ys[i]             # <<<<<<<<<<<<<<
  *         sum_square += ys[i]*ys[i]
  *     mu /= n
  */
-                            __Pyx_TraceLine(174,1,__PYX_ERR(0, 174, __pyx_L8_error))
+                            __Pyx_TraceLine(191,1,__PYX_ERR(0, 191, __pyx_L8_error))
                             __pyx_t_4 = __pyx_v_i;
                             __pyx_v_mu = (__pyx_v_mu + (*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_ys.data + __pyx_t_4 * __pyx_v_ys.strides[0]) ))));
 
-                            /* "CART.pyx":175
+                            /* "CART.pyx":192
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         mu += ys[i]
  *         sum_square += ys[i]*ys[i]             # <<<<<<<<<<<<<<
  *     mu /= n
  *     return sum_square / n + mu * mu
  */
-                            __Pyx_TraceLine(175,1,__PYX_ERR(0, 175, __pyx_L8_error))
+                            __Pyx_TraceLine(192,1,__PYX_ERR(0, 192, __pyx_L8_error))
                             __pyx_t_4 = __pyx_v_i;
                             __pyx_t_5 = __pyx_v_i;
                             __pyx_v_sum_square = (__pyx_v_sum_square + ((*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_ys.data + __pyx_t_4 * __pyx_v_ys.strides[0]) ))) * (*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_ys.data + __pyx_t_5 * __pyx_v_ys.strides[0]) )))));
@@ -6177,14 +6512,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_mse(__Pyx_memviewslice __pyx_v_ys)
         #endif
       }
 
-      /* "CART.pyx":173
+      /* "CART.pyx":190
  *     cdef size_t n = ys.shape[0]
  *     cdef size_t i = 0
  *     for i in prange(n, nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         mu += ys[i]
  *         sum_square += ys[i]*ys[i]
  */
-      __Pyx_TraceLine(173,1,__PYX_ERR(0, 173, __pyx_L4_error))
+      __Pyx_TraceLine(190,1,__PYX_ERR(0, 190, __pyx_L4_error))
       /*finally:*/ {
         /*normal exit:*/{
           #ifdef WITH_THREAD
@@ -6204,14 +6539,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_mse(__Pyx_memviewslice __pyx_v_ys)
       }
   }
 
-  /* "CART.pyx":176
+  /* "CART.pyx":193
  *         mu += ys[i]
  *         sum_square += ys[i]*ys[i]
  *     mu /= n             # <<<<<<<<<<<<<<
  *     return sum_square / n + mu * mu
  * 
  */
-  __Pyx_TraceLine(176,1,__PYX_ERR(0, 176, __pyx_L1_error))
+  __Pyx_TraceLine(193,1,__PYX_ERR(0, 193, __pyx_L1_error))
   if (unlikely(__pyx_v_n == 0)) {
     #ifdef WITH_THREAD
     PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
@@ -6220,18 +6555,18 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_mse(__Pyx_memviewslice __pyx_v_ys)
     #ifdef WITH_THREAD
     __Pyx_PyGILState_Release(__pyx_gilstate_save);
     #endif
-    __PYX_ERR(0, 176, __pyx_L1_error)
+    __PYX_ERR(0, 193, __pyx_L1_error)
   }
   __pyx_v_mu = (__pyx_v_mu / __pyx_v_n);
 
-  /* "CART.pyx":177
+  /* "CART.pyx":194
  *         sum_square += ys[i]*ys[i]
  *     mu /= n
  *     return sum_square / n + mu * mu             # <<<<<<<<<<<<<<
  * 
  * cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:
  */
-  __Pyx_TraceLine(177,1,__PYX_ERR(0, 177, __pyx_L1_error))
+  __Pyx_TraceLine(194,1,__PYX_ERR(0, 194, __pyx_L1_error))
   if (unlikely(__pyx_v_n == 0)) {
     #ifdef WITH_THREAD
     PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
@@ -6240,12 +6575,12 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_mse(__Pyx_memviewslice __pyx_v_ys)
     #ifdef WITH_THREAD
     __Pyx_PyGILState_Release(__pyx_gilstate_save);
     #endif
-    __PYX_ERR(0, 177, __pyx_L1_error)
+    __PYX_ERR(0, 194, __pyx_L1_error)
   }
   __pyx_r = ((__pyx_v_sum_square / ((__pyx_t_5numpy_float64_t)__pyx_v_n)) + (__pyx_v_mu * __pyx_v_mu));
   goto __pyx_L0;
 
-  /* "CART.pyx":168
+  /* "CART.pyx":185
  *             out[i] = True
  * 
  * cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6262,7 +6597,7 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_mse(__Pyx_memviewslice __pyx_v_ys)
   return __pyx_r;
 }
 
-/* "CART.pyx":179
+/* "CART.pyx":196
  *     return sum_square / n + mu * mu
  * 
  * cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6290,66 +6625,66 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("poisson", __pyx_f[0], 179, 1, __PYX_ERR(0, 179, __pyx_L1_error));
+  __Pyx_TraceCall("poisson", __pyx_f[0], 196, 1, __PYX_ERR(0, 196, __pyx_L1_error));
 
-  /* "CART.pyx":180
+  /* "CART.pyx":197
  * 
  * cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:
  *     cdef np.float64_t epsilon = 1e-18             # <<<<<<<<<<<<<<
  *     cdef np.float64_t mu = 0.
  *     cdef np.float64_t ret = 0
  */
-  __Pyx_TraceLine(180,1,__PYX_ERR(0, 180, __pyx_L1_error))
+  __Pyx_TraceLine(197,1,__PYX_ERR(0, 197, __pyx_L1_error))
   __pyx_v_epsilon = 1e-18;
 
-  /* "CART.pyx":181
+  /* "CART.pyx":198
  * cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:
  *     cdef np.float64_t epsilon = 1e-18
  *     cdef np.float64_t mu = 0.             # <<<<<<<<<<<<<<
  *     cdef np.float64_t ret = 0
  *     cdef size_t i = 0
  */
-  __Pyx_TraceLine(181,1,__PYX_ERR(0, 181, __pyx_L1_error))
+  __Pyx_TraceLine(198,1,__PYX_ERR(0, 198, __pyx_L1_error))
   __pyx_v_mu = 0.;
 
-  /* "CART.pyx":182
+  /* "CART.pyx":199
  *     cdef np.float64_t epsilon = 1e-18
  *     cdef np.float64_t mu = 0.
  *     cdef np.float64_t ret = 0             # <<<<<<<<<<<<<<
  *     cdef size_t i = 0
  *     cdef size_t n = ys.shape[0]
  */
-  __Pyx_TraceLine(182,1,__PYX_ERR(0, 182, __pyx_L1_error))
+  __Pyx_TraceLine(199,1,__PYX_ERR(0, 199, __pyx_L1_error))
   __pyx_v_ret = 0.0;
 
-  /* "CART.pyx":183
+  /* "CART.pyx":200
  *     cdef np.float64_t mu = 0.
  *     cdef np.float64_t ret = 0
  *     cdef size_t i = 0             # <<<<<<<<<<<<<<
  *     cdef size_t n = ys.shape[0]
  *     for i in prange(n, nogil=True, schedule='runtime'):
  */
-  __Pyx_TraceLine(183,1,__PYX_ERR(0, 183, __pyx_L1_error))
+  __Pyx_TraceLine(200,1,__PYX_ERR(0, 200, __pyx_L1_error))
   __pyx_v_i = 0;
 
-  /* "CART.pyx":184
+  /* "CART.pyx":201
  *     cdef np.float64_t ret = 0
  *     cdef size_t i = 0
  *     cdef size_t n = ys.shape[0]             # <<<<<<<<<<<<<<
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         mu += ys[i]
  */
-  __Pyx_TraceLine(184,1,__PYX_ERR(0, 184, __pyx_L1_error))
+  __Pyx_TraceLine(201,1,__PYX_ERR(0, 201, __pyx_L1_error))
   __pyx_v_n = (__pyx_v_ys.shape[0]);
 
-  /* "CART.pyx":185
+  /* "CART.pyx":202
  *     cdef size_t i = 0
  *     cdef size_t n = ys.shape[0]
  *     for i in prange(n, nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         mu += ys[i]
  *     mu /= n
  */
-  __Pyx_TraceLine(185,1,__PYX_ERR(0, 185, __pyx_L1_error))
+  __Pyx_TraceLine(202,1,__PYX_ERR(0, 202, __pyx_L1_error))
   {
       #ifdef WITH_THREAD
       PyThreadState *_save;
@@ -6393,14 +6728,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
                         {
                             __pyx_v_i = (size_t)(0 + 1 * __pyx_t_2);
 
-                            /* "CART.pyx":186
+                            /* "CART.pyx":203
  *     cdef size_t n = ys.shape[0]
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         mu += ys[i]             # <<<<<<<<<<<<<<
  *     mu /= n
  *     for i in prange(n, nogil=True, schedule='runtime'):
  */
-                            __Pyx_TraceLine(186,1,__PYX_ERR(0, 186, __pyx_L8_error))
+                            __Pyx_TraceLine(203,1,__PYX_ERR(0, 203, __pyx_L8_error))
                             __pyx_t_4 = __pyx_v_i;
                             __pyx_v_mu = (__pyx_v_mu + (*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_ys.data + __pyx_t_4 * __pyx_v_ys.strides[0]) ))));
                             goto __pyx_L11;
@@ -6486,14 +6821,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
         #endif
       }
 
-      /* "CART.pyx":185
+      /* "CART.pyx":202
  *     cdef size_t i = 0
  *     cdef size_t n = ys.shape[0]
  *     for i in prange(n, nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         mu += ys[i]
  *     mu /= n
  */
-      __Pyx_TraceLine(185,1,__PYX_ERR(0, 185, __pyx_L4_error))
+      __Pyx_TraceLine(202,1,__PYX_ERR(0, 202, __pyx_L4_error))
       /*finally:*/ {
         /*normal exit:*/{
           #ifdef WITH_THREAD
@@ -6513,14 +6848,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
       }
   }
 
-  /* "CART.pyx":187
+  /* "CART.pyx":204
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         mu += ys[i]
  *     mu /= n             # <<<<<<<<<<<<<<
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         if ys[i] > epsilon and mu > epsilon:
  */
-  __Pyx_TraceLine(187,1,__PYX_ERR(0, 187, __pyx_L1_error))
+  __Pyx_TraceLine(204,1,__PYX_ERR(0, 204, __pyx_L1_error))
   if (unlikely(__pyx_v_n == 0)) {
     #ifdef WITH_THREAD
     PyGILState_STATE __pyx_gilstate_save = __Pyx_PyGILState_Ensure();
@@ -6529,18 +6864,18 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
     #ifdef WITH_THREAD
     __Pyx_PyGILState_Release(__pyx_gilstate_save);
     #endif
-    __PYX_ERR(0, 187, __pyx_L1_error)
+    __PYX_ERR(0, 204, __pyx_L1_error)
   }
   __pyx_v_mu = (__pyx_v_mu / __pyx_v_n);
 
-  /* "CART.pyx":188
+  /* "CART.pyx":205
  *         mu += ys[i]
  *     mu /= n
  *     for i in prange(n, nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         if ys[i] > epsilon and mu > epsilon:
  *             ret += ys[i] * log((ys[i] + epsilon) / (mu + epsilon)) + (mu - ys[i])
  */
-  __Pyx_TraceLine(188,1,__PYX_ERR(0, 188, __pyx_L1_error))
+  __Pyx_TraceLine(205,1,__PYX_ERR(0, 205, __pyx_L1_error))
   {
       #ifdef WITH_THREAD
       PyThreadState *_save;
@@ -6584,14 +6919,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
                         {
                             __pyx_v_i = (size_t)(0 + 1 * __pyx_t_2);
 
-                            /* "CART.pyx":189
+                            /* "CART.pyx":206
  *     mu /= n
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         if ys[i] > epsilon and mu > epsilon:             # <<<<<<<<<<<<<<
  *             ret += ys[i] * log((ys[i] + epsilon) / (mu + epsilon)) + (mu - ys[i])
  *     return 2 * ret / n
  */
-                            __Pyx_TraceLine(189,1,__PYX_ERR(0, 189, __pyx_L17_error))
+                            __Pyx_TraceLine(206,1,__PYX_ERR(0, 206, __pyx_L17_error))
                             __pyx_t_4 = __pyx_v_i;
                             __pyx_t_6 = (((*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_ys.data + __pyx_t_4 * __pyx_v_ys.strides[0]) ))) > __pyx_v_epsilon) != 0);
                             if (__pyx_t_6) {
@@ -6604,14 +6939,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
                             __pyx_L20_bool_binop_done:;
                             if (__pyx_t_5) {
 
-                              /* "CART.pyx":190
+                              /* "CART.pyx":207
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         if ys[i] > epsilon and mu > epsilon:
  *             ret += ys[i] * log((ys[i] + epsilon) / (mu + epsilon)) + (mu - ys[i])             # <<<<<<<<<<<<<<
  *     return 2 * ret / n
  * 
  */
-                              __Pyx_TraceLine(190,1,__PYX_ERR(0, 190, __pyx_L17_error))
+                              __Pyx_TraceLine(207,1,__PYX_ERR(0, 207, __pyx_L17_error))
                               __pyx_t_4 = __pyx_v_i;
                               __pyx_t_7 = __pyx_v_i;
                               __pyx_t_8 = ((*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_ys.data + __pyx_t_7 * __pyx_v_ys.strides[0]) ))) + __pyx_v_epsilon);
@@ -6624,12 +6959,12 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
                                 #ifdef WITH_THREAD
                                 __Pyx_PyGILState_Release(__pyx_gilstate_save);
                                 #endif
-                                __PYX_ERR(0, 190, __pyx_L17_error)
+                                __PYX_ERR(0, 207, __pyx_L17_error)
                               }
                               __pyx_t_7 = __pyx_v_i;
                               __pyx_v_ret = (__pyx_v_ret + (((*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_ys.data + __pyx_t_4 * __pyx_v_ys.strides[0]) ))) * log((__pyx_t_8 / __pyx_t_9))) + (__pyx_v_mu - (*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_ys.data + __pyx_t_7 * __pyx_v_ys.strides[0]) ))))));
 
-                              /* "CART.pyx":189
+                              /* "CART.pyx":206
  *     mu /= n
  *     for i in prange(n, nogil=True, schedule='runtime'):
  *         if ys[i] > epsilon and mu > epsilon:             # <<<<<<<<<<<<<<
@@ -6720,14 +7055,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
         #endif
       }
 
-      /* "CART.pyx":188
+      /* "CART.pyx":205
  *         mu += ys[i]
  *     mu /= n
  *     for i in prange(n, nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         if ys[i] > epsilon and mu > epsilon:
  *             ret += ys[i] * log((ys[i] + epsilon) / (mu + epsilon)) + (mu - ys[i])
  */
-      __Pyx_TraceLine(188,1,__PYX_ERR(0, 188, __pyx_L13_error))
+      __Pyx_TraceLine(205,1,__PYX_ERR(0, 205, __pyx_L13_error))
       /*finally:*/ {
         /*normal exit:*/{
           #ifdef WITH_THREAD
@@ -6747,14 +7082,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
       }
   }
 
-  /* "CART.pyx":191
+  /* "CART.pyx":208
  *         if ys[i] > epsilon and mu > epsilon:
  *             ret += ys[i] * log((ys[i] + epsilon) / (mu + epsilon)) + (mu - ys[i])
  *     return 2 * ret / n             # <<<<<<<<<<<<<<
  * 
  * cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,
  */
-  __Pyx_TraceLine(191,1,__PYX_ERR(0, 191, __pyx_L1_error))
+  __Pyx_TraceLine(208,1,__PYX_ERR(0, 208, __pyx_L1_error))
   __pyx_t_9 = (2.0 * __pyx_v_ret);
   if (unlikely(__pyx_v_n == 0)) {
     #ifdef WITH_THREAD
@@ -6764,12 +7099,12 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
     #ifdef WITH_THREAD
     __Pyx_PyGILState_Release(__pyx_gilstate_save);
     #endif
-    __PYX_ERR(0, 191, __pyx_L1_error)
+    __PYX_ERR(0, 208, __pyx_L1_error)
   }
   __pyx_r = (__pyx_t_9 / ((__pyx_t_5numpy_float64_t)__pyx_v_n));
   goto __pyx_L0;
 
-  /* "CART.pyx":179
+  /* "CART.pyx":196
  *     return sum_square / n + mu * mu
  * 
  * cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -6786,7 +7121,7 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_poisson(__Pyx_memviewslice __pyx_v
   return __pyx_r;
 }
 
-/* "CART.pyx":193
+/* "CART.pyx":210
  *     return 2 * ret / n
  * 
  * cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,             # <<<<<<<<<<<<<<
@@ -6806,16 +7141,16 @@ static void __pyx_f_4CART__extract_mean_ys(__Pyx_memviewslice __pyx_v_X, __Pyx_m
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("_extract_mean_ys", __pyx_f[0], 193, 1, __PYX_ERR(0, 193, __pyx_L1_error));
+  __Pyx_TraceCall("_extract_mean_ys", __pyx_f[0], 210, 1, __PYX_ERR(0, 210, __pyx_L1_error));
 
-  /* "CART.pyx":197
+  /* "CART.pyx":214
  *     cdef int i
  *     cdef int value
  *     for i in prange(y.shape[0], nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         value = <int>(X[i])
  *         sums[value] += y[i]
  */
-  __Pyx_TraceLine(197,1,__PYX_ERR(0, 197, __pyx_L1_error))
+  __Pyx_TraceLine(214,1,__PYX_ERR(0, 214, __pyx_L1_error))
   {
       #ifdef WITH_THREAD
       PyThreadState *_save;
@@ -6861,40 +7196,40 @@ static void __pyx_f_4CART__extract_mean_ys(__Pyx_memviewslice __pyx_v_X, __Pyx_m
                             /* Initialize private variables to invalid values */
                             __pyx_v_value = ((int)0xbad0bad0);
 
-                            /* "CART.pyx":198
+                            /* "CART.pyx":215
  *     cdef int value
  *     for i in prange(y.shape[0], nogil=True, schedule='runtime'):
  *         value = <int>(X[i])             # <<<<<<<<<<<<<<
  *         sums[value] += y[i]
  *         sizes[value] += 1
  */
-                            __Pyx_TraceLine(198,1,__PYX_ERR(0, 198, __pyx_L8_error))
+                            __Pyx_TraceLine(215,1,__PYX_ERR(0, 215, __pyx_L8_error))
                             __pyx_t_4 = __pyx_v_i;
                             if (__pyx_t_4 < 0) __pyx_t_4 += __pyx_v_X.shape[0];
                             __pyx_v_value = ((int)(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_X.data + __pyx_t_4 * __pyx_v_X.strides[0]) ))));
 
-                            /* "CART.pyx":199
+                            /* "CART.pyx":216
  *     for i in prange(y.shape[0], nogil=True, schedule='runtime'):
  *         value = <int>(X[i])
  *         sums[value] += y[i]             # <<<<<<<<<<<<<<
  *         sizes[value] += 1
  * 
  */
-                            __Pyx_TraceLine(199,1,__PYX_ERR(0, 199, __pyx_L8_error))
+                            __Pyx_TraceLine(216,1,__PYX_ERR(0, 216, __pyx_L8_error))
                             __pyx_t_4 = __pyx_v_i;
                             if (__pyx_t_4 < 0) __pyx_t_4 += __pyx_v_y.shape[0];
                             __pyx_t_5 = __pyx_v_value;
                             if (__pyx_t_5 < 0) __pyx_t_5 += __pyx_v_sums.shape[0];
                             *((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_sums.data + __pyx_t_5 * __pyx_v_sums.strides[0]) )) += (*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_y.data + __pyx_t_4 * __pyx_v_y.strides[0]) )));
 
-                            /* "CART.pyx":200
+                            /* "CART.pyx":217
  *         value = <int>(X[i])
  *         sums[value] += y[i]
  *         sizes[value] += 1             # <<<<<<<<<<<<<<
  * 
  * @cython.final
  */
-                            __Pyx_TraceLine(200,1,__PYX_ERR(0, 200, __pyx_L8_error))
+                            __Pyx_TraceLine(217,1,__PYX_ERR(0, 217, __pyx_L8_error))
                             __pyx_t_4 = __pyx_v_value;
                             if (__pyx_t_4 < 0) __pyx_t_4 += __pyx_v_sizes.shape[0];
                             *((__pyx_t_5numpy_int32_t *) ( /* dim=0 */ (__pyx_v_sizes.data + __pyx_t_4 * __pyx_v_sizes.strides[0]) )) += 1;
@@ -6981,14 +7316,14 @@ static void __pyx_f_4CART__extract_mean_ys(__Pyx_memviewslice __pyx_v_X, __Pyx_m
         #endif
       }
 
-      /* "CART.pyx":197
+      /* "CART.pyx":214
  *     cdef int i
  *     cdef int value
  *     for i in prange(y.shape[0], nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *         value = <int>(X[i])
  *         sums[value] += y[i]
  */
-      __Pyx_TraceLine(197,1,__PYX_ERR(0, 197, __pyx_L4_error))
+      __Pyx_TraceLine(214,1,__PYX_ERR(0, 214, __pyx_L4_error))
       /*finally:*/ {
         /*normal exit:*/{
           #ifdef WITH_THREAD
@@ -7008,7 +7343,7 @@ static void __pyx_f_4CART__extract_mean_ys(__Pyx_memviewslice __pyx_v_X, __Pyx_m
       }
   }
 
-  /* "CART.pyx":193
+  /* "CART.pyx":210
  *     return 2 * ret / n
  * 
  * cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,             # <<<<<<<<<<<<<<
@@ -7024,7 +7359,7 @@ static void __pyx_f_4CART__extract_mean_ys(__Pyx_memviewslice __pyx_v_X, __Pyx_m
   __Pyx_TraceReturn(Py_None, 1);
 }
 
-/* "CART.pyx":212
+/* "CART.pyx":229
  *     cdef list _reverse_mapping
  * 
  *     def __init__(self, np.ndarray[object, ndim=2] X,             # <<<<<<<<<<<<<<
@@ -7072,23 +7407,23 @@ static int __pyx_pw_4CART_7Dataset_1__init__(PyObject *__pyx_v_self, PyObject *_
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_y)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 4, 4, 1); __PYX_ERR(0, 212, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 4, 4, 1); __PYX_ERR(0, 229, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_p)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 4, 4, 2); __PYX_ERR(0, 212, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 4, 4, 2); __PYX_ERR(0, 229, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
         if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_dtypes)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__init__", 1, 4, 4, 3); __PYX_ERR(0, 212, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__init__", 1, 4, 4, 3); __PYX_ERR(0, 229, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__init__") < 0)) __PYX_ERR(0, 212, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__init__") < 0)) __PYX_ERR(0, 229, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 4) {
       goto __pyx_L5_argtuple_error;
@@ -7105,16 +7440,16 @@ static int __pyx_pw_4CART_7Dataset_1__init__(PyObject *__pyx_v_self, PyObject *_
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__init__", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 212, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__init__", 1, 4, 4, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 229, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("CART.Dataset.__init__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return -1;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_X), __pyx_ptype_5numpy_ndarray, 1, "X", 0))) __PYX_ERR(0, 212, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_y), __pyx_ptype_5numpy_ndarray, 1, "y", 0))) __PYX_ERR(0, 213, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_p), __pyx_ptype_5numpy_ndarray, 1, "p", 0))) __PYX_ERR(0, 214, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_dtypes), __pyx_ptype_5numpy_ndarray, 1, "dtypes", 0))) __PYX_ERR(0, 215, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_X), __pyx_ptype_5numpy_ndarray, 1, "X", 0))) __PYX_ERR(0, 229, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_y), __pyx_ptype_5numpy_ndarray, 1, "y", 0))) __PYX_ERR(0, 230, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_p), __pyx_ptype_5numpy_ndarray, 1, "p", 0))) __PYX_ERR(0, 231, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_dtypes), __pyx_ptype_5numpy_ndarray, 1, "dtypes", 0))) __PYX_ERR(0, 232, __pyx_L1_error)
   __pyx_r = __pyx_pf_4CART_7Dataset___init__(((struct __pyx_obj_4CART_Dataset *)__pyx_v_self), __pyx_v_X, __pyx_v_y, __pyx_v_p, __pyx_v_dtypes);
 
   /* function exit code */
@@ -7169,7 +7504,7 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__init__", 0);
-  __Pyx_TraceCall("__init__", __pyx_f[0], 212, 0, __PYX_ERR(0, 212, __pyx_L1_error));
+  __Pyx_TraceCall("__init__", __pyx_f[0], 229, 0, __PYX_ERR(0, 229, __pyx_L1_error));
   __pyx_pybuffer_X.pybuffer.buf = NULL;
   __pyx_pybuffer_X.refcount = 0;
   __pyx_pybuffernd_X.data = NULL;
@@ -7188,196 +7523,196 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
   __pyx_pybuffernd_dtypes.rcbuffer = &__pyx_pybuffer_dtypes;
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_X.rcbuffer->pybuffer, (PyObject*)__pyx_v_X, &__Pyx_TypeInfo_object, PyBUF_FORMAT| PyBUF_STRIDES, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 212, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_X.rcbuffer->pybuffer, (PyObject*)__pyx_v_X, &__Pyx_TypeInfo_object, PyBUF_FORMAT| PyBUF_STRIDES, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 229, __pyx_L1_error)
   }
   __pyx_pybuffernd_X.diminfo[0].strides = __pyx_pybuffernd_X.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_X.diminfo[0].shape = __pyx_pybuffernd_X.rcbuffer->pybuffer.shape[0]; __pyx_pybuffernd_X.diminfo[1].strides = __pyx_pybuffernd_X.rcbuffer->pybuffer.strides[1]; __pyx_pybuffernd_X.diminfo[1].shape = __pyx_pybuffernd_X.rcbuffer->pybuffer.shape[1];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_y.rcbuffer->pybuffer, (PyObject*)__pyx_v_y, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 212, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_y.rcbuffer->pybuffer, (PyObject*)__pyx_v_y, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 229, __pyx_L1_error)
   }
   __pyx_pybuffernd_y.diminfo[0].strides = __pyx_pybuffernd_y.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_y.diminfo[0].shape = __pyx_pybuffernd_y.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_p.rcbuffer->pybuffer, (PyObject*)__pyx_v_p, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 212, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_p.rcbuffer->pybuffer, (PyObject*)__pyx_v_p, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 229, __pyx_L1_error)
   }
   __pyx_pybuffernd_p.diminfo[0].strides = __pyx_pybuffernd_p.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_p.diminfo[0].shape = __pyx_pybuffernd_p.rcbuffer->pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_dtypes.rcbuffer->pybuffer, (PyObject*)__pyx_v_dtypes, &__Pyx_TypeInfo_object, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 212, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_dtypes.rcbuffer->pybuffer, (PyObject*)__pyx_v_dtypes, &__Pyx_TypeInfo_object, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) __PYX_ERR(0, 229, __pyx_L1_error)
   }
   __pyx_pybuffernd_dtypes.diminfo[0].strides = __pyx_pybuffernd_dtypes.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_dtypes.diminfo[0].shape = __pyx_pybuffernd_dtypes.rcbuffer->pybuffer.shape[0];
 
-  /* "CART.pyx":216
+  /* "CART.pyx":233
  *                   np.ndarray[np.float64_t, ndim=1] p,
  *                   np.ndarray[object, ndim=1] dtypes):
  *         self._y = y             # <<<<<<<<<<<<<<
  *         self._p = p
  *         self._is_categorical = np.zeros(X.shape[1], dtype=np.uint8)
  */
-  __Pyx_TraceLine(216,0,__PYX_ERR(0, 216, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(((PyObject *)__pyx_v_y), PyBUF_WRITABLE); if (unlikely(!__pyx_t_1.memview)) __PYX_ERR(0, 216, __pyx_L1_error)
+  __Pyx_TraceLine(233,0,__PYX_ERR(0, 233, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(((PyObject *)__pyx_v_y), PyBUF_WRITABLE); if (unlikely(!__pyx_t_1.memview)) __PYX_ERR(0, 233, __pyx_L1_error)
   __PYX_XDEC_MEMVIEW(&__pyx_v_self->_y, 0);
   __pyx_v_self->_y = __pyx_t_1;
   __pyx_t_1.memview = NULL;
   __pyx_t_1.data = NULL;
 
-  /* "CART.pyx":217
+  /* "CART.pyx":234
  *                   np.ndarray[object, ndim=1] dtypes):
  *         self._y = y
  *         self._p = p             # <<<<<<<<<<<<<<
  *         self._is_categorical = np.zeros(X.shape[1], dtype=np.uint8)
  *         self._X = np.empty_like(X, dtype=np.float64)
  */
-  __Pyx_TraceLine(217,0,__PYX_ERR(0, 217, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(((PyObject *)__pyx_v_p), PyBUF_WRITABLE); if (unlikely(!__pyx_t_1.memview)) __PYX_ERR(0, 217, __pyx_L1_error)
+  __Pyx_TraceLine(234,0,__PYX_ERR(0, 234, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(((PyObject *)__pyx_v_p), PyBUF_WRITABLE); if (unlikely(!__pyx_t_1.memview)) __PYX_ERR(0, 234, __pyx_L1_error)
   __PYX_XDEC_MEMVIEW(&__pyx_v_self->_p, 0);
   __pyx_v_self->_p = __pyx_t_1;
   __pyx_t_1.memview = NULL;
   __pyx_t_1.data = NULL;
 
-  /* "CART.pyx":218
+  /* "CART.pyx":235
  *         self._y = y
  *         self._p = p
  *         self._is_categorical = np.zeros(X.shape[1], dtype=np.uint8)             # <<<<<<<<<<<<<<
  *         self._X = np.empty_like(X, dtype=np.float64)
  *         self._size = X.shape[0]
  */
-  __Pyx_TraceLine(218,0,__PYX_ERR(0, 218, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __Pyx_TraceLine(235,0,__PYX_ERR(0, 235, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyInt_From_Py_intptr_t((__pyx_v_X->dimensions[1])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyInt_From_Py_intptr_t((__pyx_v_X->dimensions[1])); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_2);
   __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_uint8); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_uint8); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_dtype, __pyx_t_6) < 0) __PYX_ERR(0, 218, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_dtype, __pyx_t_6) < 0) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  __pyx_t_6 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_4, __pyx_t_2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_4, __pyx_t_2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_7 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint8_t(__pyx_t_6, PyBUF_WRITABLE); if (unlikely(!__pyx_t_7.memview)) __PYX_ERR(0, 218, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint8_t(__pyx_t_6, PyBUF_WRITABLE); if (unlikely(!__pyx_t_7.memview)) __PYX_ERR(0, 235, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
   __PYX_XDEC_MEMVIEW(&__pyx_v_self->_is_categorical, 0);
   __pyx_v_self->_is_categorical = __pyx_t_7;
   __pyx_t_7.memview = NULL;
   __pyx_t_7.data = NULL;
 
-  /* "CART.pyx":219
+  /* "CART.pyx":236
  *         self._p = p
  *         self._is_categorical = np.zeros(X.shape[1], dtype=np.uint8)
  *         self._X = np.empty_like(X, dtype=np.float64)             # <<<<<<<<<<<<<<
  *         self._size = X.shape[0]
  *         self._indices = np.arange(self._size, dtype=int)
  */
-  __Pyx_TraceLine(219,0,__PYX_ERR(0, 219, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 219, __pyx_L1_error)
+  __Pyx_TraceLine(236,0,__PYX_ERR(0, 236, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_empty_like); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 219, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_empty_like); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  __pyx_t_6 = PyTuple_New(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 219, __pyx_L1_error)
+  __pyx_t_6 = PyTuple_New(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_INCREF(((PyObject *)__pyx_v_X));
   __Pyx_GIVEREF(((PyObject *)__pyx_v_X));
   PyTuple_SET_ITEM(__pyx_t_6, 0, ((PyObject *)__pyx_v_X));
-  __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 219, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 219, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_float64); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 219, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_float64); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 219, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_6, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 219, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_6, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_float64_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 219, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_float64_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 236, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __PYX_XDEC_MEMVIEW(&__pyx_v_self->_X, 0);
   __pyx_v_self->_X = __pyx_t_8;
   __pyx_t_8.memview = NULL;
   __pyx_t_8.data = NULL;
 
-  /* "CART.pyx":220
+  /* "CART.pyx":237
  *         self._is_categorical = np.zeros(X.shape[1], dtype=np.uint8)
  *         self._X = np.empty_like(X, dtype=np.float64)
  *         self._size = X.shape[0]             # <<<<<<<<<<<<<<
  *         self._indices = np.arange(self._size, dtype=int)
  *         self._reverse_mapping = [[] for _ in range(X.shape[1])]
  */
-  __Pyx_TraceLine(220,0,__PYX_ERR(0, 220, __pyx_L1_error))
+  __Pyx_TraceLine(237,0,__PYX_ERR(0, 237, __pyx_L1_error))
   __pyx_v_self->_size = (__pyx_v_X->dimensions[0]);
 
-  /* "CART.pyx":221
+  /* "CART.pyx":238
  *         self._X = np.empty_like(X, dtype=np.float64)
  *         self._size = X.shape[0]
  *         self._indices = np.arange(self._size, dtype=int)             # <<<<<<<<<<<<<<
  *         self._reverse_mapping = [[] for _ in range(X.shape[1])]
  *         cdef size_t nb_cols = X.shape[1]
  */
-  __Pyx_TraceLine(221,0,__PYX_ERR(0, 221, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 221, __pyx_L1_error)
+  __Pyx_TraceLine(238,0,__PYX_ERR(0, 238, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 238, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_arange); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 221, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_arange); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 238, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyInt_FromSize_t(__pyx_v_self->_size); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 221, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyInt_FromSize_t(__pyx_v_self->_size); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 238, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = PyTuple_New(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 221, __pyx_L1_error)
+  __pyx_t_6 = PyTuple_New(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 238, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_GIVEREF(__pyx_t_5);
   PyTuple_SET_ITEM(__pyx_t_6, 0, __pyx_t_5);
   __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 221, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 238, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  if (PyDict_SetItem(__pyx_t_5, __pyx_n_s_dtype, ((PyObject *)(&PyInt_Type))) < 0) __PYX_ERR(0, 221, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_6, __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 221, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_5, __pyx_n_s_dtype, ((PyObject *)(&PyInt_Type))) < 0) __PYX_ERR(0, 238, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_6, __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 238, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_int_t(__pyx_t_2, PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 221, __pyx_L1_error)
+  __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_int_t(__pyx_t_2, PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 238, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __PYX_XDEC_MEMVIEW(&__pyx_v_self->_indices, 0);
   __pyx_v_self->_indices = __pyx_t_9;
   __pyx_t_9.memview = NULL;
   __pyx_t_9.data = NULL;
 
-  /* "CART.pyx":222
+  /* "CART.pyx":239
  *         self._size = X.shape[0]
  *         self._indices = np.arange(self._size, dtype=int)
  *         self._reverse_mapping = [[] for _ in range(X.shape[1])]             # <<<<<<<<<<<<<<
  *         cdef size_t nb_cols = X.shape[1]
  *         cdef bint categorical, is_pd_categorical, is_np_categorical
  */
-  __Pyx_TraceLine(222,0,__PYX_ERR(0, 222, __pyx_L1_error))
+  __Pyx_TraceLine(239,0,__PYX_ERR(0, 239, __pyx_L1_error))
   { /* enter inner scope */
-    __pyx_t_2 = PyList_New(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 222, __pyx_L1_error)
+    __pyx_t_2 = PyList_New(0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 239, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __pyx_t_10 = (__pyx_v_X->dimensions[1]);
     __pyx_t_11 = __pyx_t_10;
     for (__pyx_t_12 = 0; __pyx_t_12 < __pyx_t_11; __pyx_t_12+=1) {
       __pyx_7genexpr__pyx_v__ = __pyx_t_12;
-      __pyx_t_5 = PyList_New(0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 222, __pyx_L1_error)
+      __pyx_t_5 = PyList_New(0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 239, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      if (unlikely(__Pyx_ListComp_Append(__pyx_t_2, (PyObject*)__pyx_t_5))) __PYX_ERR(0, 222, __pyx_L1_error)
+      if (unlikely(__Pyx_ListComp_Append(__pyx_t_2, (PyObject*)__pyx_t_5))) __PYX_ERR(0, 239, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     }
   } /* exit inner scope */
@@ -7387,37 +7722,37 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
   __pyx_v_self->_reverse_mapping = ((PyObject*)__pyx_t_2);
   __pyx_t_2 = 0;
 
-  /* "CART.pyx":223
+  /* "CART.pyx":240
  *         self._indices = np.arange(self._size, dtype=int)
  *         self._reverse_mapping = [[] for _ in range(X.shape[1])]
  *         cdef size_t nb_cols = X.shape[1]             # <<<<<<<<<<<<<<
  *         cdef bint categorical, is_pd_categorical, is_np_categorical
  *         cdef int col_idx
  */
-  __Pyx_TraceLine(223,0,__PYX_ERR(0, 223, __pyx_L1_error))
+  __Pyx_TraceLine(240,0,__PYX_ERR(0, 240, __pyx_L1_error))
   __pyx_v_nb_cols = (__pyx_v_X->dimensions[1]);
 
-  /* "CART.pyx":226
+  /* "CART.pyx":243
  *         cdef bint categorical, is_pd_categorical, is_np_categorical
  *         cdef int col_idx
  *         for col_idx in range(len(dtypes)):             # <<<<<<<<<<<<<<
  *             dtype = dtypes[col_idx]
  *             is_pd_categorical = isinstance(dtype, pd.core.dtypes.dtypes.CategoricalDtype)
  */
-  __Pyx_TraceLine(226,0,__PYX_ERR(0, 226, __pyx_L1_error))
-  __pyx_t_13 = PyObject_Length(((PyObject *)__pyx_v_dtypes)); if (unlikely(__pyx_t_13 == ((Py_ssize_t)-1))) __PYX_ERR(0, 226, __pyx_L1_error)
+  __Pyx_TraceLine(243,0,__PYX_ERR(0, 243, __pyx_L1_error))
+  __pyx_t_13 = PyObject_Length(((PyObject *)__pyx_v_dtypes)); if (unlikely(__pyx_t_13 == ((Py_ssize_t)-1))) __PYX_ERR(0, 243, __pyx_L1_error)
   __pyx_t_14 = __pyx_t_13;
   for (__pyx_t_15 = 0; __pyx_t_15 < __pyx_t_14; __pyx_t_15+=1) {
     __pyx_v_col_idx = __pyx_t_15;
 
-    /* "CART.pyx":227
+    /* "CART.pyx":244
  *         cdef int col_idx
  *         for col_idx in range(len(dtypes)):
  *             dtype = dtypes[col_idx]             # <<<<<<<<<<<<<<
  *             is_pd_categorical = isinstance(dtype, pd.core.dtypes.dtypes.CategoricalDtype)
  *             is_np_categorical = isinstance(dtype, np.dtype) and dtype.kind == 'U'
  */
-    __Pyx_TraceLine(227,0,__PYX_ERR(0, 227, __pyx_L1_error))
+    __Pyx_TraceLine(244,0,__PYX_ERR(0, 244, __pyx_L1_error))
     __pyx_t_16 = __pyx_v_col_idx;
     if (__pyx_t_16 < 0) __pyx_t_16 += __pyx_pybuffernd_dtypes.diminfo[0].shape;
     __pyx_t_2 = (PyObject *) *__Pyx_BufPtrStrided1d(PyObject **, __pyx_pybuffernd_dtypes.rcbuffer->pybuffer.buf, __pyx_t_16, __pyx_pybuffernd_dtypes.diminfo[0].strides);
@@ -7426,40 +7761,40 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
     __Pyx_XDECREF_SET(__pyx_v_dtype, __pyx_t_2);
     __pyx_t_2 = 0;
 
-    /* "CART.pyx":228
+    /* "CART.pyx":245
  *         for col_idx in range(len(dtypes)):
  *             dtype = dtypes[col_idx]
  *             is_pd_categorical = isinstance(dtype, pd.core.dtypes.dtypes.CategoricalDtype)             # <<<<<<<<<<<<<<
  *             is_np_categorical = isinstance(dtype, np.dtype) and dtype.kind == 'U'
  *             categorical = is_pd_categorical or is_np_categorical
  */
-    __Pyx_TraceLine(228,0,__PYX_ERR(0, 228, __pyx_L1_error))
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_pd); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 228, __pyx_L1_error)
+    __Pyx_TraceLine(245,0,__PYX_ERR(0, 245, __pyx_L1_error))
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_pd); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 245, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_core); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 228, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_core); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 245, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_dtypes); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 228, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_dtypes); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 245, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_dtypes); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 228, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_dtypes); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 245, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_CategoricalDtype); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 228, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_CategoricalDtype); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 245, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_t_17 = PyObject_IsInstance(__pyx_v_dtype, __pyx_t_2); if (unlikely(__pyx_t_17 == ((int)-1))) __PYX_ERR(0, 228, __pyx_L1_error)
+    __pyx_t_17 = PyObject_IsInstance(__pyx_v_dtype, __pyx_t_2); if (unlikely(__pyx_t_17 == ((int)-1))) __PYX_ERR(0, 245, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __pyx_v_is_pd_categorical = __pyx_t_17;
 
-    /* "CART.pyx":229
+    /* "CART.pyx":246
  *             dtype = dtypes[col_idx]
  *             is_pd_categorical = isinstance(dtype, pd.core.dtypes.dtypes.CategoricalDtype)
  *             is_np_categorical = isinstance(dtype, np.dtype) and dtype.kind == 'U'             # <<<<<<<<<<<<<<
  *             categorical = is_pd_categorical or is_np_categorical
  *             if categorical:
  */
-    __Pyx_TraceLine(229,0,__PYX_ERR(0, 229, __pyx_L1_error))
+    __Pyx_TraceLine(246,0,__PYX_ERR(0, 246, __pyx_L1_error))
     __pyx_t_18 = __Pyx_TypeCheck(__pyx_v_dtype, __pyx_ptype_5numpy_dtype); 
     __pyx_t_19 = (__pyx_t_18 != 0);
     if (__pyx_t_19) {
@@ -7467,22 +7802,22 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
       __pyx_t_17 = __pyx_t_19;
       goto __pyx_L7_bool_binop_done;
     }
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_dtype, __pyx_n_s_kind); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 229, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_dtype, __pyx_n_s_kind); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 246, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_19 = (__Pyx_PyUnicode_Equals(__pyx_t_2, __pyx_n_u_U, Py_EQ)); if (unlikely(__pyx_t_19 < 0)) __PYX_ERR(0, 229, __pyx_L1_error)
+    __pyx_t_19 = (__Pyx_PyUnicode_Equals(__pyx_t_2, __pyx_n_u_U, Py_EQ)); if (unlikely(__pyx_t_19 < 0)) __PYX_ERR(0, 246, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __pyx_t_17 = __pyx_t_19;
     __pyx_L7_bool_binop_done:;
     __pyx_v_is_np_categorical = __pyx_t_17;
 
-    /* "CART.pyx":230
+    /* "CART.pyx":247
  *             is_pd_categorical = isinstance(dtype, pd.core.dtypes.dtypes.CategoricalDtype)
  *             is_np_categorical = isinstance(dtype, np.dtype) and dtype.kind == 'U'
  *             categorical = is_pd_categorical or is_np_categorical             # <<<<<<<<<<<<<<
  *             if categorical:
  *                 self._is_categorical[col_idx] = True
  */
-    __Pyx_TraceLine(230,0,__PYX_ERR(0, 230, __pyx_L1_error))
+    __Pyx_TraceLine(247,0,__PYX_ERR(0, 247, __pyx_L1_error))
     __pyx_t_19 = (__pyx_v_is_pd_categorical != 0);
     if (!__pyx_t_19) {
     } else {
@@ -7494,42 +7829,42 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
     __pyx_L9_bool_binop_done:;
     __pyx_v_categorical = __pyx_t_17;
 
-    /* "CART.pyx":231
+    /* "CART.pyx":248
  *             is_np_categorical = isinstance(dtype, np.dtype) and dtype.kind == 'U'
  *             categorical = is_pd_categorical or is_np_categorical
  *             if categorical:             # <<<<<<<<<<<<<<
  *                 self._is_categorical[col_idx] = True
  *                 self._labelize(X, self._X, col_idx, True)
  */
-    __Pyx_TraceLine(231,0,__PYX_ERR(0, 231, __pyx_L1_error))
+    __Pyx_TraceLine(248,0,__PYX_ERR(0, 248, __pyx_L1_error))
     __pyx_t_17 = (__pyx_v_categorical != 0);
     if (__pyx_t_17) {
 
-      /* "CART.pyx":232
+      /* "CART.pyx":249
  *             categorical = is_pd_categorical or is_np_categorical
  *             if categorical:
  *                 self._is_categorical[col_idx] = True             # <<<<<<<<<<<<<<
  *                 self._labelize(X, self._X, col_idx, True)
  *             else:
  */
-      __Pyx_TraceLine(232,0,__PYX_ERR(0, 232, __pyx_L1_error))
+      __Pyx_TraceLine(249,0,__PYX_ERR(0, 249, __pyx_L1_error))
       __pyx_t_16 = __pyx_v_col_idx;
       if (__pyx_t_16 < 0) __pyx_t_16 += __pyx_v_self->_is_categorical.shape[0];
       *((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_self->_is_categorical.data + __pyx_t_16 * __pyx_v_self->_is_categorical.strides[0]) )) = 1;
 
-      /* "CART.pyx":233
+      /* "CART.pyx":250
  *             if categorical:
  *                 self._is_categorical[col_idx] = True
  *                 self._labelize(X, self._X, col_idx, True)             # <<<<<<<<<<<<<<
  *             else:
  *                 assert isinstance(dtype, np.dtype) and dtype.kind in 'fiu'
  */
-      __Pyx_TraceLine(233,0,__PYX_ERR(0, 233, __pyx_L1_error))
+      __Pyx_TraceLine(250,0,__PYX_ERR(0, 250, __pyx_L1_error))
       __pyx_t_20.__pyx_n = 1;
       __pyx_t_20.compute_mapping = 1;
       __pyx_f_4CART_7Dataset__labelize(__pyx_v_self, ((PyArrayObject *)__pyx_v_X), __pyx_v_self->_X, __pyx_v_col_idx, &__pyx_t_20); 
 
-      /* "CART.pyx":231
+      /* "CART.pyx":248
  *             is_np_categorical = isinstance(dtype, np.dtype) and dtype.kind == 'U'
  *             categorical = is_pd_categorical or is_np_categorical
  *             if categorical:             # <<<<<<<<<<<<<<
@@ -7539,14 +7874,14 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
       goto __pyx_L11;
     }
 
-    /* "CART.pyx":235
+    /* "CART.pyx":252
  *                 self._labelize(X, self._X, col_idx, True)
  *             else:
  *                 assert isinstance(dtype, np.dtype) and dtype.kind in 'fiu'             # <<<<<<<<<<<<<<
  *                 self._is_categorical[col_idx] = False
  *                 np.asarray(self._X)[:, col_idx] = X[:, col_idx]
  */
-    __Pyx_TraceLine(235,0,__PYX_ERR(0, 235, __pyx_L1_error))
+    __Pyx_TraceLine(252,0,__PYX_ERR(0, 252, __pyx_L1_error))
     /*else*/ {
       #ifndef CYTHON_WITHOUT_ASSERTIONS
       if (unlikely(__pyx_assertions_enabled())) {
@@ -7557,43 +7892,43 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
           __pyx_t_17 = __pyx_t_18;
           goto __pyx_L12_bool_binop_done;
         }
-        __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_dtype, __pyx_n_s_kind); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 235, __pyx_L1_error)
+        __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_v_dtype, __pyx_n_s_kind); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 252, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
-        __pyx_t_18 = (__Pyx_PyUnicode_ContainsTF(__pyx_t_2, __pyx_n_u_fiu, Py_EQ)); if (unlikely(__pyx_t_18 < 0)) __PYX_ERR(0, 235, __pyx_L1_error)
+        __pyx_t_18 = (__Pyx_PyUnicode_ContainsTF(__pyx_t_2, __pyx_n_u_fiu, Py_EQ)); if (unlikely(__pyx_t_18 < 0)) __PYX_ERR(0, 252, __pyx_L1_error)
         __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
         __pyx_t_19 = (__pyx_t_18 != 0);
         __pyx_t_17 = __pyx_t_19;
         __pyx_L12_bool_binop_done:;
         if (unlikely(!__pyx_t_17)) {
           PyErr_SetNone(PyExc_AssertionError);
-          __PYX_ERR(0, 235, __pyx_L1_error)
+          __PYX_ERR(0, 252, __pyx_L1_error)
         }
       }
       #endif
 
-      /* "CART.pyx":236
+      /* "CART.pyx":253
  *             else:
  *                 assert isinstance(dtype, np.dtype) and dtype.kind in 'fiu'
  *                 self._is_categorical[col_idx] = False             # <<<<<<<<<<<<<<
  *                 np.asarray(self._X)[:, col_idx] = X[:, col_idx]
  * 
  */
-      __Pyx_TraceLine(236,0,__PYX_ERR(0, 236, __pyx_L1_error))
+      __Pyx_TraceLine(253,0,__PYX_ERR(0, 253, __pyx_L1_error))
       __pyx_t_16 = __pyx_v_col_idx;
       if (__pyx_t_16 < 0) __pyx_t_16 += __pyx_v_self->_is_categorical.shape[0];
       *((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_self->_is_categorical.data + __pyx_t_16 * __pyx_v_self->_is_categorical.strides[0]) )) = 0;
 
-      /* "CART.pyx":237
+      /* "CART.pyx":254
  *                 assert isinstance(dtype, np.dtype) and dtype.kind in 'fiu'
  *                 self._is_categorical[col_idx] = False
  *                 np.asarray(self._X)[:, col_idx] = X[:, col_idx]             # <<<<<<<<<<<<<<
  * 
  *     def __getitem__(self, indices):
  */
-      __Pyx_TraceLine(237,0,__PYX_ERR(0, 237, __pyx_L1_error))
-      __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 237, __pyx_L1_error)
+      __Pyx_TraceLine(254,0,__PYX_ERR(0, 254, __pyx_L1_error))
+      __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 237, __pyx_L1_error)
+      __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_INCREF(__pyx_slice__4);
       __Pyx_GIVEREF(__pyx_slice__4);
@@ -7601,15 +7936,15 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
       __Pyx_GIVEREF(__pyx_t_2);
       PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_2);
       __pyx_t_2 = 0;
-      __pyx_t_2 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_X), __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 237, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_X), __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 237, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_6);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 237, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      __pyx_t_6 = __pyx_memoryview_fromslice(__pyx_v_self->_X, 2, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 237, __pyx_L1_error)
+      __pyx_t_6 = __pyx_memoryview_fromslice(__pyx_v_self->_X, 2, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_6);
       __pyx_t_3 = NULL;
       if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
@@ -7624,12 +7959,12 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
       __pyx_t_5 = (__pyx_t_3) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_3, __pyx_t_6) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_6);
       __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-      if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 237, __pyx_L1_error)
+      if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 237, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 237, __pyx_L1_error)
+      __pyx_t_6 = PyTuple_New(2); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_6);
       __Pyx_INCREF(__pyx_slice__4);
       __Pyx_GIVEREF(__pyx_slice__4);
@@ -7637,7 +7972,7 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
       __Pyx_GIVEREF(__pyx_t_4);
       PyTuple_SET_ITEM(__pyx_t_6, 1, __pyx_t_4);
       __pyx_t_4 = 0;
-      if (unlikely(PyObject_SetItem(__pyx_t_5, __pyx_t_6, __pyx_t_2) < 0)) __PYX_ERR(0, 237, __pyx_L1_error)
+      if (unlikely(PyObject_SetItem(__pyx_t_5, __pyx_t_6, __pyx_t_2) < 0)) __PYX_ERR(0, 254, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -7645,7 +7980,7 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
     __pyx_L11:;
   }
 
-  /* "CART.pyx":212
+  /* "CART.pyx":229
  *     cdef list _reverse_mapping
  * 
  *     def __init__(self, np.ndarray[object, ndim=2] X,             # <<<<<<<<<<<<<<
@@ -7690,7 +8025,7 @@ static int __pyx_pf_4CART_7Dataset___init__(struct __pyx_obj_4CART_Dataset *__py
   return __pyx_r;
 }
 
-/* "CART.pyx":239
+/* "CART.pyx":256
  *                 np.asarray(self._X)[:, col_idx] = X[:, col_idx]
  * 
  *     def __getitem__(self, indices):             # <<<<<<<<<<<<<<
@@ -7731,16 +8066,16 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__getitem__", 0);
-  __Pyx_TraceCall("__getitem__", __pyx_f[0], 239, 0, __PYX_ERR(0, 239, __pyx_L1_error));
+  __Pyx_TraceCall("__getitem__", __pyx_f[0], 256, 0, __PYX_ERR(0, 256, __pyx_L1_error));
 
-  /* "CART.pyx":240
+  /* "CART.pyx":257
  * 
  *     def __getitem__(self, indices):
  *         assert isinstance(indices, (slice, np.ndarray))             # <<<<<<<<<<<<<<
  *         cdef Dataset ret = Dataset.__new__(Dataset)
  *         ret._X = self._X
  */
-  __Pyx_TraceLine(240,0,__PYX_ERR(0, 240, __pyx_L1_error))
+  __Pyx_TraceLine(257,0,__PYX_ERR(0, 257, __pyx_L1_error))
   #ifndef CYTHON_WITHOUT_ASSERTIONS
   if (unlikely(__pyx_assertions_enabled())) {
     __pyx_t_2 = PySlice_Check(__pyx_v_indices); 
@@ -7756,32 +8091,32 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
     __pyx_L3_bool_binop_done:;
     if (unlikely(!(__pyx_t_1 != 0))) {
       PyErr_SetNone(PyExc_AssertionError);
-      __PYX_ERR(0, 240, __pyx_L1_error)
+      __PYX_ERR(0, 257, __pyx_L1_error)
     }
   }
   #endif
 
-  /* "CART.pyx":241
+  /* "CART.pyx":258
  *     def __getitem__(self, indices):
  *         assert isinstance(indices, (slice, np.ndarray))
  *         cdef Dataset ret = Dataset.__new__(Dataset)             # <<<<<<<<<<<<<<
  *         ret._X = self._X
  *         ret._y = self._y
  */
-  __Pyx_TraceLine(241,0,__PYX_ERR(0, 241, __pyx_L1_error))
-  __pyx_t_4 = ((PyObject *)__pyx_tp_new_4CART_Dataset(((PyTypeObject *)__pyx_ptype_4CART_Dataset), __pyx_empty_tuple, NULL)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 241, __pyx_L1_error)
+  __Pyx_TraceLine(258,0,__PYX_ERR(0, 258, __pyx_L1_error))
+  __pyx_t_4 = ((PyObject *)__pyx_tp_new_4CART_Dataset(((PyTypeObject *)__pyx_ptype_4CART_Dataset), __pyx_empty_tuple, NULL)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 258, __pyx_L1_error)
   __Pyx_GOTREF(((PyObject *)__pyx_t_4));
   __pyx_v_ret = ((struct __pyx_obj_4CART_Dataset *)__pyx_t_4);
   __pyx_t_4 = 0;
 
-  /* "CART.pyx":242
+  /* "CART.pyx":259
  *         assert isinstance(indices, (slice, np.ndarray))
  *         cdef Dataset ret = Dataset.__new__(Dataset)
  *         ret._X = self._X             # <<<<<<<<<<<<<<
  *         ret._y = self._y
  *         ret._p = self._p
  */
-  __Pyx_TraceLine(242,0,__PYX_ERR(0, 242, __pyx_L1_error))
+  __Pyx_TraceLine(259,0,__PYX_ERR(0, 259, __pyx_L1_error))
   __pyx_t_5 = __pyx_v_self->_X;
   __PYX_INC_MEMVIEW(&__pyx_t_5, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_ret->_X, 0);
@@ -7789,14 +8124,14 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
   __pyx_t_5.memview = NULL;
   __pyx_t_5.data = NULL;
 
-  /* "CART.pyx":243
+  /* "CART.pyx":260
  *         cdef Dataset ret = Dataset.__new__(Dataset)
  *         ret._X = self._X
  *         ret._y = self._y             # <<<<<<<<<<<<<<
  *         ret._p = self._p
  *         ret._is_categorical = self._is_categorical
  */
-  __Pyx_TraceLine(243,0,__PYX_ERR(0, 243, __pyx_L1_error))
+  __Pyx_TraceLine(260,0,__PYX_ERR(0, 260, __pyx_L1_error))
   __pyx_t_6 = __pyx_v_self->_y;
   __PYX_INC_MEMVIEW(&__pyx_t_6, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_ret->_y, 0);
@@ -7804,14 +8139,14 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
   __pyx_t_6.memview = NULL;
   __pyx_t_6.data = NULL;
 
-  /* "CART.pyx":244
+  /* "CART.pyx":261
  *         ret._X = self._X
  *         ret._y = self._y
  *         ret._p = self._p             # <<<<<<<<<<<<<<
  *         ret._is_categorical = self._is_categorical
  *         ret._indices = np.asarray(self._indices)[indices]
  */
-  __Pyx_TraceLine(244,0,__PYX_ERR(0, 244, __pyx_L1_error))
+  __Pyx_TraceLine(261,0,__PYX_ERR(0, 261, __pyx_L1_error))
   __pyx_t_6 = __pyx_v_self->_p;
   __PYX_INC_MEMVIEW(&__pyx_t_6, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_ret->_p, 0);
@@ -7819,14 +8154,14 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
   __pyx_t_6.memview = NULL;
   __pyx_t_6.data = NULL;
 
-  /* "CART.pyx":245
+  /* "CART.pyx":262
  *         ret._y = self._y
  *         ret._p = self._p
  *         ret._is_categorical = self._is_categorical             # <<<<<<<<<<<<<<
  *         ret._indices = np.asarray(self._indices)[indices]
  *         ret._size = ret._indices.shape[0]
  */
-  __Pyx_TraceLine(245,0,__PYX_ERR(0, 245, __pyx_L1_error))
+  __Pyx_TraceLine(262,0,__PYX_ERR(0, 262, __pyx_L1_error))
   __pyx_t_7 = __pyx_v_self->_is_categorical;
   __PYX_INC_MEMVIEW(&__pyx_t_7, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_v_ret->_is_categorical, 0);
@@ -7834,20 +8169,20 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
   __pyx_t_7.memview = NULL;
   __pyx_t_7.data = NULL;
 
-  /* "CART.pyx":246
+  /* "CART.pyx":263
  *         ret._p = self._p
  *         ret._is_categorical = self._is_categorical
  *         ret._indices = np.asarray(self._indices)[indices]             # <<<<<<<<<<<<<<
  *         ret._size = ret._indices.shape[0]
  *         ret._reverse_mapping = self._reverse_mapping
  */
-  __Pyx_TraceLine(246,0,__PYX_ERR(0, 246, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 246, __pyx_L1_error)
+  __Pyx_TraceLine(263,0,__PYX_ERR(0, 263, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 263, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
-  __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_asarray); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 246, __pyx_L1_error)
+  __pyx_t_9 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_asarray); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 263, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_9);
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-  __pyx_t_8 = __pyx_memoryview_fromslice(__pyx_v_self->_indices, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_int_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_int_t, 0);; if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 246, __pyx_L1_error)
+  __pyx_t_8 = __pyx_memoryview_fromslice(__pyx_v_self->_indices, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_int_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_int_t, 0);; if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 263, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_8);
   __pyx_t_10 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_9))) {
@@ -7862,37 +8197,37 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
   __pyx_t_4 = (__pyx_t_10) ? __Pyx_PyObject_Call2Args(__pyx_t_9, __pyx_t_10, __pyx_t_8) : __Pyx_PyObject_CallOneArg(__pyx_t_9, __pyx_t_8);
   __Pyx_XDECREF(__pyx_t_10); __pyx_t_10 = 0;
   __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-  if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 246, __pyx_L1_error)
+  if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 263, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
-  __pyx_t_9 = __Pyx_PyObject_GetItem(__pyx_t_4, __pyx_v_indices); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 246, __pyx_L1_error)
+  __pyx_t_9 = __Pyx_PyObject_GetItem(__pyx_t_4, __pyx_v_indices); if (unlikely(!__pyx_t_9)) __PYX_ERR(0, 263, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_9);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_11 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_int_t(__pyx_t_9, PyBUF_WRITABLE); if (unlikely(!__pyx_t_11.memview)) __PYX_ERR(0, 246, __pyx_L1_error)
+  __pyx_t_11 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_int_t(__pyx_t_9, PyBUF_WRITABLE); if (unlikely(!__pyx_t_11.memview)) __PYX_ERR(0, 263, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_9); __pyx_t_9 = 0;
   __PYX_XDEC_MEMVIEW(&__pyx_v_ret->_indices, 0);
   __pyx_v_ret->_indices = __pyx_t_11;
   __pyx_t_11.memview = NULL;
   __pyx_t_11.data = NULL;
 
-  /* "CART.pyx":247
+  /* "CART.pyx":264
  *         ret._is_categorical = self._is_categorical
  *         ret._indices = np.asarray(self._indices)[indices]
  *         ret._size = ret._indices.shape[0]             # <<<<<<<<<<<<<<
  *         ret._reverse_mapping = self._reverse_mapping
  *         return ret
  */
-  __Pyx_TraceLine(247,0,__PYX_ERR(0, 247, __pyx_L1_error))
+  __Pyx_TraceLine(264,0,__PYX_ERR(0, 264, __pyx_L1_error))
   __pyx_v_ret->_size = (__pyx_v_ret->_indices.shape[0]);
 
-  /* "CART.pyx":248
+  /* "CART.pyx":265
  *         ret._indices = np.asarray(self._indices)[indices]
  *         ret._size = ret._indices.shape[0]
  *         ret._reverse_mapping = self._reverse_mapping             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-  __Pyx_TraceLine(248,0,__PYX_ERR(0, 248, __pyx_L1_error))
+  __Pyx_TraceLine(265,0,__PYX_ERR(0, 265, __pyx_L1_error))
   __pyx_t_9 = __pyx_v_self->_reverse_mapping;
   __Pyx_INCREF(__pyx_t_9);
   __Pyx_GIVEREF(__pyx_t_9);
@@ -7901,20 +8236,20 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
   __pyx_v_ret->_reverse_mapping = ((PyObject*)__pyx_t_9);
   __pyx_t_9 = 0;
 
-  /* "CART.pyx":249
+  /* "CART.pyx":266
  *         ret._size = ret._indices.shape[0]
  *         ret._reverse_mapping = self._reverse_mapping
  *         return ret             # <<<<<<<<<<<<<<
  * 
  *     cpdef bint is_categorical(self, int feature_idx):
  */
-  __Pyx_TraceLine(249,0,__PYX_ERR(0, 249, __pyx_L1_error))
+  __Pyx_TraceLine(266,0,__PYX_ERR(0, 266, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
   __Pyx_INCREF(((PyObject *)__pyx_v_ret));
   __pyx_r = ((PyObject *)__pyx_v_ret);
   goto __pyx_L0;
 
-  /* "CART.pyx":239
+  /* "CART.pyx":256
  *                 np.asarray(self._X)[:, col_idx] = X[:, col_idx]
  * 
  *     def __getitem__(self, indices):             # <<<<<<<<<<<<<<
@@ -7942,7 +8277,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_2__getitem__(struct __pyx_obj_4CART_Dat
   return __pyx_r;
 }
 
-/* "CART.pyx":251
+/* "CART.pyx":268
  *         return ret
  * 
  *     cpdef bint is_categorical(self, int feature_idx):             # <<<<<<<<<<<<<<
@@ -7960,22 +8295,22 @@ static int __pyx_f_4CART_7Dataset_is_categorical(struct __pyx_obj_4CART_Dataset 
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("is_categorical", 0);
-  __Pyx_TraceCall("is_categorical", __pyx_f[0], 251, 0, __PYX_ERR(0, 251, __pyx_L1_error));
+  __Pyx_TraceCall("is_categorical", __pyx_f[0], 268, 0, __PYX_ERR(0, 268, __pyx_L1_error));
 
-  /* "CART.pyx":252
+  /* "CART.pyx":269
  * 
  *     cpdef bint is_categorical(self, int feature_idx):
  *         return self._is_categorical[feature_idx]             # <<<<<<<<<<<<<<
  * 
  *     cdef void _labelize(
  */
-  __Pyx_TraceLine(252,0,__PYX_ERR(0, 252, __pyx_L1_error))
+  __Pyx_TraceLine(269,0,__PYX_ERR(0, 269, __pyx_L1_error))
   __pyx_t_1 = __pyx_v_feature_idx;
   if (__pyx_t_1 < 0) __pyx_t_1 += __pyx_v_self->_is_categorical.shape[0];
   __pyx_r = (*((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_self->_is_categorical.data + __pyx_t_1 * __pyx_v_self->_is_categorical.strides[0]) )));
   goto __pyx_L0;
 
-  /* "CART.pyx":251
+  /* "CART.pyx":268
  *         return ret
  * 
  *     cpdef bint is_categorical(self, int feature_idx):             # <<<<<<<<<<<<<<
@@ -8004,7 +8339,7 @@ static PyObject *__pyx_pw_4CART_7Dataset_5is_categorical(PyObject *__pyx_v_self,
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("is_categorical (wrapper)", 0);
   assert(__pyx_arg_feature_idx); {
-    __pyx_v_feature_idx = __Pyx_PyInt_As_int(__pyx_arg_feature_idx); if (unlikely((__pyx_v_feature_idx == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 251, __pyx_L3_error)
+    __pyx_v_feature_idx = __Pyx_PyInt_As_int(__pyx_arg_feature_idx); if (unlikely((__pyx_v_feature_idx == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 268, __pyx_L3_error)
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L3_error:;
@@ -8028,9 +8363,9 @@ static PyObject *__pyx_pf_4CART_7Dataset_4is_categorical(struct __pyx_obj_4CART_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("is_categorical", 0);
-  __Pyx_TraceCall("is_categorical (wrapper)", __pyx_f[0], 251, 0, __PYX_ERR(0, 251, __pyx_L1_error));
+  __Pyx_TraceCall("is_categorical (wrapper)", __pyx_f[0], 268, 0, __PYX_ERR(0, 268, __pyx_L1_error));
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_4CART_7Dataset_is_categorical(__pyx_v_self, __pyx_v_feature_idx, 1)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 251, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyBool_FromLong(__pyx_f_4CART_7Dataset_is_categorical(__pyx_v_self, __pyx_v_feature_idx, 1)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 268, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
@@ -8048,7 +8383,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_4is_categorical(struct __pyx_obj_4CART_
   return __pyx_r;
 }
 
-/* "CART.pyx":254
+/* "CART.pyx":271
  *         return self._is_categorical[feature_idx]
  * 
  *     cdef void _labelize(             # <<<<<<<<<<<<<<
@@ -8058,7 +8393,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_4is_categorical(struct __pyx_obj_4CART_
 
 static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__pyx_v_self, PyArrayObject *__pyx_v_X, __Pyx_memviewslice __pyx_v_out, int __pyx_v_col_idx, struct __pyx_opt_args_4CART_7Dataset__labelize *__pyx_optional_args) {
 
-  /* "CART.pyx":256
+  /* "CART.pyx":273
  *     cdef void _labelize(
  *             self, np.ndarray[object, ndim=2] X, np.float64_t[:, :] out,
  *             int col_idx, bint compute_mapping=True):             # <<<<<<<<<<<<<<
@@ -8086,7 +8421,7 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_labelize", 0);
-  __Pyx_TraceCall("_labelize", __pyx_f[0], 254, 0, __PYX_ERR(0, 254, __pyx_L1_error));
+  __Pyx_TraceCall("_labelize", __pyx_f[0], 271, 0, __PYX_ERR(0, 271, __pyx_L1_error));
   if (__pyx_optional_args) {
     if (__pyx_optional_args->__pyx_n > 0) {
       __pyx_v_compute_mapping = __pyx_optional_args->compute_mapping;
@@ -8098,47 +8433,47 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
   __pyx_pybuffernd_X.rcbuffer = &__pyx_pybuffer_X;
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_X.rcbuffer->pybuffer, (PyObject*)__pyx_v_X, &__Pyx_TypeInfo_object, PyBUF_FORMAT| PyBUF_STRIDES, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 254, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_X.rcbuffer->pybuffer, (PyObject*)__pyx_v_X, &__Pyx_TypeInfo_object, PyBUF_FORMAT| PyBUF_STRIDES, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 271, __pyx_L1_error)
   }
   __pyx_pybuffernd_X.diminfo[0].strides = __pyx_pybuffernd_X.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_X.diminfo[0].shape = __pyx_pybuffernd_X.rcbuffer->pybuffer.shape[0]; __pyx_pybuffernd_X.diminfo[1].strides = __pyx_pybuffernd_X.rcbuffer->pybuffer.strides[1]; __pyx_pybuffernd_X.diminfo[1].shape = __pyx_pybuffernd_X.rcbuffer->pybuffer.shape[1];
 
-  /* "CART.pyx":257
+  /* "CART.pyx":274
  *             self, np.ndarray[object, ndim=2] X, np.float64_t[:, :] out,
  *             int col_idx, bint compute_mapping=True):
  *         cdef int counter = 0             # <<<<<<<<<<<<<<
  *         if compute_mapping:
  *             self._reverse_mapping[col_idx] = np.unique(X[:, col_idx])
  */
-  __Pyx_TraceLine(257,0,__PYX_ERR(0, 257, __pyx_L1_error))
+  __Pyx_TraceLine(274,0,__PYX_ERR(0, 274, __pyx_L1_error))
   __pyx_v_counter = 0;
 
-  /* "CART.pyx":258
+  /* "CART.pyx":275
  *             int col_idx, bint compute_mapping=True):
  *         cdef int counter = 0
  *         if compute_mapping:             # <<<<<<<<<<<<<<
  *             self._reverse_mapping[col_idx] = np.unique(X[:, col_idx])
  *         cdef np.ndarray indices
  */
-  __Pyx_TraceLine(258,0,__PYX_ERR(0, 258, __pyx_L1_error))
+  __Pyx_TraceLine(275,0,__PYX_ERR(0, 275, __pyx_L1_error))
   __pyx_t_1 = (__pyx_v_compute_mapping != 0);
   if (__pyx_t_1) {
 
-    /* "CART.pyx":259
+    /* "CART.pyx":276
  *         cdef int counter = 0
  *         if compute_mapping:
  *             self._reverse_mapping[col_idx] = np.unique(X[:, col_idx])             # <<<<<<<<<<<<<<
  *         cdef np.ndarray indices
  *         for value in self._reverse_mapping[col_idx]:
  */
-    __Pyx_TraceLine(259,0,__PYX_ERR(0, 259, __pyx_L1_error))
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 259, __pyx_L1_error)
+    __Pyx_TraceLine(276,0,__PYX_ERR(0, 276, __pyx_L1_error))
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 276, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_unique); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 259, __pyx_L1_error)
+    __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_unique); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 276, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 259, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 276, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 259, __pyx_L1_error)
+    __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 276, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_INCREF(__pyx_slice__4);
     __Pyx_GIVEREF(__pyx_slice__4);
@@ -8146,7 +8481,7 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
     __Pyx_GIVEREF(__pyx_t_3);
     PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_3);
     __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_X), __pyx_t_5); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 259, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_X), __pyx_t_5); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 276, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __pyx_t_5 = NULL;
@@ -8162,17 +8497,17 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
     __pyx_t_2 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_5, __pyx_t_3) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_3);
     __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 259, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 276, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     if (unlikely(__pyx_v_self->_reverse_mapping == Py_None)) {
       PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-      __PYX_ERR(0, 259, __pyx_L1_error)
+      __PYX_ERR(0, 276, __pyx_L1_error)
     }
-    if (unlikely(__Pyx_SetItemInt(__pyx_v_self->_reverse_mapping, __pyx_v_col_idx, __pyx_t_2, int, 1, __Pyx_PyInt_From_int, 1, 1, 0) < 0)) __PYX_ERR(0, 259, __pyx_L1_error)
+    if (unlikely(__Pyx_SetItemInt(__pyx_v_self->_reverse_mapping, __pyx_v_col_idx, __pyx_t_2, int, 1, __Pyx_PyInt_From_int, 1, 1, 0) < 0)) __PYX_ERR(0, 276, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-    /* "CART.pyx":258
+    /* "CART.pyx":275
  *             int col_idx, bint compute_mapping=True):
  *         cdef int counter = 0
  *         if compute_mapping:             # <<<<<<<<<<<<<<
@@ -8181,27 +8516,27 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
  */
   }
 
-  /* "CART.pyx":261
+  /* "CART.pyx":278
  *             self._reverse_mapping[col_idx] = np.unique(X[:, col_idx])
  *         cdef np.ndarray indices
  *         for value in self._reverse_mapping[col_idx]:             # <<<<<<<<<<<<<<
  *             indices = np.where(X[:, col_idx] == value)[0]
  *             np.asarray(out)[indices, col_idx] = counter
  */
-  __Pyx_TraceLine(261,0,__PYX_ERR(0, 261, __pyx_L1_error))
+  __Pyx_TraceLine(278,0,__PYX_ERR(0, 278, __pyx_L1_error))
   if (unlikely(__pyx_v_self->_reverse_mapping == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-    __PYX_ERR(0, 261, __pyx_L1_error)
+    __PYX_ERR(0, 278, __pyx_L1_error)
   }
-  __pyx_t_2 = __Pyx_GetItemInt_List(__pyx_v_self->_reverse_mapping, __pyx_v_col_idx, int, 1, __Pyx_PyInt_From_int, 1, 1, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 261, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_GetItemInt_List(__pyx_v_self->_reverse_mapping, __pyx_v_col_idx, int, 1, __Pyx_PyInt_From_int, 1, 1, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 278, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   if (likely(PyList_CheckExact(__pyx_t_2)) || PyTuple_CheckExact(__pyx_t_2)) {
     __pyx_t_4 = __pyx_t_2; __Pyx_INCREF(__pyx_t_4); __pyx_t_6 = 0;
     __pyx_t_7 = NULL;
   } else {
-    __pyx_t_6 = -1; __pyx_t_4 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 261, __pyx_L1_error)
+    __pyx_t_6 = -1; __pyx_t_4 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 278, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_7 = Py_TYPE(__pyx_t_4)->tp_iternext; if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 261, __pyx_L1_error)
+    __pyx_t_7 = Py_TYPE(__pyx_t_4)->tp_iternext; if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 278, __pyx_L1_error)
   }
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   for (;;) {
@@ -8209,17 +8544,17 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
       if (likely(PyList_CheckExact(__pyx_t_4))) {
         if (__pyx_t_6 >= PyList_GET_SIZE(__pyx_t_4)) break;
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_2 = PyList_GET_ITEM(__pyx_t_4, __pyx_t_6); __Pyx_INCREF(__pyx_t_2); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 261, __pyx_L1_error)
+        __pyx_t_2 = PyList_GET_ITEM(__pyx_t_4, __pyx_t_6); __Pyx_INCREF(__pyx_t_2); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 278, __pyx_L1_error)
         #else
-        __pyx_t_2 = PySequence_ITEM(__pyx_t_4, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 261, __pyx_L1_error)
+        __pyx_t_2 = PySequence_ITEM(__pyx_t_4, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 278, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         #endif
       } else {
         if (__pyx_t_6 >= PyTuple_GET_SIZE(__pyx_t_4)) break;
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_2 = PyTuple_GET_ITEM(__pyx_t_4, __pyx_t_6); __Pyx_INCREF(__pyx_t_2); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 261, __pyx_L1_error)
+        __pyx_t_2 = PyTuple_GET_ITEM(__pyx_t_4, __pyx_t_6); __Pyx_INCREF(__pyx_t_2); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 278, __pyx_L1_error)
         #else
-        __pyx_t_2 = PySequence_ITEM(__pyx_t_4, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 261, __pyx_L1_error)
+        __pyx_t_2 = PySequence_ITEM(__pyx_t_4, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 278, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_2);
         #endif
       }
@@ -8229,7 +8564,7 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
         PyObject* exc_type = PyErr_Occurred();
         if (exc_type) {
           if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-          else __PYX_ERR(0, 261, __pyx_L1_error)
+          else __PYX_ERR(0, 278, __pyx_L1_error)
         }
         break;
       }
@@ -8238,22 +8573,22 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
     __Pyx_XDECREF_SET(__pyx_v_value, __pyx_t_2);
     __pyx_t_2 = 0;
 
-    /* "CART.pyx":262
+    /* "CART.pyx":279
  *         cdef np.ndarray indices
  *         for value in self._reverse_mapping[col_idx]:
  *             indices = np.where(X[:, col_idx] == value)[0]             # <<<<<<<<<<<<<<
  *             np.asarray(out)[indices, col_idx] = counter
  *             counter += 1
  */
-    __Pyx_TraceLine(262,0,__PYX_ERR(0, 262, __pyx_L1_error))
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __Pyx_TraceLine(279,0,__PYX_ERR(0, 279, __pyx_L1_error))
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_where); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_where); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_8 = PyTuple_New(2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_8 = PyTuple_New(2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_8);
     __Pyx_INCREF(__pyx_slice__4);
     __Pyx_GIVEREF(__pyx_slice__4);
@@ -8261,10 +8596,10 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
     __Pyx_GIVEREF(__pyx_t_3);
     PyTuple_SET_ITEM(__pyx_t_8, 1, __pyx_t_3);
     __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_X), __pyx_t_8); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_X), __pyx_t_8); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-    __pyx_t_8 = PyObject_RichCompare(__pyx_t_3, __pyx_v_value, Py_EQ); __Pyx_XGOTREF(__pyx_t_8); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_8 = PyObject_RichCompare(__pyx_t_3, __pyx_v_value, Py_EQ); __Pyx_XGOTREF(__pyx_t_8); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __pyx_t_3 = NULL;
     if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_5))) {
@@ -8279,32 +8614,32 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
     __pyx_t_2 = (__pyx_t_3) ? __Pyx_PyObject_Call2Args(__pyx_t_5, __pyx_t_3, __pyx_t_8) : __Pyx_PyObject_CallOneArg(__pyx_t_5, __pyx_t_8);
     __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 262, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_t_5 = __Pyx_GetItemInt(__pyx_t_2, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 262, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_GetItemInt(__pyx_t_2, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 262, __pyx_L1_error)
+    if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 279, __pyx_L1_error)
     __Pyx_XDECREF_SET(__pyx_v_indices, ((PyArrayObject *)__pyx_t_5));
     __pyx_t_5 = 0;
 
-    /* "CART.pyx":263
+    /* "CART.pyx":280
  *         for value in self._reverse_mapping[col_idx]:
  *             indices = np.where(X[:, col_idx] == value)[0]
  *             np.asarray(out)[indices, col_idx] = counter             # <<<<<<<<<<<<<<
  *             counter += 1
  * 
  */
-    __Pyx_TraceLine(263,0,__PYX_ERR(0, 263, __pyx_L1_error))
-    __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_counter); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 263, __pyx_L1_error)
+    __Pyx_TraceLine(280,0,__PYX_ERR(0, 280, __pyx_L1_error))
+    __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_counter); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 280, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
-    __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 263, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_8, __pyx_n_s_np); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 280, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_8);
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 263, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_8, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 280, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-    __pyx_t_8 = __pyx_memoryview_fromslice(__pyx_v_out, 2, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 263, __pyx_L1_error)
+    __pyx_t_8 = __pyx_memoryview_fromslice(__pyx_v_out, 2, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 280, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_8);
     __pyx_t_9 = NULL;
     if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
@@ -8319,12 +8654,12 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
     __pyx_t_2 = (__pyx_t_9) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_9, __pyx_t_8) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_8);
     __Pyx_XDECREF(__pyx_t_9); __pyx_t_9 = 0;
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 263, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 280, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 263, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_col_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 280, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_8 = PyTuple_New(2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 263, __pyx_L1_error)
+    __pyx_t_8 = PyTuple_New(2); if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 280, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_8);
     __Pyx_INCREF(((PyObject *)__pyx_v_indices));
     __Pyx_GIVEREF(((PyObject *)__pyx_v_indices));
@@ -8332,33 +8667,33 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
     __Pyx_GIVEREF(__pyx_t_3);
     PyTuple_SET_ITEM(__pyx_t_8, 1, __pyx_t_3);
     __pyx_t_3 = 0;
-    if (unlikely(PyObject_SetItem(__pyx_t_2, __pyx_t_8, __pyx_t_5) < 0)) __PYX_ERR(0, 263, __pyx_L1_error)
+    if (unlikely(PyObject_SetItem(__pyx_t_2, __pyx_t_8, __pyx_t_5) < 0)) __PYX_ERR(0, 280, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_DECREF(__pyx_t_8); __pyx_t_8 = 0;
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-    /* "CART.pyx":264
+    /* "CART.pyx":281
  *             indices = np.where(X[:, col_idx] == value)[0]
  *             np.asarray(out)[indices, col_idx] = counter
  *             counter += 1             # <<<<<<<<<<<<<<
  * 
  *     cdef Dataset sample(self, float prop_sample, bint replacement):
  */
-    __Pyx_TraceLine(264,0,__PYX_ERR(0, 264, __pyx_L1_error))
+    __Pyx_TraceLine(281,0,__PYX_ERR(0, 281, __pyx_L1_error))
     __pyx_v_counter = (__pyx_v_counter + 1);
 
-    /* "CART.pyx":261
+    /* "CART.pyx":278
  *             self._reverse_mapping[col_idx] = np.unique(X[:, col_idx])
  *         cdef np.ndarray indices
  *         for value in self._reverse_mapping[col_idx]:             # <<<<<<<<<<<<<<
  *             indices = np.where(X[:, col_idx] == value)[0]
  *             np.asarray(out)[indices, col_idx] = counter
  */
-    __Pyx_TraceLine(261,0,__PYX_ERR(0, 261, __pyx_L1_error))
+    __Pyx_TraceLine(278,0,__PYX_ERR(0, 278, __pyx_L1_error))
   }
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "CART.pyx":254
+  /* "CART.pyx":271
  *         return self._is_categorical[feature_idx]
  * 
  *     cdef void _labelize(             # <<<<<<<<<<<<<<
@@ -8392,7 +8727,7 @@ static void __pyx_f_4CART_7Dataset__labelize(struct __pyx_obj_4CART_Dataset *__p
   __Pyx_RefNannyFinishContext();
 }
 
-/* "CART.pyx":266
+/* "CART.pyx":283
  *             counter += 1
  * 
  *     cdef Dataset sample(self, float prop_sample, bint replacement):             # <<<<<<<<<<<<<<
@@ -8413,103 +8748,103 @@ static struct __pyx_obj_4CART_Dataset *__pyx_f_4CART_7Dataset_sample(struct __py
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("sample", 0);
-  __Pyx_TraceCall("sample", __pyx_f[0], 266, 0, __PYX_ERR(0, 266, __pyx_L1_error));
+  __Pyx_TraceCall("sample", __pyx_f[0], 283, 0, __PYX_ERR(0, 283, __pyx_L1_error));
 
-  /* "CART.pyx":267
+  /* "CART.pyx":284
  * 
  *     cdef Dataset sample(self, float prop_sample, bint replacement):
  *         cdef np.ndarray sampled_indices = np.random.choice(             # <<<<<<<<<<<<<<
  *             self._size, size=int(self._size * prop_sample), replace=replacement
  *         )
  */
-  __Pyx_TraceLine(267,0,__PYX_ERR(0, 267, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 267, __pyx_L1_error)
+  __Pyx_TraceLine(284,0,__PYX_ERR(0, 284, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 284, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_random); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 267, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_random); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 284, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_choice); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 267, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_choice); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 284, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":268
+  /* "CART.pyx":285
  *     cdef Dataset sample(self, float prop_sample, bint replacement):
  *         cdef np.ndarray sampled_indices = np.random.choice(
  *             self._size, size=int(self._size * prop_sample), replace=replacement             # <<<<<<<<<<<<<<
  *         )
  *         return self[sampled_indices]
  */
-  __Pyx_TraceLine(268,0,__PYX_ERR(0, 268, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyInt_FromSize_t(__pyx_v_self->_size); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 268, __pyx_L1_error)
+  __Pyx_TraceLine(285,0,__PYX_ERR(0, 285, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyInt_FromSize_t(__pyx_v_self->_size); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 285, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
 
-  /* "CART.pyx":267
+  /* "CART.pyx":284
  * 
  *     cdef Dataset sample(self, float prop_sample, bint replacement):
  *         cdef np.ndarray sampled_indices = np.random.choice(             # <<<<<<<<<<<<<<
  *             self._size, size=int(self._size * prop_sample), replace=replacement
  *         )
  */
-  __Pyx_TraceLine(267,0,__PYX_ERR(0, 267, __pyx_L1_error))
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 267, __pyx_L1_error)
+  __Pyx_TraceLine(284,0,__PYX_ERR(0, 284, __pyx_L1_error))
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 284, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_2);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_2);
   __pyx_t_2 = 0;
 
-  /* "CART.pyx":268
+  /* "CART.pyx":285
  *     cdef Dataset sample(self, float prop_sample, bint replacement):
  *         cdef np.ndarray sampled_indices = np.random.choice(
  *             self._size, size=int(self._size * prop_sample), replace=replacement             # <<<<<<<<<<<<<<
  *         )
  *         return self[sampled_indices]
  */
-  __Pyx_TraceLine(268,0,__PYX_ERR(0, 268, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 268, __pyx_L1_error)
+  __Pyx_TraceLine(285,0,__PYX_ERR(0, 285, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 285, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = __Pyx_PyInt_FromDouble((__pyx_v_self->_size * __pyx_v_prop_sample)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 268, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyInt_FromDouble((__pyx_v_self->_size * __pyx_v_prop_sample)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 285, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_size, __pyx_t_4) < 0) __PYX_ERR(0, 268, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_size, __pyx_t_4) < 0) __PYX_ERR(0, 285, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyBool_FromLong(__pyx_v_replacement); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 268, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyBool_FromLong(__pyx_v_replacement); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 285, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_replace, __pyx_t_4) < 0) __PYX_ERR(0, 268, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_replace, __pyx_t_4) < 0) __PYX_ERR(0, 285, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-  /* "CART.pyx":267
+  /* "CART.pyx":284
  * 
  *     cdef Dataset sample(self, float prop_sample, bint replacement):
  *         cdef np.ndarray sampled_indices = np.random.choice(             # <<<<<<<<<<<<<<
  *             self._size, size=int(self._size * prop_sample), replace=replacement
  *         )
  */
-  __Pyx_TraceLine(267,0,__PYX_ERR(0, 267, __pyx_L1_error))
-  __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_3, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 267, __pyx_L1_error)
+  __Pyx_TraceLine(284,0,__PYX_ERR(0, 284, __pyx_L1_error))
+  __pyx_t_4 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_3, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 284, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (!(likely(((__pyx_t_4) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_4, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 267, __pyx_L1_error)
+  if (!(likely(((__pyx_t_4) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_4, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 284, __pyx_L1_error)
   __pyx_v_sampled_indices = ((PyArrayObject *)__pyx_t_4);
   __pyx_t_4 = 0;
 
-  /* "CART.pyx":270
+  /* "CART.pyx":287
  *             self._size, size=int(self._size * prop_sample), replace=replacement
  *         )
  *         return self[sampled_indices]             # <<<<<<<<<<<<<<
  * 
  *     cdef bint not_all_equal(self, int col_idx) nogil:
  */
-  __Pyx_TraceLine(270,0,__PYX_ERR(0, 270, __pyx_L1_error))
+  __Pyx_TraceLine(287,0,__PYX_ERR(0, 287, __pyx_L1_error))
   __Pyx_XDECREF(((PyObject *)__pyx_r));
-  __pyx_t_4 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_self), ((PyObject *)__pyx_v_sampled_indices)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 270, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_self), ((PyObject *)__pyx_v_sampled_indices)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 287, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  if (!(likely(((__pyx_t_4) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_4, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 270, __pyx_L1_error)
+  if (!(likely(((__pyx_t_4) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_4, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 287, __pyx_L1_error)
   __pyx_r = ((struct __pyx_obj_4CART_Dataset *)__pyx_t_4);
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":266
+  /* "CART.pyx":283
  *             counter += 1
  * 
  *     cdef Dataset sample(self, float prop_sample, bint replacement):             # <<<<<<<<<<<<<<
@@ -8533,7 +8868,7 @@ static struct __pyx_obj_4CART_Dataset *__pyx_f_4CART_7Dataset_sample(struct __py
   return __pyx_r;
 }
 
-/* "CART.pyx":272
+/* "CART.pyx":289
  *         return self[sampled_indices]
  * 
  *     cdef bint not_all_equal(self, int col_idx) nogil:             # <<<<<<<<<<<<<<
@@ -8553,26 +8888,26 @@ static int __pyx_f_4CART_7Dataset_not_all_equal(struct __pyx_obj_4CART_Dataset *
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("not_all_equal", __pyx_f[0], 272, 1, __PYX_ERR(0, 272, __pyx_L1_error));
+  __Pyx_TraceCall("not_all_equal", __pyx_f[0], 289, 1, __PYX_ERR(0, 289, __pyx_L1_error));
 
-  /* "CART.pyx":273
+  /* "CART.pyx":290
  * 
  *     cdef bint not_all_equal(self, int col_idx) nogil:
  *         cdef size_t i = 0             # <<<<<<<<<<<<<<
  *         cdef np.float64_t val = self._X[self._indices[i], col_idx]
  *         while i < self._size:
  */
-  __Pyx_TraceLine(273,1,__PYX_ERR(0, 273, __pyx_L1_error))
+  __Pyx_TraceLine(290,1,__PYX_ERR(0, 290, __pyx_L1_error))
   __pyx_v_i = 0;
 
-  /* "CART.pyx":274
+  /* "CART.pyx":291
  *     cdef bint not_all_equal(self, int col_idx) nogil:
  *         cdef size_t i = 0
  *         cdef np.float64_t val = self._X[self._indices[i], col_idx]             # <<<<<<<<<<<<<<
  *         while i < self._size:
  *             if self._X[self._indices[i], col_idx] != val:
  */
-  __Pyx_TraceLine(274,1,__PYX_ERR(0, 274, __pyx_L1_error))
+  __Pyx_TraceLine(291,1,__PYX_ERR(0, 291, __pyx_L1_error))
   __pyx_t_1 = __pyx_v_i;
   __pyx_t_2 = (*((__pyx_t_5numpy_int_t *) ( /* dim=0 */ (__pyx_v_self->_indices.data + __pyx_t_1 * __pyx_v_self->_indices.strides[0]) )));
   __pyx_t_3 = __pyx_v_col_idx;
@@ -8580,26 +8915,26 @@ static int __pyx_f_4CART_7Dataset_not_all_equal(struct __pyx_obj_4CART_Dataset *
   if (__pyx_t_3 < 0) __pyx_t_3 += __pyx_v_self->_X.shape[1];
   __pyx_v_val = (*((__pyx_t_5numpy_float64_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_self->_X.data + __pyx_t_2 * __pyx_v_self->_X.strides[0]) ) + __pyx_t_3 * __pyx_v_self->_X.strides[1]) )));
 
-  /* "CART.pyx":275
+  /* "CART.pyx":292
  *         cdef size_t i = 0
  *         cdef np.float64_t val = self._X[self._indices[i], col_idx]
  *         while i < self._size:             # <<<<<<<<<<<<<<
  *             if self._X[self._indices[i], col_idx] != val:
  *                 return True
  */
-  __Pyx_TraceLine(275,1,__PYX_ERR(0, 275, __pyx_L1_error))
+  __Pyx_TraceLine(292,1,__PYX_ERR(0, 292, __pyx_L1_error))
   while (1) {
     __pyx_t_4 = ((__pyx_v_i < __pyx_v_self->_size) != 0);
     if (!__pyx_t_4) break;
 
-    /* "CART.pyx":276
+    /* "CART.pyx":293
  *         cdef np.float64_t val = self._X[self._indices[i], col_idx]
  *         while i < self._size:
  *             if self._X[self._indices[i], col_idx] != val:             # <<<<<<<<<<<<<<
  *                 return True
  *             i += 1
  */
-    __Pyx_TraceLine(276,1,__PYX_ERR(0, 276, __pyx_L1_error))
+    __Pyx_TraceLine(293,1,__PYX_ERR(0, 293, __pyx_L1_error))
     __pyx_t_1 = __pyx_v_i;
     __pyx_t_3 = (*((__pyx_t_5numpy_int_t *) ( /* dim=0 */ (__pyx_v_self->_indices.data + __pyx_t_1 * __pyx_v_self->_indices.strides[0]) )));
     __pyx_t_2 = __pyx_v_col_idx;
@@ -8608,18 +8943,18 @@ static int __pyx_f_4CART_7Dataset_not_all_equal(struct __pyx_obj_4CART_Dataset *
     __pyx_t_4 = (((*((__pyx_t_5numpy_float64_t *) ( /* dim=1 */ (( /* dim=0 */ (__pyx_v_self->_X.data + __pyx_t_3 * __pyx_v_self->_X.strides[0]) ) + __pyx_t_2 * __pyx_v_self->_X.strides[1]) ))) != __pyx_v_val) != 0);
     if (__pyx_t_4) {
 
-      /* "CART.pyx":277
+      /* "CART.pyx":294
  *         while i < self._size:
  *             if self._X[self._indices[i], col_idx] != val:
  *                 return True             # <<<<<<<<<<<<<<
  *             i += 1
  *         return False
  */
-      __Pyx_TraceLine(277,1,__PYX_ERR(0, 277, __pyx_L1_error))
+      __Pyx_TraceLine(294,1,__PYX_ERR(0, 294, __pyx_L1_error))
       __pyx_r = 1;
       goto __pyx_L0;
 
-      /* "CART.pyx":276
+      /* "CART.pyx":293
  *         cdef np.float64_t val = self._X[self._indices[i], col_idx]
  *         while i < self._size:
  *             if self._X[self._indices[i], col_idx] != val:             # <<<<<<<<<<<<<<
@@ -8628,29 +8963,29 @@ static int __pyx_f_4CART_7Dataset_not_all_equal(struct __pyx_obj_4CART_Dataset *
  */
     }
 
-    /* "CART.pyx":278
+    /* "CART.pyx":295
  *             if self._X[self._indices[i], col_idx] != val:
  *                 return True
  *             i += 1             # <<<<<<<<<<<<<<
  *         return False
  * 
  */
-    __Pyx_TraceLine(278,1,__PYX_ERR(0, 278, __pyx_L1_error))
+    __Pyx_TraceLine(295,1,__PYX_ERR(0, 295, __pyx_L1_error))
     __pyx_v_i = (__pyx_v_i + 1);
   }
 
-  /* "CART.pyx":279
+  /* "CART.pyx":296
  *                 return True
  *             i += 1
  *         return False             # <<<<<<<<<<<<<<
  * 
  *     cdef size_t get_length(self) noexcept nogil:
  */
-  __Pyx_TraceLine(279,1,__PYX_ERR(0, 279, __pyx_L1_error))
+  __Pyx_TraceLine(296,1,__PYX_ERR(0, 296, __pyx_L1_error))
   __pyx_r = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":272
+  /* "CART.pyx":289
  *         return self[sampled_indices]
  * 
  *     cdef bint not_all_equal(self, int col_idx) nogil:             # <<<<<<<<<<<<<<
@@ -8667,7 +9002,7 @@ static int __pyx_f_4CART_7Dataset_not_all_equal(struct __pyx_obj_4CART_Dataset *
   return __pyx_r;
 }
 
-/* "CART.pyx":281
+/* "CART.pyx":298
  *         return False
  * 
  *     cdef size_t get_length(self) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -8681,20 +9016,20 @@ static size_t __pyx_f_4CART_7Dataset_get_length(struct __pyx_obj_4CART_Dataset *
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("get_length", __pyx_f[0], 281, 1, __PYX_ERR(0, 281, __pyx_L1_error));
+  __Pyx_TraceCall("get_length", __pyx_f[0], 298, 1, __PYX_ERR(0, 298, __pyx_L1_error));
 
-  /* "CART.pyx":282
+  /* "CART.pyx":299
  * 
  *     cdef size_t get_length(self) noexcept nogil:
  *         return self._size             # <<<<<<<<<<<<<<
  * 
  *     @property
  */
-  __Pyx_TraceLine(282,1,__PYX_ERR(0, 282, __pyx_L1_error))
+  __Pyx_TraceLine(299,1,__PYX_ERR(0, 299, __pyx_L1_error))
   __pyx_r = __pyx_v_self->_size;
   goto __pyx_L0;
 
-  /* "CART.pyx":281
+  /* "CART.pyx":298
  *         return False
  * 
  *     cdef size_t get_length(self) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -8711,7 +9046,7 @@ static size_t __pyx_f_4CART_7Dataset_get_length(struct __pyx_obj_4CART_Dataset *
   return __pyx_r;
 }
 
-/* "CART.pyx":285
+/* "CART.pyx":302
  * 
  *     @property
  *     def X(self):             # <<<<<<<<<<<<<<
@@ -8745,23 +9080,23 @@ static PyObject *__pyx_pf_4CART_7Dataset_1X___get__(struct __pyx_obj_4CART_Datas
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 285, 0, __PYX_ERR(0, 285, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 302, 0, __PYX_ERR(0, 302, __pyx_L1_error));
 
-  /* "CART.pyx":286
+  /* "CART.pyx":303
  *     @property
  *     def X(self):
  *         return np.asarray(self._X)[np.asarray(self._indices), :]             # <<<<<<<<<<<<<<
  * 
  *     @property
  */
-  __Pyx_TraceLine(286,0,__PYX_ERR(0, 286, __pyx_L1_error))
+  __Pyx_TraceLine(303,0,__PYX_ERR(0, 303, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 286, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 286, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_X, 2, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 286, __pyx_L1_error)
+  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_X, 2, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_4 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
@@ -8776,15 +9111,15 @@ static PyObject *__pyx_pf_4CART_7Dataset_1X___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_1 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_2);
   __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 286, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 286, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 286, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_indices, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_int_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_int_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 286, __pyx_L1_error)
+  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_indices, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_int_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_int_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_5 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
@@ -8799,10 +9134,10 @@ static PyObject *__pyx_pf_4CART_7Dataset_1X___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_3 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_5, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_2);
   __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 286, __pyx_L1_error)
+  if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 286, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_GIVEREF(__pyx_t_3);
   PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_3);
@@ -8810,7 +9145,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_1X___get__(struct __pyx_obj_4CART_Datas
   __Pyx_GIVEREF(__pyx_slice__4);
   PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_slice__4);
   __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_PyObject_GetItem(__pyx_t_1, __pyx_t_4); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 286, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetItem(__pyx_t_1, __pyx_t_4); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 303, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
@@ -8818,7 +9153,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_1X___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_3 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":285
+  /* "CART.pyx":302
  * 
  *     @property
  *     def X(self):             # <<<<<<<<<<<<<<
@@ -8842,7 +9177,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_1X___get__(struct __pyx_obj_4CART_Datas
   return __pyx_r;
 }
 
-/* "CART.pyx":289
+/* "CART.pyx":306
  * 
  *     @property
  *     def y(self):             # <<<<<<<<<<<<<<
@@ -8876,23 +9211,23 @@ static PyObject *__pyx_pf_4CART_7Dataset_1y___get__(struct __pyx_obj_4CART_Datas
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 289, 0, __PYX_ERR(0, 289, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 306, 0, __PYX_ERR(0, 306, __pyx_L1_error));
 
-  /* "CART.pyx":290
+  /* "CART.pyx":307
  *     @property
  *     def y(self):
  *         return np.asarray(self._y)[np.asarray(self._indices)]             # <<<<<<<<<<<<<<
  * 
  *     @property
  */
-  __Pyx_TraceLine(290,0,__PYX_ERR(0, 290, __pyx_L1_error))
+  __Pyx_TraceLine(307,0,__PYX_ERR(0, 307, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 290, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 290, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_y, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 290, __pyx_L1_error)
+  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_y, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_4 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
@@ -8907,15 +9242,15 @@ static PyObject *__pyx_pf_4CART_7Dataset_1y___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_1 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_2);
   __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 290, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 290, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 290, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_indices, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_int_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_int_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 290, __pyx_L1_error)
+  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_indices, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_int_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_int_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_5 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
@@ -8930,10 +9265,10 @@ static PyObject *__pyx_pf_4CART_7Dataset_1y___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_3 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_5, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_2);
   __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 290, __pyx_L1_error)
+  if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyObject_GetItem(__pyx_t_1, __pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 290, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetItem(__pyx_t_1, __pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 307, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -8941,7 +9276,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_1y___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":289
+  /* "CART.pyx":306
  * 
  *     @property
  *     def y(self):             # <<<<<<<<<<<<<<
@@ -8965,7 +9300,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_1y___get__(struct __pyx_obj_4CART_Datas
   return __pyx_r;
 }
 
-/* "CART.pyx":293
+/* "CART.pyx":310
  * 
  *     @property
  *     def p(self):             # <<<<<<<<<<<<<<
@@ -8999,23 +9334,23 @@ static PyObject *__pyx_pf_4CART_7Dataset_1p___get__(struct __pyx_obj_4CART_Datas
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 293, 0, __PYX_ERR(0, 293, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 310, 0, __PYX_ERR(0, 310, __pyx_L1_error));
 
-  /* "CART.pyx":294
+  /* "CART.pyx":311
  *     @property
  *     def p(self):
  *         return np.asarray(self._p)[np.asarray(self._indices)]             # <<<<<<<<<<<<<<
  * 
  *     cdef np.ndarray transform(self, np.ndarray X):
  */
-  __Pyx_TraceLine(294,0,__PYX_ERR(0, 294, __pyx_L1_error))
+  __Pyx_TraceLine(311,0,__PYX_ERR(0, 311, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 294, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 294, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_p, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 294, __pyx_L1_error)
+  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_p, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_4 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
@@ -9030,15 +9365,15 @@ static PyObject *__pyx_pf_4CART_7Dataset_1p___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_1 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_2);
   __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 294, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 294, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 294, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_indices, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_int_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_int_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 294, __pyx_L1_error)
+  __pyx_t_2 = __pyx_memoryview_fromslice(__pyx_v_self->_indices, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_int_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_int_t, 0);; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_5 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
@@ -9053,10 +9388,10 @@ static PyObject *__pyx_pf_4CART_7Dataset_1p___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_3 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_5, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_2);
   __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 294, __pyx_L1_error)
+  if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyObject_GetItem(__pyx_t_1, __pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 294, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetItem(__pyx_t_1, __pyx_t_3); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 311, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
@@ -9064,7 +9399,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_1p___get__(struct __pyx_obj_4CART_Datas
   __pyx_t_4 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":293
+  /* "CART.pyx":310
  * 
  *     @property
  *     def p(self):             # <<<<<<<<<<<<<<
@@ -9088,7 +9423,7 @@ static PyObject *__pyx_pf_4CART_7Dataset_1p___get__(struct __pyx_obj_4CART_Datas
   return __pyx_r;
 }
 
-/* "CART.pyx":296
+/* "CART.pyx":313
  *         return np.asarray(self._p)[np.asarray(self._indices)]
  * 
  *     cdef np.ndarray transform(self, np.ndarray X):             # <<<<<<<<<<<<<<
@@ -9118,79 +9453,79 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_transform(struct __pyx_obj_4CART_Da
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("transform", 0);
-  __Pyx_TraceCall("transform", __pyx_f[0], 296, 0, __PYX_ERR(0, 296, __pyx_L1_error));
+  __Pyx_TraceCall("transform", __pyx_f[0], 313, 0, __PYX_ERR(0, 313, __pyx_L1_error));
 
-  /* "CART.pyx":297
+  /* "CART.pyx":314
  * 
  *     cdef np.ndarray transform(self, np.ndarray X):
  *         cdef np.ndarray ret = np.empty_like(X, dtype=np.float64)             # <<<<<<<<<<<<<<
  *         cdef int idx
  *         for feature_idx in range(X.shape[1]):
  */
-  __Pyx_TraceLine(297,0,__PYX_ERR(0, 297, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 297, __pyx_L1_error)
+  __Pyx_TraceLine(314,0,__PYX_ERR(0, 314, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 314, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_empty_like); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 297, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_empty_like); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 314, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = PyTuple_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 297, __pyx_L1_error)
+  __pyx_t_1 = PyTuple_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 314, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_INCREF(((PyObject *)__pyx_v_X));
   __Pyx_GIVEREF(((PyObject *)__pyx_v_X));
   PyTuple_SET_ITEM(__pyx_t_1, 0, ((PyObject *)__pyx_v_X));
-  __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 297, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 314, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 297, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 314, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_float64); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 297, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_float64); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 314, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 297, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 314, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_1, __pyx_t_3); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 297, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_1, __pyx_t_3); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 314, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 297, __pyx_L1_error)
+  if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 314, __pyx_L1_error)
   __pyx_v_ret = ((PyArrayObject *)__pyx_t_5);
   __pyx_t_5 = 0;
 
-  /* "CART.pyx":299
+  /* "CART.pyx":316
  *         cdef np.ndarray ret = np.empty_like(X, dtype=np.float64)
  *         cdef int idx
  *         for feature_idx in range(X.shape[1]):             # <<<<<<<<<<<<<<
  *             if self._is_categorical[feature_idx]:
  *                 self._labelize(X, ret, feature_idx, False)
  */
-  __Pyx_TraceLine(299,0,__PYX_ERR(0, 299, __pyx_L1_error))
+  __Pyx_TraceLine(316,0,__PYX_ERR(0, 316, __pyx_L1_error))
   __pyx_t_6 = (__pyx_v_X->dimensions[1]);
   __pyx_t_7 = __pyx_t_6;
   for (__pyx_t_8 = 0; __pyx_t_8 < __pyx_t_7; __pyx_t_8+=1) {
     __pyx_v_feature_idx = __pyx_t_8;
 
-    /* "CART.pyx":300
+    /* "CART.pyx":317
  *         cdef int idx
  *         for feature_idx in range(X.shape[1]):
  *             if self._is_categorical[feature_idx]:             # <<<<<<<<<<<<<<
  *                 self._labelize(X, ret, feature_idx, False)
  *             else:
  */
-    __Pyx_TraceLine(300,0,__PYX_ERR(0, 300, __pyx_L1_error))
+    __Pyx_TraceLine(317,0,__PYX_ERR(0, 317, __pyx_L1_error))
     __pyx_t_9 = __pyx_v_feature_idx;
     if (__pyx_t_9 < 0) __pyx_t_9 += __pyx_v_self->_is_categorical.shape[0];
     __pyx_t_10 = ((*((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_self->_is_categorical.data + __pyx_t_9 * __pyx_v_self->_is_categorical.strides[0]) ))) != 0);
     if (__pyx_t_10) {
 
-      /* "CART.pyx":301
+      /* "CART.pyx":318
  *         for feature_idx in range(X.shape[1]):
  *             if self._is_categorical[feature_idx]:
  *                 self._labelize(X, ret, feature_idx, False)             # <<<<<<<<<<<<<<
  *             else:
  *                 ret[:, feature_idx] = X[:, feature_idx]
  */
-      __Pyx_TraceLine(301,0,__PYX_ERR(0, 301, __pyx_L1_error))
-      __pyx_t_11 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_float64_t(((PyObject *)__pyx_v_ret), PyBUF_WRITABLE); if (unlikely(!__pyx_t_11.memview)) __PYX_ERR(0, 301, __pyx_L1_error)
+      __Pyx_TraceLine(318,0,__PYX_ERR(0, 318, __pyx_L1_error))
+      __pyx_t_11 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_float64_t(((PyObject *)__pyx_v_ret), PyBUF_WRITABLE); if (unlikely(!__pyx_t_11.memview)) __PYX_ERR(0, 318, __pyx_L1_error)
       __pyx_t_12.__pyx_n = 1;
       __pyx_t_12.compute_mapping = 0;
       __pyx_f_4CART_7Dataset__labelize(__pyx_v_self, ((PyArrayObject *)__pyx_v_X), __pyx_t_11, __pyx_v_feature_idx, &__pyx_t_12); 
@@ -9198,7 +9533,7 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_transform(struct __pyx_obj_4CART_Da
       __pyx_t_11.memview = NULL;
       __pyx_t_11.data = NULL;
 
-      /* "CART.pyx":300
+      /* "CART.pyx":317
  *         cdef int idx
  *         for feature_idx in range(X.shape[1]):
  *             if self._is_categorical[feature_idx]:             # <<<<<<<<<<<<<<
@@ -9208,18 +9543,18 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_transform(struct __pyx_obj_4CART_Da
       goto __pyx_L5;
     }
 
-    /* "CART.pyx":303
+    /* "CART.pyx":320
  *                 self._labelize(X, ret, feature_idx, False)
  *             else:
  *                 ret[:, feature_idx] = X[:, feature_idx]             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-    __Pyx_TraceLine(303,0,__PYX_ERR(0, 303, __pyx_L1_error))
+    __Pyx_TraceLine(320,0,__PYX_ERR(0, 320, __pyx_L1_error))
     /*else*/ {
-      __pyx_t_5 = __Pyx_PyInt_From_Py_intptr_t(__pyx_v_feature_idx); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 303, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyInt_From_Py_intptr_t(__pyx_v_feature_idx); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 320, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 303, __pyx_L1_error)
+      __pyx_t_3 = PyTuple_New(2); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 320, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_INCREF(__pyx_slice__4);
       __Pyx_GIVEREF(__pyx_slice__4);
@@ -9227,12 +9562,12 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_transform(struct __pyx_obj_4CART_Da
       __Pyx_GIVEREF(__pyx_t_5);
       PyTuple_SET_ITEM(__pyx_t_3, 1, __pyx_t_5);
       __pyx_t_5 = 0;
-      __pyx_t_5 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_X), __pyx_t_3); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 303, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_X), __pyx_t_3); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 320, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyInt_From_Py_intptr_t(__pyx_v_feature_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 303, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyInt_From_Py_intptr_t(__pyx_v_feature_idx); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 320, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 303, __pyx_L1_error)
+      __pyx_t_1 = PyTuple_New(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 320, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
       __Pyx_INCREF(__pyx_slice__4);
       __Pyx_GIVEREF(__pyx_slice__4);
@@ -9240,27 +9575,27 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_transform(struct __pyx_obj_4CART_Da
       __Pyx_GIVEREF(__pyx_t_3);
       PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_t_3);
       __pyx_t_3 = 0;
-      if (unlikely(PyObject_SetItem(((PyObject *)__pyx_v_ret), __pyx_t_1, __pyx_t_5) < 0)) __PYX_ERR(0, 303, __pyx_L1_error)
+      if (unlikely(PyObject_SetItem(((PyObject *)__pyx_v_ret), __pyx_t_1, __pyx_t_5) < 0)) __PYX_ERR(0, 320, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     }
     __pyx_L5:;
   }
 
-  /* "CART.pyx":304
+  /* "CART.pyx":321
  *             else:
  *                 ret[:, feature_idx] = X[:, feature_idx]
  *         return ret             # <<<<<<<<<<<<<<
  * 
  *     cdef np.ndarray order_categorical(self, int feature_idx):
  */
-  __Pyx_TraceLine(304,0,__PYX_ERR(0, 304, __pyx_L1_error))
+  __Pyx_TraceLine(321,0,__PYX_ERR(0, 321, __pyx_L1_error))
   __Pyx_XDECREF(((PyObject *)__pyx_r));
   __Pyx_INCREF(((PyObject *)__pyx_v_ret));
   __pyx_r = __pyx_v_ret;
   goto __pyx_L0;
 
-  /* "CART.pyx":296
+  /* "CART.pyx":313
  *         return np.asarray(self._p)[np.asarray(self._indices)]
  * 
  *     cdef np.ndarray transform(self, np.ndarray X):             # <<<<<<<<<<<<<<
@@ -9286,7 +9621,7 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_transform(struct __pyx_obj_4CART_Da
   return __pyx_r;
 }
 
-/* "CART.pyx":306
+/* "CART.pyx":323
  *         return ret
  * 
  *     cdef np.ndarray order_categorical(self, int feature_idx):             # <<<<<<<<<<<<<<
@@ -9298,6 +9633,8 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_order_categorical(struct __pyx_obj_
   int __pyx_v_size;
   PyArrayObject *__pyx_v_ysums = 0;
   PyArrayObject *__pyx_v_ysizes = 0;
+  PyArrayObject *__pyx_v_mask = 0;
+  PyArrayObject *__pyx_v_ret = 0;
   PyArrayObject *__pyx_r = NULL;
   __Pyx_TraceDeclarations
   __Pyx_RefNannyDeclarations
@@ -9311,119 +9648,120 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_order_categorical(struct __pyx_obj_
   __Pyx_memviewslice __pyx_t_8 = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_t_9 = { 0, 0, { 0 }, { 0 }, { 0 } };
   __Pyx_memviewslice __pyx_t_10 = { 0, 0, { 0 }, { 0 }, { 0 } };
+  PyArrayObject *__pyx_t_11 = NULL;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("order_categorical", 0);
-  __Pyx_TraceCall("order_categorical", __pyx_f[0], 306, 0, __PYX_ERR(0, 306, __pyx_L1_error));
+  __Pyx_TraceCall("order_categorical", __pyx_f[0], 323, 0, __PYX_ERR(0, 323, __pyx_L1_error));
 
-  /* "CART.pyx":307
+  /* "CART.pyx":324
  * 
  *     cdef np.ndarray order_categorical(self, int feature_idx):
  *         cdef int size = len(self._reverse_mapping[feature_idx])             # <<<<<<<<<<<<<<
  *         cdef np.ndarray ysums = np.zeros(size, dtype=np.float64)
  *         cdef np.ndarray ysizes = np.zeros(size, dtype=np.int32)
  */
-  __Pyx_TraceLine(307,0,__PYX_ERR(0, 307, __pyx_L1_error))
+  __Pyx_TraceLine(324,0,__PYX_ERR(0, 324, __pyx_L1_error))
   if (unlikely(__pyx_v_self->_reverse_mapping == Py_None)) {
     PyErr_SetString(PyExc_TypeError, "'NoneType' object is not subscriptable");
-    __PYX_ERR(0, 307, __pyx_L1_error)
+    __PYX_ERR(0, 324, __pyx_L1_error)
   }
-  __pyx_t_1 = __Pyx_GetItemInt_List(__pyx_v_self->_reverse_mapping, __pyx_v_feature_idx, int, 1, __Pyx_PyInt_From_int, 1, 1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 307, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_GetItemInt_List(__pyx_v_self->_reverse_mapping, __pyx_v_feature_idx, int, 1, __Pyx_PyInt_From_int, 1, 1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 324, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = PyObject_Length(__pyx_t_1); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 307, __pyx_L1_error)
+  __pyx_t_2 = PyObject_Length(__pyx_t_1); if (unlikely(__pyx_t_2 == ((Py_ssize_t)-1))) __PYX_ERR(0, 324, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_size = __pyx_t_2;
 
-  /* "CART.pyx":308
+  /* "CART.pyx":325
  *     cdef np.ndarray order_categorical(self, int feature_idx):
  *         cdef int size = len(self._reverse_mapping[feature_idx])
  *         cdef np.ndarray ysums = np.zeros(size, dtype=np.float64)             # <<<<<<<<<<<<<<
  *         cdef np.ndarray ysizes = np.zeros(size, dtype=np.int32)
- *         _extract_mean_ys(self.X[:, feature_idx], self.y, ysums, ysizes)
+ *         _extract_mean_ys(self.X[:, feature_idx], self.y[:], ysums, ysizes)
  */
-  __Pyx_TraceLine(308,0,__PYX_ERR(0, 308, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __Pyx_TraceLine(325,0,__PYX_ERR(0, 325, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_1);
   __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_float64); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_float64); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_dtype, __pyx_t_6) < 0) __PYX_ERR(0, 308, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_dtype, __pyx_t_6) < 0) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  __pyx_t_6 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_4, __pyx_t_1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 308, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_4, __pyx_t_1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 325, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  if (!(likely(((__pyx_t_6) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_6, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 308, __pyx_L1_error)
+  if (!(likely(((__pyx_t_6) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_6, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 325, __pyx_L1_error)
   __pyx_v_ysums = ((PyArrayObject *)__pyx_t_6);
   __pyx_t_6 = 0;
 
-  /* "CART.pyx":309
+  /* "CART.pyx":326
  *         cdef int size = len(self._reverse_mapping[feature_idx])
  *         cdef np.ndarray ysums = np.zeros(size, dtype=np.float64)
  *         cdef np.ndarray ysizes = np.zeros(size, dtype=np.int32)             # <<<<<<<<<<<<<<
- *         _extract_mean_ys(self.X[:, feature_idx], self.y, ysums, ysizes)
- *         ysums /= ysizes
+ *         _extract_mean_ys(self.X[:, feature_idx], self.y[:], ysums, ysizes)
+ *         cdef np.ndarray mask = np.where(ysizes > 0)[0]
  */
-  __Pyx_TraceLine(309,0,__PYX_ERR(0, 309, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 309, __pyx_L1_error)
+  __Pyx_TraceLine(326,0,__PYX_ERR(0, 326, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_zeros); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 309, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_zeros); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  __pyx_t_6 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 309, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyInt_From_int(__pyx_v_size); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 309, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_GIVEREF(__pyx_t_6);
   PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_6);
   __pyx_t_6 = 0;
-  __pyx_t_6 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 309, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 309, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_int32); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 309, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_int32); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 309, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_6, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_4, __pyx_t_6); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 309, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_4, __pyx_t_6); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 326, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 309, __pyx_L1_error)
+  if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 326, __pyx_L1_error)
   __pyx_v_ysizes = ((PyArrayObject *)__pyx_t_5);
   __pyx_t_5 = 0;
 
-  /* "CART.pyx":310
+  /* "CART.pyx":327
  *         cdef np.ndarray ysums = np.zeros(size, dtype=np.float64)
  *         cdef np.ndarray ysizes = np.zeros(size, dtype=np.int32)
- *         _extract_mean_ys(self.X[:, feature_idx], self.y, ysums, ysizes)             # <<<<<<<<<<<<<<
- *         ysums /= ysizes
- *         return np.argsort(ysums)#[::-1]
+ *         _extract_mean_ys(self.X[:, feature_idx], self.y[:], ysums, ysizes)             # <<<<<<<<<<<<<<
+ *         cdef np.ndarray mask = np.where(ysizes > 0)[0]
+ *         ysums[mask] /= ysizes[mask]
  */
-  __Pyx_TraceLine(310,0,__PYX_ERR(0, 310, __pyx_L1_error))
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_X); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __Pyx_TraceLine(327,0,__PYX_ERR(0, 327, __pyx_L1_error))
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_X); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 327, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 327, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 327, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_INCREF(__pyx_slice__4);
   __Pyx_GIVEREF(__pyx_slice__4);
@@ -9431,18 +9769,21 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_order_categorical(struct __pyx_obj_
   __Pyx_GIVEREF(__pyx_t_6);
   PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_t_6);
   __pyx_t_6 = 0;
-  __pyx_t_6 = __Pyx_PyObject_GetItem(__pyx_t_5, __pyx_t_4); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_GetItem(__pyx_t_5, __pyx_t_4); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 327, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_7 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_6, PyBUF_WRITABLE); if (unlikely(!__pyx_t_7.memview)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_6, PyBUF_WRITABLE); if (unlikely(!__pyx_t_7.memview)) __PYX_ERR(0, 327, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_y); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_y); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 327, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_6, PyBUF_WRITABLE); if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetSlice(__pyx_t_6, 0, 0, NULL, NULL, &__pyx_slice__4, 0, 0, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(((PyObject *)__pyx_v_ysums), PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 310, __pyx_L1_error)
-  __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_int32_t(((PyObject *)__pyx_v_ysizes), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 310, __pyx_L1_error)
+  __pyx_t_8 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_4, PyBUF_WRITABLE); if (unlikely(!__pyx_t_8.memview)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+  __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(((PyObject *)__pyx_v_ysums), PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 327, __pyx_L1_error)
+  __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_int32_t(((PyObject *)__pyx_v_ysizes), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 327, __pyx_L1_error)
   __pyx_f_4CART__extract_mean_ys(__pyx_t_7, __pyx_t_8, __pyx_t_9, __pyx_t_10);
   __PYX_XDEC_MEMVIEW(&__pyx_t_7, 1);
   __pyx_t_7.memview = NULL;
@@ -9457,32 +9798,76 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_order_categorical(struct __pyx_obj_
   __pyx_t_10.memview = NULL;
   __pyx_t_10.data = NULL;
 
-  /* "CART.pyx":311
+  /* "CART.pyx":328
  *         cdef np.ndarray ysizes = np.zeros(size, dtype=np.int32)
- *         _extract_mean_ys(self.X[:, feature_idx], self.y, ysums, ysizes)
- *         ysums /= ysizes             # <<<<<<<<<<<<<<
- *         return np.argsort(ysums)#[::-1]
- * 
+ *         _extract_mean_ys(self.X[:, feature_idx], self.y[:], ysums, ysizes)
+ *         cdef np.ndarray mask = np.where(ysizes > 0)[0]             # <<<<<<<<<<<<<<
+ *         ysums[mask] /= ysizes[mask]
+ *         cdef np.ndarray ret = np.argsort(ysums)
  */
-  __Pyx_TraceLine(311,0,__PYX_ERR(0, 311, __pyx_L1_error))
-  __pyx_t_6 = __Pyx_PyNumber_InPlaceDivide(((PyObject *)__pyx_v_ysums), ((PyObject *)__pyx_v_ysizes)); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 311, __pyx_L1_error)
+  __Pyx_TraceLine(328,0,__PYX_ERR(0, 328, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 328, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  if (!(likely(((__pyx_t_6) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_6, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 311, __pyx_L1_error)
-  __Pyx_DECREF_SET(__pyx_v_ysums, ((PyArrayObject *)__pyx_t_6));
-  __pyx_t_6 = 0;
-
-  /* "CART.pyx":312
- *         _extract_mean_ys(self.X[:, feature_idx], self.y, ysums, ysizes)
- *         ysums /= ysizes
- *         return np.argsort(ysums)#[::-1]             # <<<<<<<<<<<<<<
- * 
- * @cython.final
- */
-  __Pyx_TraceLine(312,0,__PYX_ERR(0, 312, __pyx_L1_error))
-  __Pyx_XDECREF(((PyObject *)__pyx_r));
-  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 312, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_where); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 328, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_5);
+  __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+  __pyx_t_6 = PyObject_RichCompare(((PyObject *)__pyx_v_ysizes), __pyx_int_0, Py_GT); __Pyx_XGOTREF(__pyx_t_6); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 328, __pyx_L1_error)
+  __pyx_t_1 = NULL;
+  if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_5))) {
+    __pyx_t_1 = PyMethod_GET_SELF(__pyx_t_5);
+    if (likely(__pyx_t_1)) {
+      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_5);
+      __Pyx_INCREF(__pyx_t_1);
+      __Pyx_INCREF(function);
+      __Pyx_DECREF_SET(__pyx_t_5, function);
+    }
+  }
+  __pyx_t_4 = (__pyx_t_1) ? __Pyx_PyObject_Call2Args(__pyx_t_5, __pyx_t_1, __pyx_t_6) : __Pyx_PyObject_CallOneArg(__pyx_t_5, __pyx_t_6);
+  __Pyx_XDECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+  if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 328, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_argsort); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 312, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+  __pyx_t_5 = __Pyx_GetItemInt(__pyx_t_4, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 328, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_5);
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+  if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 328, __pyx_L1_error)
+  __pyx_v_mask = ((PyArrayObject *)__pyx_t_5);
+  __pyx_t_5 = 0;
+
+  /* "CART.pyx":329
+ *         _extract_mean_ys(self.X[:, feature_idx], self.y[:], ysums, ysizes)
+ *         cdef np.ndarray mask = np.where(ysizes > 0)[0]
+ *         ysums[mask] /= ysizes[mask]             # <<<<<<<<<<<<<<
+ *         cdef np.ndarray ret = np.argsort(ysums)
+ *         ret = ret[ysizes[ret] > 0]  # TODO: optimize me
+ */
+  __Pyx_TraceLine(329,0,__PYX_ERR(0, 329, __pyx_L1_error))
+  __Pyx_INCREF(((PyObject *)__pyx_v_mask));
+  __pyx_t_11 = __pyx_v_mask;
+  __pyx_t_5 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_ysums), ((PyObject *)__pyx_t_11)); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 329, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_5);
+  __pyx_t_4 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_ysizes), ((PyObject *)__pyx_v_mask)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 329, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
+  __pyx_t_6 = __Pyx_PyNumber_InPlaceDivide(__pyx_t_5, __pyx_t_4); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 329, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_6);
+  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+  if (unlikely(PyObject_SetItem(((PyObject *)__pyx_v_ysums), ((PyObject *)__pyx_t_11), __pyx_t_6) < 0)) __PYX_ERR(0, 329, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+  __Pyx_DECREF(((PyObject *)__pyx_t_11)); __pyx_t_11 = 0;
+
+  /* "CART.pyx":330
+ *         cdef np.ndarray mask = np.where(ysizes > 0)[0]
+ *         ysums[mask] /= ysizes[mask]
+ *         cdef np.ndarray ret = np.argsort(ysums)             # <<<<<<<<<<<<<<
+ *         ret = ret[ysizes[ret] > 0]  # TODO: optimize me
+ *         return ret
+ */
+  __Pyx_TraceLine(330,0,__PYX_ERR(0, 330, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 330, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_argsort); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 330, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   __pyx_t_4 = NULL;
@@ -9497,15 +9882,46 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_order_categorical(struct __pyx_obj_
   }
   __pyx_t_6 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_5, __pyx_t_4, ((PyObject *)__pyx_v_ysums)) : __Pyx_PyObject_CallOneArg(__pyx_t_5, ((PyObject *)__pyx_v_ysums));
   __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 312, __pyx_L1_error)
+  if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 330, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  if (!(likely(((__pyx_t_6) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_6, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 312, __pyx_L1_error)
-  __pyx_r = ((PyArrayObject *)__pyx_t_6);
+  if (!(likely(((__pyx_t_6) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_6, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 330, __pyx_L1_error)
+  __pyx_v_ret = ((PyArrayObject *)__pyx_t_6);
   __pyx_t_6 = 0;
+
+  /* "CART.pyx":331
+ *         ysums[mask] /= ysizes[mask]
+ *         cdef np.ndarray ret = np.argsort(ysums)
+ *         ret = ret[ysizes[ret] > 0]  # TODO: optimize me             # <<<<<<<<<<<<<<
+ *         return ret
+ * 
+ */
+  __Pyx_TraceLine(331,0,__PYX_ERR(0, 331, __pyx_L1_error))
+  __pyx_t_6 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_ysizes), ((PyObject *)__pyx_v_ret)); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 331, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_6);
+  __pyx_t_5 = PyObject_RichCompare(__pyx_t_6, __pyx_int_0, Py_GT); __Pyx_XGOTREF(__pyx_t_5); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 331, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
+  __pyx_t_6 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_ret), __pyx_t_5); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 331, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_6);
+  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+  if (!(likely(((__pyx_t_6) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_6, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 331, __pyx_L1_error)
+  __Pyx_DECREF_SET(__pyx_v_ret, ((PyArrayObject *)__pyx_t_6));
+  __pyx_t_6 = 0;
+
+  /* "CART.pyx":332
+ *         cdef np.ndarray ret = np.argsort(ysums)
+ *         ret = ret[ysizes[ret] > 0]  # TODO: optimize me
+ *         return ret             # <<<<<<<<<<<<<<
+ * 
+ * @cython.final
+ */
+  __Pyx_TraceLine(332,0,__PYX_ERR(0, 332, __pyx_L1_error))
+  __Pyx_XDECREF(((PyObject *)__pyx_r));
+  __Pyx_INCREF(((PyObject *)__pyx_v_ret));
+  __pyx_r = __pyx_v_ret;
   goto __pyx_L0;
 
-  /* "CART.pyx":306
+  /* "CART.pyx":323
  *         return ret
  * 
  *     cdef np.ndarray order_categorical(self, int feature_idx):             # <<<<<<<<<<<<<<
@@ -9524,11 +9940,14 @@ static PyArrayObject *__pyx_f_4CART_7Dataset_order_categorical(struct __pyx_obj_
   __PYX_XDEC_MEMVIEW(&__pyx_t_8, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_9, 1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_10, 1);
+  __Pyx_XDECREF(((PyObject *)__pyx_t_11));
   __Pyx_AddTraceback("CART.Dataset.order_categorical", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = 0;
   __pyx_L0:;
   __Pyx_XDECREF((PyObject *)__pyx_v_ysums);
   __Pyx_XDECREF((PyObject *)__pyx_v_ysizes);
+  __Pyx_XDECREF((PyObject *)__pyx_v_mask);
+  __Pyx_XDECREF((PyObject *)__pyx_v_ret);
   __Pyx_XGIVEREF((PyObject *)__pyx_r);
   __Pyx_TraceReturn(__pyx_r, 0);
   __Pyx_RefNannyFinishContext();
@@ -9882,8 +10301,8 @@ static PyObject *__pyx_pf_4CART_7Dataset_8__setstate_cython__(struct __pyx_obj_4
   return __pyx_r;
 }
 
-/* "CART.pyx":326
- * 
+/* "CART.pyx":345
+ *     cdef np.int32_t[::1] labels  # Needs to be contiguous in memory!
  * 
  *     def __cinit__(self, size_t feature_idx, bint is_categorical,             # <<<<<<<<<<<<<<
  *                   np.float64_t loss, np.float64_t dloss,
@@ -9951,43 +10370,43 @@ static int __pyx_pw_4CART_11SplitChoice_1__cinit__(PyObject *__pyx_v_self, PyObj
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_is_categorical)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 1); __PYX_ERR(0, 326, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 1); __PYX_ERR(0, 345, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  2:
         if (likely((values[2] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_loss)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 2); __PYX_ERR(0, 326, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 2); __PYX_ERR(0, 345, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  3:
         if (likely((values[3] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_dloss)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 3); __PYX_ERR(0, 326, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 3); __PYX_ERR(0, 345, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  4:
         if (likely((values[4] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_left_loss)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 4); __PYX_ERR(0, 326, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 4); __PYX_ERR(0, 345, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  5:
         if (likely((values[5] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_right_loss)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 5); __PYX_ERR(0, 326, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 5); __PYX_ERR(0, 345, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  6:
         if (likely((values[6] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_left_data)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 6); __PYX_ERR(0, 326, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 6); __PYX_ERR(0, 345, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  7:
         if (likely((values[7] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_right_data)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 7); __PYX_ERR(0, 326, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, 7); __PYX_ERR(0, 345, __pyx_L3_error)
         }
         CYTHON_FALLTHROUGH;
         case  8:
@@ -10009,7 +10428,7 @@ static int __pyx_pw_4CART_11SplitChoice_1__cinit__(PyObject *__pyx_v_self, PyObj
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__cinit__") < 0)) __PYX_ERR(0, 326, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__cinit__") < 0)) __PYX_ERR(0, 345, __pyx_L3_error)
       }
     } else {
       switch (PyTuple_GET_SIZE(__pyx_args)) {
@@ -10031,26 +10450,26 @@ static int __pyx_pw_4CART_11SplitChoice_1__cinit__(PyObject *__pyx_v_self, PyObj
         default: goto __pyx_L5_argtuple_error;
       }
     }
-    __pyx_v_feature_idx = __Pyx_PyInt_As_size_t(values[0]); if (unlikely((__pyx_v_feature_idx == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 326, __pyx_L3_error)
-    __pyx_v_is_categorical = __Pyx_PyObject_IsTrue(values[1]); if (unlikely((__pyx_v_is_categorical == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 326, __pyx_L3_error)
-    __pyx_v_loss = __pyx_PyFloat_AsDouble(values[2]); if (unlikely((__pyx_v_loss == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 327, __pyx_L3_error)
-    __pyx_v_dloss = __pyx_PyFloat_AsDouble(values[3]); if (unlikely((__pyx_v_dloss == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 327, __pyx_L3_error)
-    __pyx_v_left_loss = __pyx_PyFloat_AsDouble(values[4]); if (unlikely((__pyx_v_left_loss == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 328, __pyx_L3_error)
-    __pyx_v_right_loss = __pyx_PyFloat_AsDouble(values[5]); if (unlikely((__pyx_v_right_loss == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 328, __pyx_L3_error)
+    __pyx_v_feature_idx = __Pyx_PyInt_As_size_t(values[0]); if (unlikely((__pyx_v_feature_idx == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 345, __pyx_L3_error)
+    __pyx_v_is_categorical = __Pyx_PyObject_IsTrue(values[1]); if (unlikely((__pyx_v_is_categorical == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 345, __pyx_L3_error)
+    __pyx_v_loss = __pyx_PyFloat_AsDouble(values[2]); if (unlikely((__pyx_v_loss == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 346, __pyx_L3_error)
+    __pyx_v_dloss = __pyx_PyFloat_AsDouble(values[3]); if (unlikely((__pyx_v_dloss == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 346, __pyx_L3_error)
+    __pyx_v_left_loss = __pyx_PyFloat_AsDouble(values[4]); if (unlikely((__pyx_v_left_loss == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 347, __pyx_L3_error)
+    __pyx_v_right_loss = __pyx_PyFloat_AsDouble(values[5]); if (unlikely((__pyx_v_right_loss == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 347, __pyx_L3_error)
     __pyx_v_left_data = ((struct __pyx_obj_4CART_Dataset *)values[6]);
     __pyx_v_right_data = ((struct __pyx_obj_4CART_Dataset *)values[7]);
     if (values[8]) {
-      __pyx_v_threshold = __pyx_PyFloat_AsDouble(values[8]); if (unlikely((__pyx_v_threshold == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 330, __pyx_L3_error)
+      __pyx_v_threshold = __pyx_PyFloat_AsDouble(values[8]); if (unlikely((__pyx_v_threshold == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 349, __pyx_L3_error)
     } else {
       __pyx_v_threshold = __pyx_k__5;
     }
     if (values[9]) {
-      __pyx_v_threshold_idx = __Pyx_PyInt_As_int(values[9]); if (unlikely((__pyx_v_threshold_idx == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 331, __pyx_L3_error)
+      __pyx_v_threshold_idx = __Pyx_PyInt_As_int(values[9]); if (unlikely((__pyx_v_threshold_idx == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 350, __pyx_L3_error)
     } else {
       __pyx_v_threshold_idx = ((int)0);
     }
     if (values[10]) {
-      __pyx_v_ordered_labels = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_int32_t(values[10], PyBUF_WRITABLE); if (unlikely(!__pyx_v_ordered_labels.memview)) __PYX_ERR(0, 331, __pyx_L3_error)
+      __pyx_v_ordered_labels = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_int32_t(values[10], PyBUF_WRITABLE); if (unlikely(!__pyx_v_ordered_labels.memview)) __PYX_ERR(0, 350, __pyx_L3_error)
     } else {
       __pyx_v_ordered_labels = __pyx_k__6;
       __PYX_INC_MEMVIEW(&__pyx_v_ordered_labels, 1);
@@ -10058,14 +10477,14 @@ static int __pyx_pw_4CART_11SplitChoice_1__cinit__(PyObject *__pyx_v_self, PyObj
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 326, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 8, 11, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 345, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("CART.SplitChoice.__cinit__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return -1;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_left_data), __pyx_ptype_4CART_Dataset, 1, "left_data", 0))) __PYX_ERR(0, 329, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_right_data), __pyx_ptype_4CART_Dataset, 1, "right_data", 0))) __PYX_ERR(0, 329, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_left_data), __pyx_ptype_4CART_Dataset, 1, "left_data", 0))) __PYX_ERR(0, 348, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_right_data), __pyx_ptype_4CART_Dataset, 1, "right_data", 0))) __PYX_ERR(0, 348, __pyx_L1_error)
   __pyx_r = __pyx_pf_4CART_11SplitChoice___cinit__(((struct __pyx_obj_4CART_SplitChoice *)__pyx_v_self), __pyx_v_feature_idx, __pyx_v_is_categorical, __pyx_v_loss, __pyx_v_dloss, __pyx_v_left_loss, __pyx_v_right_loss, __pyx_v_left_data, __pyx_v_right_data, __pyx_v_threshold, __pyx_v_threshold_idx, __pyx_v_ordered_labels);
 
   /* function exit code */
@@ -10086,130 +10505,130 @@ static int __pyx_pf_4CART_11SplitChoice___cinit__(struct __pyx_obj_4CART_SplitCh
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__cinit__", 0);
-  __Pyx_TraceCall("__cinit__", __pyx_f[0], 326, 0, __PYX_ERR(0, 326, __pyx_L1_error));
+  __Pyx_TraceCall("__cinit__", __pyx_f[0], 345, 0, __PYX_ERR(0, 345, __pyx_L1_error));
 
-  /* "CART.pyx":332
+  /* "CART.pyx":351
  *                   np.float64_t threshold=np.inf,
  *                   int threshold_idx=0, np.int32_t[::1] ordered_labels=None):
  *         self.feature_idx = feature_idx             # <<<<<<<<<<<<<<
  *         self.loss = loss
  *         self.dloss = dloss
  */
-  __Pyx_TraceLine(332,0,__PYX_ERR(0, 332, __pyx_L1_error))
+  __Pyx_TraceLine(351,0,__PYX_ERR(0, 351, __pyx_L1_error))
   __pyx_v_self->feature_idx = __pyx_v_feature_idx;
 
-  /* "CART.pyx":333
+  /* "CART.pyx":352
  *                   int threshold_idx=0, np.int32_t[::1] ordered_labels=None):
  *         self.feature_idx = feature_idx
  *         self.loss = loss             # <<<<<<<<<<<<<<
  *         self.dloss = dloss
  *         self.left_data = left_data
  */
-  __Pyx_TraceLine(333,0,__PYX_ERR(0, 333, __pyx_L1_error))
+  __Pyx_TraceLine(352,0,__PYX_ERR(0, 352, __pyx_L1_error))
   __pyx_v_self->loss = __pyx_v_loss;
 
-  /* "CART.pyx":334
+  /* "CART.pyx":353
  *         self.feature_idx = feature_idx
  *         self.loss = loss
  *         self.dloss = dloss             # <<<<<<<<<<<<<<
  *         self.left_data = left_data
  *         self.right_data = right_data
  */
-  __Pyx_TraceLine(334,0,__PYX_ERR(0, 334, __pyx_L1_error))
+  __Pyx_TraceLine(353,0,__PYX_ERR(0, 353, __pyx_L1_error))
   __pyx_v_self->dloss = __pyx_v_dloss;
 
-  /* "CART.pyx":335
+  /* "CART.pyx":354
  *         self.loss = loss
  *         self.dloss = dloss
  *         self.left_data = left_data             # <<<<<<<<<<<<<<
  *         self.right_data = right_data
  *         self.loss_left = left_loss
  */
-  __Pyx_TraceLine(335,0,__PYX_ERR(0, 335, __pyx_L1_error))
+  __Pyx_TraceLine(354,0,__PYX_ERR(0, 354, __pyx_L1_error))
   __Pyx_INCREF(((PyObject *)__pyx_v_left_data));
   __Pyx_GIVEREF(((PyObject *)__pyx_v_left_data));
   __Pyx_GOTREF(__pyx_v_self->left_data);
   __Pyx_DECREF(((PyObject *)__pyx_v_self->left_data));
   __pyx_v_self->left_data = __pyx_v_left_data;
 
-  /* "CART.pyx":336
+  /* "CART.pyx":355
  *         self.dloss = dloss
  *         self.left_data = left_data
  *         self.right_data = right_data             # <<<<<<<<<<<<<<
  *         self.loss_left = left_loss
  *         self.loss_right = right_loss
  */
-  __Pyx_TraceLine(336,0,__PYX_ERR(0, 336, __pyx_L1_error))
+  __Pyx_TraceLine(355,0,__PYX_ERR(0, 355, __pyx_L1_error))
   __Pyx_INCREF(((PyObject *)__pyx_v_right_data));
   __Pyx_GIVEREF(((PyObject *)__pyx_v_right_data));
   __Pyx_GOTREF(__pyx_v_self->right_data);
   __Pyx_DECREF(((PyObject *)__pyx_v_self->right_data));
   __pyx_v_self->right_data = __pyx_v_right_data;
 
-  /* "CART.pyx":337
+  /* "CART.pyx":356
  *         self.left_data = left_data
  *         self.right_data = right_data
  *         self.loss_left = left_loss             # <<<<<<<<<<<<<<
  *         self.loss_right = right_loss
  *         self.is_categorical = is_categorical
  */
-  __Pyx_TraceLine(337,0,__PYX_ERR(0, 337, __pyx_L1_error))
+  __Pyx_TraceLine(356,0,__PYX_ERR(0, 356, __pyx_L1_error))
   __pyx_v_self->loss_left = __pyx_v_left_loss;
 
-  /* "CART.pyx":338
+  /* "CART.pyx":357
  *         self.right_data = right_data
  *         self.loss_left = left_loss
  *         self.loss_right = right_loss             # <<<<<<<<<<<<<<
  *         self.is_categorical = is_categorical
  *         if self.is_categorical:
  */
-  __Pyx_TraceLine(338,0,__PYX_ERR(0, 338, __pyx_L1_error))
+  __Pyx_TraceLine(357,0,__PYX_ERR(0, 357, __pyx_L1_error))
   __pyx_v_self->loss_right = __pyx_v_right_loss;
 
-  /* "CART.pyx":339
+  /* "CART.pyx":358
  *         self.loss_left = left_loss
  *         self.loss_right = right_loss
  *         self.is_categorical = is_categorical             # <<<<<<<<<<<<<<
  *         if self.is_categorical:
  *             self.threshold_idx = threshold_idx
  */
-  __Pyx_TraceLine(339,0,__PYX_ERR(0, 339, __pyx_L1_error))
+  __Pyx_TraceLine(358,0,__PYX_ERR(0, 358, __pyx_L1_error))
   __pyx_v_self->is_categorical = __pyx_v_is_categorical;
 
-  /* "CART.pyx":340
+  /* "CART.pyx":359
  *         self.loss_right = right_loss
  *         self.is_categorical = is_categorical
  *         if self.is_categorical:             # <<<<<<<<<<<<<<
  *             self.threshold_idx = threshold_idx
  *             self.labels = ordered_labels
  */
-  __Pyx_TraceLine(340,0,__PYX_ERR(0, 340, __pyx_L1_error))
+  __Pyx_TraceLine(359,0,__PYX_ERR(0, 359, __pyx_L1_error))
   __pyx_t_1 = (__pyx_v_self->is_categorical != 0);
   if (__pyx_t_1) {
 
-    /* "CART.pyx":341
+    /* "CART.pyx":360
  *         self.is_categorical = is_categorical
  *         if self.is_categorical:
  *             self.threshold_idx = threshold_idx             # <<<<<<<<<<<<<<
  *             self.labels = ordered_labels
  *         else:
  */
-    __Pyx_TraceLine(341,0,__PYX_ERR(0, 341, __pyx_L1_error))
+    __Pyx_TraceLine(360,0,__PYX_ERR(0, 360, __pyx_L1_error))
     __pyx_v_self->threshold_idx = __pyx_v_threshold_idx;
 
-    /* "CART.pyx":342
+    /* "CART.pyx":361
  *         if self.is_categorical:
  *             self.threshold_idx = threshold_idx
  *             self.labels = ordered_labels             # <<<<<<<<<<<<<<
  *         else:
  *             self.threshold = threshold
  */
-    __Pyx_TraceLine(342,0,__PYX_ERR(0, 342, __pyx_L1_error))
+    __Pyx_TraceLine(361,0,__PYX_ERR(0, 361, __pyx_L1_error))
     __PYX_XDEC_MEMVIEW(&__pyx_v_self->labels, 0);
     __PYX_INC_MEMVIEW(&__pyx_v_ordered_labels, 0);
     __pyx_v_self->labels = __pyx_v_ordered_labels;
 
-    /* "CART.pyx":340
+    /* "CART.pyx":359
  *         self.loss_right = right_loss
  *         self.is_categorical = is_categorical
  *         if self.is_categorical:             # <<<<<<<<<<<<<<
@@ -10219,21 +10638,21 @@ static int __pyx_pf_4CART_11SplitChoice___cinit__(struct __pyx_obj_4CART_SplitCh
     goto __pyx_L3;
   }
 
-  /* "CART.pyx":344
+  /* "CART.pyx":363
  *             self.labels = ordered_labels
  *         else:
  *             self.threshold = threshold             # <<<<<<<<<<<<<<
  * 
  *     cdef bint is_better_than(self, SplitChoice other):
  */
-  __Pyx_TraceLine(344,0,__PYX_ERR(0, 344, __pyx_L1_error))
+  __Pyx_TraceLine(363,0,__PYX_ERR(0, 363, __pyx_L1_error))
   /*else*/ {
     __pyx_v_self->threshold = __pyx_v_threshold;
   }
   __pyx_L3:;
 
-  /* "CART.pyx":326
- * 
+  /* "CART.pyx":345
+ *     cdef np.int32_t[::1] labels  # Needs to be contiguous in memory!
  * 
  *     def __cinit__(self, size_t feature_idx, bint is_categorical,             # <<<<<<<<<<<<<<
  *                   np.float64_t loss, np.float64_t dloss,
@@ -10253,11 +10672,11 @@ static int __pyx_pf_4CART_11SplitChoice___cinit__(struct __pyx_obj_4CART_SplitCh
   return __pyx_r;
 }
 
-/* "CART.pyx":346
+/* "CART.pyx":365
  *             self.threshold = threshold
  * 
  *     cdef bint is_better_than(self, SplitChoice other):             # <<<<<<<<<<<<<<
- *         return other is None or other.dloss <= self.dloss
+ *         return other is None or other.dloss < self.dloss
  * 
  */
 
@@ -10272,16 +10691,16 @@ static int __pyx_f_4CART_11SplitChoice_is_better_than(struct __pyx_obj_4CART_Spl
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("is_better_than", 0);
-  __Pyx_TraceCall("is_better_than", __pyx_f[0], 346, 0, __PYX_ERR(0, 346, __pyx_L1_error));
+  __Pyx_TraceCall("is_better_than", __pyx_f[0], 365, 0, __PYX_ERR(0, 365, __pyx_L1_error));
 
-  /* "CART.pyx":347
+  /* "CART.pyx":366
  * 
  *     cdef bint is_better_than(self, SplitChoice other):
- *         return other is None or other.dloss <= self.dloss             # <<<<<<<<<<<<<<
+ *         return other is None or other.dloss < self.dloss             # <<<<<<<<<<<<<<
  * 
  * @cython.final
  */
-  __Pyx_TraceLine(347,0,__PYX_ERR(0, 347, __pyx_L1_error))
+  __Pyx_TraceLine(366,0,__PYX_ERR(0, 366, __pyx_L1_error))
   __pyx_t_2 = (((PyObject *)__pyx_v_other) == Py_None);
   __pyx_t_3 = (__pyx_t_2 != 0);
   if (!__pyx_t_3) {
@@ -10289,17 +10708,17 @@ static int __pyx_f_4CART_11SplitChoice_is_better_than(struct __pyx_obj_4CART_Spl
     __pyx_t_1 = __pyx_t_3;
     goto __pyx_L3_bool_binop_done;
   }
-  __pyx_t_3 = ((__pyx_v_other->dloss <= __pyx_v_self->dloss) != 0);
+  __pyx_t_3 = ((__pyx_v_other->dloss < __pyx_v_self->dloss) != 0);
   __pyx_t_1 = __pyx_t_3;
   __pyx_L3_bool_binop_done:;
   __pyx_r = __pyx_t_1;
   goto __pyx_L0;
 
-  /* "CART.pyx":346
+  /* "CART.pyx":365
  *             self.threshold = threshold
  * 
  *     cdef bint is_better_than(self, SplitChoice other):             # <<<<<<<<<<<<<<
- *         return other is None or other.dloss <= self.dloss
+ *         return other is None or other.dloss < self.dloss
  * 
  */
 
@@ -10434,8 +10853,8 @@ static PyObject *__pyx_pf_4CART_11SplitChoice_4__setstate_cython__(CYTHON_UNUSED
   return __pyx_r;
 }
 
-/* "CART.pyx":369
- *     cdef list all_nodes
+/* "CART.pyx":391
+ *     cdef int idx_nodes
  * 
  *     def __cinit__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,             # <<<<<<<<<<<<<<
  *                   replacement=False, prop_sample=1.0, frac_valid=0.2,
@@ -10476,7 +10895,7 @@ static int __pyx_pw_4CART_4CART_1__cinit__(PyObject *__pyx_v_self, PyObject *__p
     values[2] = ((PyObject *)__pyx_int_0);
     values[3] = ((PyObject *)__pyx_int_1);
 
-    /* "CART.pyx":370
+    /* "CART.pyx":392
  * 
  *     def __cinit__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
  *                   replacement=False, prop_sample=1.0, frac_valid=0.2,             # <<<<<<<<<<<<<<
@@ -10493,7 +10912,7 @@ static int __pyx_pw_4CART_4CART_1__cinit__(PyObject *__pyx_v_self, PyObject *__p
     values[11] = ((PyObject *)__pyx_int_0);
     values[12] = ((PyObject *)__pyx_n_u_MSE);
 
-    /* "CART.pyx":372
+    /* "CART.pyx":394
  *                   replacement=False, prop_sample=1.0, frac_valid=0.2,
  *                   max_interaction_depth=0, max_depth=0, margin="absolute",
  *                   minobs=1, delta_loss=0, loss="MSE", name=None,             # <<<<<<<<<<<<<<
@@ -10650,7 +11069,7 @@ static int __pyx_pw_4CART_4CART_1__cinit__(PyObject *__pyx_v_self, PyObject *__p
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__cinit__") < 0)) __PYX_ERR(0, 369, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "__cinit__") < 0)) __PYX_ERR(0, 391, __pyx_L3_error)
       }
     } else {
       switch (PyTuple_GET_SIZE(__pyx_args)) {
@@ -10712,7 +11131,7 @@ static int __pyx_pw_4CART_4CART_1__cinit__(PyObject *__pyx_v_self, PyObject *__p
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 0, 17, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 369, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("__cinit__", 0, 0, 17, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 391, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("CART.CART.__cinit__", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
@@ -10720,8 +11139,8 @@ static int __pyx_pw_4CART_4CART_1__cinit__(PyObject *__pyx_v_self, PyObject *__p
   __pyx_L4_argument_unpacking_done:;
   __pyx_r = __pyx_pf_4CART_4CART___cinit__(((struct __pyx_obj_4CART_CART *)__pyx_v_self), __pyx_v_epsilon, __pyx_v_prop_root_p0, __pyx_v_id, __pyx_v_nb_cov, __pyx_v_replacement, __pyx_v_prop_sample, __pyx_v_frac_valid, __pyx_v_max_interaction_depth, __pyx_v_max_depth, __pyx_v_margin, __pyx_v_minobs, __pyx_v_delta_loss, __pyx_v_loss, __pyx_v_name, __pyx_v_parallel, __pyx_v_pruning, __pyx_v_bootstrap);
 
-  /* "CART.pyx":369
- *     cdef list all_nodes
+  /* "CART.pyx":391
+ *     cdef int idx_nodes
  * 
  *     def __cinit__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,             # <<<<<<<<<<<<<<
  *                   replacement=False, prop_sample=1.0, frac_valid=0.2,
@@ -10750,152 +11169,172 @@ static int __pyx_pf_4CART_4CART___cinit__(struct __pyx_obj_4CART_CART *__pyx_v_s
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__cinit__", 0);
-  __Pyx_TraceCall("__cinit__", __pyx_f[0], 369, 0, __PYX_ERR(0, 369, __pyx_L1_error));
+  __Pyx_TraceCall("__cinit__", __pyx_f[0], 391, 0, __PYX_ERR(0, 391, __pyx_L1_error));
   __Pyx_INCREF(__pyx_v_loss);
 
-  /* "CART.pyx":374
+  /* "CART.pyx":396
  *                   minobs=1, delta_loss=0, loss="MSE", name=None,
  *                   parallel="Yes", pruning="No", bootstrap="No"):
  *         self.bootstrap = (bootstrap == 'Yes')             # <<<<<<<<<<<<<<
  *         self.pruning = (pruning == 'Yes')
  *         self.replacement = replacement
  */
-  __Pyx_TraceLine(374,0,__PYX_ERR(0, 374, __pyx_L1_error))
-  __pyx_t_1 = PyObject_RichCompare(__pyx_v_bootstrap, __pyx_n_u_Yes, Py_EQ); __Pyx_XGOTREF(__pyx_t_1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 374, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely((__pyx_t_2 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 374, __pyx_L1_error)
+  __Pyx_TraceLine(396,0,__PYX_ERR(0, 396, __pyx_L1_error))
+  __pyx_t_1 = PyObject_RichCompare(__pyx_v_bootstrap, __pyx_n_u_Yes, Py_EQ); __Pyx_XGOTREF(__pyx_t_1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 396, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely((__pyx_t_2 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 396, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_self->bootstrap = __pyx_t_2;
 
-  /* "CART.pyx":375
+  /* "CART.pyx":397
  *                   parallel="Yes", pruning="No", bootstrap="No"):
  *         self.bootstrap = (bootstrap == 'Yes')
  *         self.pruning = (pruning == 'Yes')             # <<<<<<<<<<<<<<
  *         self.replacement = replacement
  *         self.epsilon = epsilon
  */
-  __Pyx_TraceLine(375,0,__PYX_ERR(0, 375, __pyx_L1_error))
-  __pyx_t_1 = PyObject_RichCompare(__pyx_v_pruning, __pyx_n_u_Yes, Py_EQ); __Pyx_XGOTREF(__pyx_t_1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 375, __pyx_L1_error)
-  __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely((__pyx_t_2 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 375, __pyx_L1_error)
+  __Pyx_TraceLine(397,0,__PYX_ERR(0, 397, __pyx_L1_error))
+  __pyx_t_1 = PyObject_RichCompare(__pyx_v_pruning, __pyx_n_u_Yes, Py_EQ); __Pyx_XGOTREF(__pyx_t_1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 397, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely((__pyx_t_2 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 397, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_self->pruning = __pyx_t_2;
 
-  /* "CART.pyx":376
+  /* "CART.pyx":398
  *         self.bootstrap = (bootstrap == 'Yes')
  *         self.pruning = (pruning == 'Yes')
  *         self.replacement = replacement             # <<<<<<<<<<<<<<
  *         self.epsilon = epsilon
  *         self.nb_cov = nb_cov
  */
-  __Pyx_TraceLine(376,0,__PYX_ERR(0, 376, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_v_replacement); if (unlikely((__pyx_t_2 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 376, __pyx_L1_error)
+  __Pyx_TraceLine(398,0,__PYX_ERR(0, 398, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyObject_IsTrue(__pyx_v_replacement); if (unlikely((__pyx_t_2 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 398, __pyx_L1_error)
   __pyx_v_self->replacement = __pyx_t_2;
 
-  /* "CART.pyx":377
+  /* "CART.pyx":399
  *         self.pruning = (pruning == 'Yes')
  *         self.replacement = replacement
  *         self.epsilon = epsilon             # <<<<<<<<<<<<<<
  *         self.nb_cov = nb_cov
  *         self.id = id
  */
-  __Pyx_TraceLine(377,0,__PYX_ERR(0, 377, __pyx_L1_error))
-  __pyx_t_3 = __pyx_PyFloat_AsDouble(__pyx_v_epsilon); if (unlikely((__pyx_t_3 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 377, __pyx_L1_error)
+  __Pyx_TraceLine(399,0,__PYX_ERR(0, 399, __pyx_L1_error))
+  __pyx_t_3 = __pyx_PyFloat_AsDouble(__pyx_v_epsilon); if (unlikely((__pyx_t_3 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 399, __pyx_L1_error)
   __pyx_v_self->epsilon = __pyx_t_3;
 
-  /* "CART.pyx":378
+  /* "CART.pyx":400
  *         self.replacement = replacement
  *         self.epsilon = epsilon
  *         self.nb_cov = nb_cov             # <<<<<<<<<<<<<<
  *         self.id = id
  *         self.prop_sample = prop_sample
  */
-  __Pyx_TraceLine(378,0,__PYX_ERR(0, 378, __pyx_L1_error))
-  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_v_nb_cov); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 378, __pyx_L1_error)
+  __Pyx_TraceLine(400,0,__PYX_ERR(0, 400, __pyx_L1_error))
+  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_v_nb_cov); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 400, __pyx_L1_error)
   __pyx_v_self->nb_cov = __pyx_t_4;
 
-  /* "CART.pyx":379
+  /* "CART.pyx":401
  *         self.epsilon = epsilon
  *         self.nb_cov = nb_cov
  *         self.id = id             # <<<<<<<<<<<<<<
  *         self.prop_sample = prop_sample
  *         self.delta_loss = delta_loss
  */
-  __Pyx_TraceLine(379,0,__PYX_ERR(0, 379, __pyx_L1_error))
-  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_v_id); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 379, __pyx_L1_error)
+  __Pyx_TraceLine(401,0,__PYX_ERR(0, 401, __pyx_L1_error))
+  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_v_id); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 401, __pyx_L1_error)
   __pyx_v_self->id = __pyx_t_4;
 
-  /* "CART.pyx":380
+  /* "CART.pyx":402
  *         self.nb_cov = nb_cov
  *         self.id = id
  *         self.prop_sample = prop_sample             # <<<<<<<<<<<<<<
  *         self.delta_loss = delta_loss
  *         self.minobs = minobs
  */
-  __Pyx_TraceLine(380,0,__PYX_ERR(0, 380, __pyx_L1_error))
-  __pyx_t_3 = __pyx_PyFloat_AsDouble(__pyx_v_prop_sample); if (unlikely((__pyx_t_3 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 380, __pyx_L1_error)
+  __Pyx_TraceLine(402,0,__PYX_ERR(0, 402, __pyx_L1_error))
+  __pyx_t_3 = __pyx_PyFloat_AsDouble(__pyx_v_prop_sample); if (unlikely((__pyx_t_3 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 402, __pyx_L1_error)
   __pyx_v_self->prop_sample = __pyx_t_3;
 
-  /* "CART.pyx":381
+  /* "CART.pyx":403
  *         self.id = id
  *         self.prop_sample = prop_sample
  *         self.delta_loss = delta_loss             # <<<<<<<<<<<<<<
  *         self.minobs = minobs
  *         self.max_depth = 0
  */
-  __Pyx_TraceLine(381,0,__PYX_ERR(0, 381, __pyx_L1_error))
-  __pyx_t_3 = __pyx_PyFloat_AsDouble(__pyx_v_delta_loss); if (unlikely((__pyx_t_3 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 381, __pyx_L1_error)
+  __Pyx_TraceLine(403,0,__PYX_ERR(0, 403, __pyx_L1_error))
+  __pyx_t_3 = __pyx_PyFloat_AsDouble(__pyx_v_delta_loss); if (unlikely((__pyx_t_3 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 403, __pyx_L1_error)
   __pyx_v_self->delta_loss = __pyx_t_3;
 
-  /* "CART.pyx":382
+  /* "CART.pyx":404
  *         self.prop_sample = prop_sample
  *         self.delta_loss = delta_loss
  *         self.minobs = minobs             # <<<<<<<<<<<<<<
  *         self.max_depth = 0
  *         self.nb_nodes = 0
  */
-  __Pyx_TraceLine(382,0,__PYX_ERR(0, 382, __pyx_L1_error))
-  __pyx_t_5 = __Pyx_PyInt_As_size_t(__pyx_v_minobs); if (unlikely((__pyx_t_5 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 382, __pyx_L1_error)
+  __Pyx_TraceLine(404,0,__PYX_ERR(0, 404, __pyx_L1_error))
+  __pyx_t_5 = __Pyx_PyInt_As_size_t(__pyx_v_minobs); if (unlikely((__pyx_t_5 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 404, __pyx_L1_error)
   __pyx_v_self->minobs = __pyx_t_5;
 
-  /* "CART.pyx":383
+  /* "CART.pyx":405
  *         self.delta_loss = delta_loss
  *         self.minobs = minobs
  *         self.max_depth = 0             # <<<<<<<<<<<<<<
  *         self.nb_nodes = 0
- *         self.max_interaction_depth = max_interaction_depth
+ *         self.nb_splitting_nodes = 0
  */
-  __Pyx_TraceLine(383,0,__PYX_ERR(0, 383, __pyx_L1_error))
+  __Pyx_TraceLine(405,0,__PYX_ERR(0, 405, __pyx_L1_error))
   __pyx_v_self->max_depth = 0;
 
-  /* "CART.pyx":384
+  /* "CART.pyx":406
  *         self.minobs = minobs
  *         self.max_depth = 0
  *         self.nb_nodes = 0             # <<<<<<<<<<<<<<
+ *         self.nb_splitting_nodes = 0
+ *         self.idx_nodes = 0
+ */
+  __Pyx_TraceLine(406,0,__PYX_ERR(0, 406, __pyx_L1_error))
+  __pyx_v_self->nb_nodes = 0;
+
+  /* "CART.pyx":407
+ *         self.max_depth = 0
+ *         self.nb_nodes = 0
+ *         self.nb_splitting_nodes = 0             # <<<<<<<<<<<<<<
+ *         self.idx_nodes = 0
+ *         self.max_interaction_depth = max_interaction_depth
+ */
+  __Pyx_TraceLine(407,0,__PYX_ERR(0, 407, __pyx_L1_error))
+  __pyx_v_self->nb_splitting_nodes = 0;
+
+  /* "CART.pyx":408
+ *         self.nb_nodes = 0
+ *         self.nb_splitting_nodes = 0
+ *         self.idx_nodes = 0             # <<<<<<<<<<<<<<
  *         self.max_interaction_depth = max_interaction_depth
  *         loss = loss.lower()
  */
-  __Pyx_TraceLine(384,0,__PYX_ERR(0, 384, __pyx_L1_error))
-  __pyx_v_self->nb_nodes = 0;
+  __Pyx_TraceLine(408,0,__PYX_ERR(0, 408, __pyx_L1_error))
+  __pyx_v_self->idx_nodes = 0;
 
-  /* "CART.pyx":385
- *         self.max_depth = 0
- *         self.nb_nodes = 0
+  /* "CART.pyx":409
+ *         self.nb_splitting_nodes = 0
+ *         self.idx_nodes = 0
  *         self.max_interaction_depth = max_interaction_depth             # <<<<<<<<<<<<<<
  *         loss = loss.lower()
  *         LOSS_MAPPING = {
  */
-  __Pyx_TraceLine(385,0,__PYX_ERR(0, 385, __pyx_L1_error))
-  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_v_max_interaction_depth); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 385, __pyx_L1_error)
+  __Pyx_TraceLine(409,0,__PYX_ERR(0, 409, __pyx_L1_error))
+  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_v_max_interaction_depth); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 409, __pyx_L1_error)
   __pyx_v_self->max_interaction_depth = __pyx_t_4;
 
-  /* "CART.pyx":386
- *         self.nb_nodes = 0
+  /* "CART.pyx":410
+ *         self.idx_nodes = 0
  *         self.max_interaction_depth = max_interaction_depth
  *         loss = loss.lower()             # <<<<<<<<<<<<<<
  *         LOSS_MAPPING = {
  *             'mse': MSE,
  */
-  __Pyx_TraceLine(386,0,__PYX_ERR(0, 386, __pyx_L1_error))
-  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_loss, __pyx_n_s_lower); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 386, __pyx_L1_error)
+  __Pyx_TraceLine(410,0,__PYX_ERR(0, 410, __pyx_L1_error))
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_v_loss, __pyx_n_s_lower); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 410, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __pyx_t_7 = NULL;
   if (CYTHON_UNPACK_METHODS && likely(PyMethod_Check(__pyx_t_6))) {
@@ -10909,79 +11348,79 @@ static int __pyx_pf_4CART_4CART___cinit__(struct __pyx_obj_4CART_CART *__pyx_v_s
   }
   __pyx_t_1 = (__pyx_t_7) ? __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_7) : __Pyx_PyObject_CallNoArg(__pyx_t_6);
   __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 386, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 410, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
   __Pyx_DECREF_SET(__pyx_v_loss, __pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":388
+  /* "CART.pyx":412
  *         loss = loss.lower()
  *         LOSS_MAPPING = {
  *             'mse': MSE,             # <<<<<<<<<<<<<<
  *             'poisson': POISSON
  *         }
  */
-  __Pyx_TraceLine(388,0,__PYX_ERR(0, 388, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 388, __pyx_L1_error)
+  __Pyx_TraceLine(412,0,__PYX_ERR(0, 412, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 412, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_6 = __Pyx_PyInt_From___pyx_t_4CART_LossFunction(__pyx_e_4CART_MSE); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 388, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyInt_From___pyx_t_4CART_LossFunction(__pyx_e_4CART_MSE); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 412, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_mse, __pyx_t_6) < 0) __PYX_ERR(0, 388, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_mse, __pyx_t_6) < 0) __PYX_ERR(0, 412, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
 
-  /* "CART.pyx":389
+  /* "CART.pyx":413
  *         LOSS_MAPPING = {
  *             'mse': MSE,
  *             'poisson': POISSON             # <<<<<<<<<<<<<<
  *         }
  *         assert loss in LOSS_MAPPING.keys()
  */
-  __Pyx_TraceLine(389,0,__PYX_ERR(0, 389, __pyx_L1_error))
-  __pyx_t_6 = __Pyx_PyInt_From___pyx_t_4CART_LossFunction(__pyx_e_4CART_POISSON); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 389, __pyx_L1_error)
+  __Pyx_TraceLine(413,0,__PYX_ERR(0, 413, __pyx_L1_error))
+  __pyx_t_6 = __Pyx_PyInt_From___pyx_t_4CART_LossFunction(__pyx_e_4CART_POISSON); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 413, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_poisson, __pyx_t_6) < 0) __PYX_ERR(0, 388, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_1, __pyx_n_u_poisson, __pyx_t_6) < 0) __PYX_ERR(0, 412, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
   __pyx_v_LOSS_MAPPING = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":391
+  /* "CART.pyx":415
  *             'poisson': POISSON
  *         }
  *         assert loss in LOSS_MAPPING.keys()             # <<<<<<<<<<<<<<
  *         self.loss_fct = LOSS_MAPPING[loss]
  * 
  */
-  __Pyx_TraceLine(391,0,__PYX_ERR(0, 391, __pyx_L1_error))
+  __Pyx_TraceLine(415,0,__PYX_ERR(0, 415, __pyx_L1_error))
   #ifndef CYTHON_WITHOUT_ASSERTIONS
   if (unlikely(__pyx_assertions_enabled())) {
-    __pyx_t_1 = __Pyx_PyDict_Keys(__pyx_v_LOSS_MAPPING); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 391, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyDict_Keys(__pyx_v_LOSS_MAPPING); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 415, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = (__Pyx_PySequence_ContainsTF(__pyx_v_loss, __pyx_t_1, Py_EQ)); if (unlikely(__pyx_t_2 < 0)) __PYX_ERR(0, 391, __pyx_L1_error)
+    __pyx_t_2 = (__Pyx_PySequence_ContainsTF(__pyx_v_loss, __pyx_t_1, Py_EQ)); if (unlikely(__pyx_t_2 < 0)) __PYX_ERR(0, 415, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     if (unlikely(!(__pyx_t_2 != 0))) {
       PyErr_SetNone(PyExc_AssertionError);
-      __PYX_ERR(0, 391, __pyx_L1_error)
+      __PYX_ERR(0, 415, __pyx_L1_error)
     }
   }
   #endif
 
-  /* "CART.pyx":392
+  /* "CART.pyx":416
  *         }
  *         assert loss in LOSS_MAPPING.keys()
  *         self.loss_fct = LOSS_MAPPING[loss]             # <<<<<<<<<<<<<<
  * 
  *     property nodes:
  */
-  __Pyx_TraceLine(392,0,__PYX_ERR(0, 392, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyDict_GetItem(__pyx_v_LOSS_MAPPING, __pyx_v_loss); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 392, __pyx_L1_error)
+  __Pyx_TraceLine(416,0,__PYX_ERR(0, 416, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyDict_GetItem(__pyx_v_LOSS_MAPPING, __pyx_v_loss); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 416, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_8 = ((__pyx_t_4CART_LossFunction)__Pyx_PyInt_As___pyx_t_4CART_LossFunction(__pyx_t_1)); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 392, __pyx_L1_error)
+  __pyx_t_8 = ((__pyx_t_4CART_LossFunction)__Pyx_PyInt_As___pyx_t_4CART_LossFunction(__pyx_t_1)); if (unlikely(PyErr_Occurred())) __PYX_ERR(0, 416, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_self->loss_fct = __pyx_t_8;
 
-  /* "CART.pyx":369
- *     cdef list all_nodes
+  /* "CART.pyx":391
+ *     cdef int idx_nodes
  * 
  *     def __cinit__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,             # <<<<<<<<<<<<<<
  *                   replacement=False, prop_sample=1.0, frac_valid=0.2,
@@ -11005,7 +11444,7 @@ static int __pyx_pf_4CART_4CART___cinit__(struct __pyx_obj_4CART_CART *__pyx_v_s
   return __pyx_r;
 }
 
-/* "CART.pyx":395
+/* "CART.pyx":419
  * 
  *     property nodes:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11034,22 +11473,22 @@ static PyObject *__pyx_pf_4CART_4CART_5nodes___get__(struct __pyx_obj_4CART_CART
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 395, 0, __PYX_ERR(0, 395, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 419, 0, __PYX_ERR(0, 419, __pyx_L1_error));
 
-  /* "CART.pyx":396
+  /* "CART.pyx":420
  *     property nodes:
  *         def __get__(self):
  *             return self.all_nodes             # <<<<<<<<<<<<<<
  * 
  *     property max_interaction_depth:
  */
-  __Pyx_TraceLine(396,0,__PYX_ERR(0, 396, __pyx_L1_error))
+  __Pyx_TraceLine(420,0,__PYX_ERR(0, 420, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
   __Pyx_INCREF(__pyx_v_self->all_nodes);
   __pyx_r = __pyx_v_self->all_nodes;
   goto __pyx_L0;
 
-  /* "CART.pyx":395
+  /* "CART.pyx":419
  * 
  *     property nodes:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11068,7 +11507,7 @@ static PyObject *__pyx_pf_4CART_4CART_5nodes___get__(struct __pyx_obj_4CART_CART
   return __pyx_r;
 }
 
-/* "CART.pyx":399
+/* "CART.pyx":423
  * 
  *     property max_interaction_depth:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11098,24 +11537,24 @@ static PyObject *__pyx_pf_4CART_4CART_21max_interaction_depth___get__(struct __p
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 399, 0, __PYX_ERR(0, 399, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 423, 0, __PYX_ERR(0, 423, __pyx_L1_error));
 
-  /* "CART.pyx":400
+  /* "CART.pyx":424
  *     property max_interaction_depth:
  *         def __get__(self):
  *             return self.max_interaction_depth             # <<<<<<<<<<<<<<
  *         def __set__(self, value):
  *             self.max_interaction_depth = value
  */
-  __Pyx_TraceLine(400,0,__PYX_ERR(0, 400, __pyx_L1_error))
+  __Pyx_TraceLine(424,0,__PYX_ERR(0, 424, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->max_interaction_depth); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 400, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->max_interaction_depth); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 424, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":399
+  /* "CART.pyx":423
  * 
  *     property max_interaction_depth:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11135,7 +11574,7 @@ static PyObject *__pyx_pf_4CART_4CART_21max_interaction_depth___get__(struct __p
   return __pyx_r;
 }
 
-/* "CART.pyx":401
+/* "CART.pyx":425
  *         def __get__(self):
  *             return self.max_interaction_depth
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11165,20 +11604,20 @@ static int __pyx_pf_4CART_4CART_21max_interaction_depth_2__set__(struct __pyx_ob
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 401, 0, __PYX_ERR(0, 401, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 425, 0, __PYX_ERR(0, 425, __pyx_L1_error));
 
-  /* "CART.pyx":402
+  /* "CART.pyx":426
  *             return self.max_interaction_depth
  *         def __set__(self, value):
  *             self.max_interaction_depth = value             # <<<<<<<<<<<<<<
  * 
  *     property minobs:
  */
-  __Pyx_TraceLine(402,0,__PYX_ERR(0, 402, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 402, __pyx_L1_error)
+  __Pyx_TraceLine(426,0,__PYX_ERR(0, 426, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 426, __pyx_L1_error)
   __pyx_v_self->max_interaction_depth = __pyx_t_1;
 
-  /* "CART.pyx":401
+  /* "CART.pyx":425
  *         def __get__(self):
  *             return self.max_interaction_depth
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11198,7 +11637,7 @@ static int __pyx_pf_4CART_4CART_21max_interaction_depth_2__set__(struct __pyx_ob
   return __pyx_r;
 }
 
-/* "CART.pyx":405
+/* "CART.pyx":429
  * 
  *     property minobs:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11228,24 +11667,24 @@ static PyObject *__pyx_pf_4CART_4CART_6minobs___get__(struct __pyx_obj_4CART_CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 405, 0, __PYX_ERR(0, 405, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 429, 0, __PYX_ERR(0, 429, __pyx_L1_error));
 
-  /* "CART.pyx":406
+  /* "CART.pyx":430
  *     property minobs:
  *         def __get__(self):
  *             return self.minobs             # <<<<<<<<<<<<<<
  *         def __set__(self, value):
  *             self.minobs = value
  */
-  __Pyx_TraceLine(406,0,__PYX_ERR(0, 406, __pyx_L1_error))
+  __Pyx_TraceLine(430,0,__PYX_ERR(0, 430, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_FromSize_t(__pyx_v_self->minobs); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 406, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_FromSize_t(__pyx_v_self->minobs); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 430, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":405
+  /* "CART.pyx":429
  * 
  *     property minobs:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11265,7 +11704,7 @@ static PyObject *__pyx_pf_4CART_4CART_6minobs___get__(struct __pyx_obj_4CART_CAR
   return __pyx_r;
 }
 
-/* "CART.pyx":407
+/* "CART.pyx":431
  *         def __get__(self):
  *             return self.minobs
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11295,20 +11734,20 @@ static int __pyx_pf_4CART_4CART_6minobs_2__set__(struct __pyx_obj_4CART_CART *__
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 407, 0, __PYX_ERR(0, 407, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 431, 0, __PYX_ERR(0, 431, __pyx_L1_error));
 
-  /* "CART.pyx":408
+  /* "CART.pyx":432
  *             return self.minobs
  *         def __set__(self, value):
  *             self.minobs = value             # <<<<<<<<<<<<<<
  * 
  *     property margin:
  */
-  __Pyx_TraceLine(408,0,__PYX_ERR(0, 408, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyInt_As_size_t(__pyx_v_value); if (unlikely((__pyx_t_1 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 408, __pyx_L1_error)
+  __Pyx_TraceLine(432,0,__PYX_ERR(0, 432, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyInt_As_size_t(__pyx_v_value); if (unlikely((__pyx_t_1 == (size_t)-1) && PyErr_Occurred())) __PYX_ERR(0, 432, __pyx_L1_error)
   __pyx_v_self->minobs = __pyx_t_1;
 
-  /* "CART.pyx":407
+  /* "CART.pyx":431
  *         def __get__(self):
  *             return self.minobs
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11328,7 +11767,7 @@ static int __pyx_pf_4CART_4CART_6minobs_2__set__(struct __pyx_obj_4CART_CART *__
   return __pyx_r;
 }
 
-/* "CART.pyx":411
+/* "CART.pyx":435
  * 
  *     property margin:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11358,24 +11797,24 @@ static PyObject *__pyx_pf_4CART_4CART_6margin___get__(struct __pyx_obj_4CART_CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 411, 0, __PYX_ERR(0, 411, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 435, 0, __PYX_ERR(0, 435, __pyx_L1_error));
 
-  /* "CART.pyx":412
+  /* "CART.pyx":436
  *     property margin:
  *         def __get__(self):
  *             return self.margin             # <<<<<<<<<<<<<<
  *         def __set__(self, value):
  *             self.margin = value
  */
-  __Pyx_TraceLine(412,0,__PYX_ERR(0, 412, __pyx_L1_error))
+  __Pyx_TraceLine(436,0,__PYX_ERR(0, 436, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_margin); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 412, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_margin); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 436, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":411
+  /* "CART.pyx":435
  * 
  *     property margin:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11395,7 +11834,7 @@ static PyObject *__pyx_pf_4CART_4CART_6margin___get__(struct __pyx_obj_4CART_CAR
   return __pyx_r;
 }
 
-/* "CART.pyx":413
+/* "CART.pyx":437
  *         def __get__(self):
  *             return self.margin
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11424,19 +11863,19 @@ static int __pyx_pf_4CART_4CART_6margin_2__set__(struct __pyx_obj_4CART_CART *__
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 413, 0, __PYX_ERR(0, 413, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 437, 0, __PYX_ERR(0, 437, __pyx_L1_error));
 
-  /* "CART.pyx":414
+  /* "CART.pyx":438
  *             return self.margin
  *         def __set__(self, value):
  *             self.margin = value             # <<<<<<<<<<<<<<
  * 
  *     property epsilon:
  */
-  __Pyx_TraceLine(414,0,__PYX_ERR(0, 414, __pyx_L1_error))
-  if (__Pyx_PyObject_SetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_margin, __pyx_v_value) < 0) __PYX_ERR(0, 414, __pyx_L1_error)
+  __Pyx_TraceLine(438,0,__PYX_ERR(0, 438, __pyx_L1_error))
+  if (__Pyx_PyObject_SetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_margin, __pyx_v_value) < 0) __PYX_ERR(0, 438, __pyx_L1_error)
 
-  /* "CART.pyx":413
+  /* "CART.pyx":437
  *         def __get__(self):
  *             return self.margin
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11456,7 +11895,7 @@ static int __pyx_pf_4CART_4CART_6margin_2__set__(struct __pyx_obj_4CART_CART *__
   return __pyx_r;
 }
 
-/* "CART.pyx":417
+/* "CART.pyx":441
  * 
  *     property epsilon:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11486,24 +11925,24 @@ static PyObject *__pyx_pf_4CART_4CART_7epsilon___get__(struct __pyx_obj_4CART_CA
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 417, 0, __PYX_ERR(0, 417, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 441, 0, __PYX_ERR(0, 441, __pyx_L1_error));
 
-  /* "CART.pyx":418
+  /* "CART.pyx":442
  *     property epsilon:
  *         def __get__(self):
  *             return self.epsilon             # <<<<<<<<<<<<<<
  *         def __set__(self, value):
  *             self.epsilon = value
  */
-  __Pyx_TraceLine(418,0,__PYX_ERR(0, 418, __pyx_L1_error))
+  __Pyx_TraceLine(442,0,__PYX_ERR(0, 442, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyFloat_FromDouble(__pyx_v_self->epsilon); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 418, __pyx_L1_error)
+  __pyx_t_1 = PyFloat_FromDouble(__pyx_v_self->epsilon); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 442, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":417
+  /* "CART.pyx":441
  * 
  *     property epsilon:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11523,7 +11962,7 @@ static PyObject *__pyx_pf_4CART_4CART_7epsilon___get__(struct __pyx_obj_4CART_CA
   return __pyx_r;
 }
 
-/* "CART.pyx":419
+/* "CART.pyx":443
  *         def __get__(self):
  *             return self.epsilon
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11553,20 +11992,20 @@ static int __pyx_pf_4CART_4CART_7epsilon_2__set__(struct __pyx_obj_4CART_CART *_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 419, 0, __PYX_ERR(0, 419, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 443, 0, __PYX_ERR(0, 443, __pyx_L1_error));
 
-  /* "CART.pyx":420
+  /* "CART.pyx":444
  *             return self.epsilon
  *         def __set__(self, value):
  *             self.epsilon = value             # <<<<<<<<<<<<<<
  * 
  *     property delta_loss:
  */
-  __Pyx_TraceLine(420,0,__PYX_ERR(0, 420, __pyx_L1_error))
-  __pyx_t_1 = __pyx_PyFloat_AsDouble(__pyx_v_value); if (unlikely((__pyx_t_1 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 420, __pyx_L1_error)
+  __Pyx_TraceLine(444,0,__PYX_ERR(0, 444, __pyx_L1_error))
+  __pyx_t_1 = __pyx_PyFloat_AsDouble(__pyx_v_value); if (unlikely((__pyx_t_1 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 444, __pyx_L1_error)
   __pyx_v_self->epsilon = __pyx_t_1;
 
-  /* "CART.pyx":419
+  /* "CART.pyx":443
  *         def __get__(self):
  *             return self.epsilon
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11586,7 +12025,7 @@ static int __pyx_pf_4CART_4CART_7epsilon_2__set__(struct __pyx_obj_4CART_CART *_
   return __pyx_r;
 }
 
-/* "CART.pyx":423
+/* "CART.pyx":447
  * 
  *     property delta_loss:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11616,24 +12055,24 @@ static PyObject *__pyx_pf_4CART_4CART_10delta_loss___get__(struct __pyx_obj_4CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 423, 0, __PYX_ERR(0, 423, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 447, 0, __PYX_ERR(0, 447, __pyx_L1_error));
 
-  /* "CART.pyx":424
+  /* "CART.pyx":448
  *     property delta_loss:
  *         def __get__(self):
  *             return self.delta_loss             # <<<<<<<<<<<<<<
  *         def __set__(self, value):
  *             self.delta_loss = value
  */
-  __Pyx_TraceLine(424,0,__PYX_ERR(0, 424, __pyx_L1_error))
+  __Pyx_TraceLine(448,0,__PYX_ERR(0, 448, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = PyFloat_FromDouble(__pyx_v_self->delta_loss); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 424, __pyx_L1_error)
+  __pyx_t_1 = PyFloat_FromDouble(__pyx_v_self->delta_loss); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 448, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":423
+  /* "CART.pyx":447
  * 
  *     property delta_loss:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11653,7 +12092,7 @@ static PyObject *__pyx_pf_4CART_4CART_10delta_loss___get__(struct __pyx_obj_4CAR
   return __pyx_r;
 }
 
-/* "CART.pyx":425
+/* "CART.pyx":449
  *         def __get__(self):
  *             return self.delta_loss
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11683,20 +12122,20 @@ static int __pyx_pf_4CART_4CART_10delta_loss_2__set__(struct __pyx_obj_4CART_CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 425, 0, __PYX_ERR(0, 425, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 449, 0, __PYX_ERR(0, 449, __pyx_L1_error));
 
-  /* "CART.pyx":426
+  /* "CART.pyx":450
  *             return self.delta_loss
  *         def __set__(self, value):
  *             self.delta_loss = value             # <<<<<<<<<<<<<<
  * 
  *     property loss:
  */
-  __Pyx_TraceLine(426,0,__PYX_ERR(0, 426, __pyx_L1_error))
-  __pyx_t_1 = __pyx_PyFloat_AsDouble(__pyx_v_value); if (unlikely((__pyx_t_1 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 426, __pyx_L1_error)
+  __Pyx_TraceLine(450,0,__PYX_ERR(0, 450, __pyx_L1_error))
+  __pyx_t_1 = __pyx_PyFloat_AsDouble(__pyx_v_value); if (unlikely((__pyx_t_1 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 450, __pyx_L1_error)
   __pyx_v_self->delta_loss = __pyx_t_1;
 
-  /* "CART.pyx":425
+  /* "CART.pyx":449
  *         def __get__(self):
  *             return self.delta_loss
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11716,7 +12155,7 @@ static int __pyx_pf_4CART_4CART_10delta_loss_2__set__(struct __pyx_obj_4CART_CAR
   return __pyx_r;
 }
 
-/* "CART.pyx":429
+/* "CART.pyx":453
  * 
  *     property loss:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11746,24 +12185,24 @@ static PyObject *__pyx_pf_4CART_4CART_4loss___get__(struct __pyx_obj_4CART_CART 
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 429, 0, __PYX_ERR(0, 429, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 453, 0, __PYX_ERR(0, 453, __pyx_L1_error));
 
-  /* "CART.pyx":430
+  /* "CART.pyx":454
  *     property loss:
  *         def __get__(self):
  *             return self.loss             # <<<<<<<<<<<<<<
  *         def __set__(self, value):
  *             self.loss = value
  */
-  __Pyx_TraceLine(430,0,__PYX_ERR(0, 430, __pyx_L1_error))
+  __Pyx_TraceLine(454,0,__PYX_ERR(0, 454, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_loss); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 430, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_loss); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 454, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":429
+  /* "CART.pyx":453
  * 
  *     property loss:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11783,7 +12222,7 @@ static PyObject *__pyx_pf_4CART_4CART_4loss___get__(struct __pyx_obj_4CART_CART 
   return __pyx_r;
 }
 
-/* "CART.pyx":431
+/* "CART.pyx":455
  *         def __get__(self):
  *             return self.loss
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11812,19 +12251,19 @@ static int __pyx_pf_4CART_4CART_4loss_2__set__(struct __pyx_obj_4CART_CART *__py
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 431, 0, __PYX_ERR(0, 431, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 455, 0, __PYX_ERR(0, 455, __pyx_L1_error));
 
-  /* "CART.pyx":432
+  /* "CART.pyx":456
  *             return self.loss
  *         def __set__(self, value):
  *             self.loss = value             # <<<<<<<<<<<<<<
  * 
  *     property nb_cov:
  */
-  __Pyx_TraceLine(432,0,__PYX_ERR(0, 432, __pyx_L1_error))
-  if (__Pyx_PyObject_SetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_loss, __pyx_v_value) < 0) __PYX_ERR(0, 432, __pyx_L1_error)
+  __Pyx_TraceLine(456,0,__PYX_ERR(0, 456, __pyx_L1_error))
+  if (__Pyx_PyObject_SetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_loss, __pyx_v_value) < 0) __PYX_ERR(0, 456, __pyx_L1_error)
 
-  /* "CART.pyx":431
+  /* "CART.pyx":455
  *         def __get__(self):
  *             return self.loss
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11844,7 +12283,7 @@ static int __pyx_pf_4CART_4CART_4loss_2__set__(struct __pyx_obj_4CART_CART *__py
   return __pyx_r;
 }
 
-/* "CART.pyx":435
+/* "CART.pyx":459
  * 
  *     property nb_cov:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11874,24 +12313,24 @@ static PyObject *__pyx_pf_4CART_4CART_6nb_cov___get__(struct __pyx_obj_4CART_CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__get__", 0);
-  __Pyx_TraceCall("__get__", __pyx_f[0], 435, 0, __PYX_ERR(0, 435, __pyx_L1_error));
+  __Pyx_TraceCall("__get__", __pyx_f[0], 459, 0, __PYX_ERR(0, 459, __pyx_L1_error));
 
-  /* "CART.pyx":436
+  /* "CART.pyx":460
  *     property nb_cov:
  *         def __get__(self):
  *             return self.nb_cov             # <<<<<<<<<<<<<<
  *         def __set__(self, value):
  *             self.nb_cov = value
  */
-  __Pyx_TraceLine(436,0,__PYX_ERR(0, 436, __pyx_L1_error))
+  __Pyx_TraceLine(460,0,__PYX_ERR(0, 460, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->nb_cov); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 436, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->nb_cov); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 460, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_r = __pyx_t_1;
   __pyx_t_1 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":435
+  /* "CART.pyx":459
  * 
  *     property nb_cov:
  *         def __get__(self):             # <<<<<<<<<<<<<<
@@ -11911,7 +12350,7 @@ static PyObject *__pyx_pf_4CART_4CART_6nb_cov___get__(struct __pyx_obj_4CART_CAR
   return __pyx_r;
 }
 
-/* "CART.pyx":437
+/* "CART.pyx":461
  *         def __get__(self):
  *             return self.nb_cov
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11941,20 +12380,20 @@ static int __pyx_pf_4CART_4CART_6nb_cov_2__set__(struct __pyx_obj_4CART_CART *__
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__set__", 0);
-  __Pyx_TraceCall("__set__", __pyx_f[0], 437, 0, __PYX_ERR(0, 437, __pyx_L1_error));
+  __Pyx_TraceCall("__set__", __pyx_f[0], 461, 0, __PYX_ERR(0, 461, __pyx_L1_error));
 
-  /* "CART.pyx":438
+  /* "CART.pyx":462
  *             return self.nb_cov
  *         def __set__(self, value):
  *             self.nb_cov = value             # <<<<<<<<<<<<<<
  * 
- *     def __dealloc__(self):
+ *     property idx_nodes:
  */
-  __Pyx_TraceLine(438,0,__PYX_ERR(0, 438, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 438, __pyx_L1_error)
+  __Pyx_TraceLine(462,0,__PYX_ERR(0, 462, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 462, __pyx_L1_error)
   __pyx_v_self->nb_cov = __pyx_t_1;
 
-  /* "CART.pyx":437
+  /* "CART.pyx":461
  *         def __get__(self):
  *             return self.nb_cov
  *         def __set__(self, value):             # <<<<<<<<<<<<<<
@@ -11974,8 +12413,138 @@ static int __pyx_pf_4CART_4CART_6nb_cov_2__set__(struct __pyx_obj_4CART_CART *__
   return __pyx_r;
 }
 
-/* "CART.pyx":440
- *             self.nb_cov = value
+/* "CART.pyx":465
+ * 
+ *     property idx_nodes:
+ *         def __get__(self):             # <<<<<<<<<<<<<<
+ *             return self.idx_nodes
+ *         def __set__(self, value):
+ */
+
+/* Python wrapper */
+static PyObject *__pyx_pw_4CART_4CART_9idx_nodes_1__get__(PyObject *__pyx_v_self); /*proto*/
+static PyObject *__pyx_pw_4CART_4CART_9idx_nodes_1__get__(PyObject *__pyx_v_self) {
+  PyObject *__pyx_r = 0;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("__get__ (wrapper)", 0);
+  __pyx_r = __pyx_pf_4CART_4CART_9idx_nodes___get__(((struct __pyx_obj_4CART_CART *)__pyx_v_self));
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static PyObject *__pyx_pf_4CART_4CART_9idx_nodes___get__(struct __pyx_obj_4CART_CART *__pyx_v_self) {
+  PyObject *__pyx_r = NULL;
+  __Pyx_TraceDeclarations
+  __Pyx_RefNannyDeclarations
+  PyObject *__pyx_t_1 = NULL;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("__get__", 0);
+  __Pyx_TraceCall("__get__", __pyx_f[0], 465, 0, __PYX_ERR(0, 465, __pyx_L1_error));
+
+  /* "CART.pyx":466
+ *     property idx_nodes:
+ *         def __get__(self):
+ *             return self.idx_nodes             # <<<<<<<<<<<<<<
+ *         def __set__(self, value):
+ *             self.idx_nodes = value
+ */
+  __Pyx_TraceLine(466,0,__PYX_ERR(0, 466, __pyx_L1_error))
+  __Pyx_XDECREF(__pyx_r);
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->idx_nodes); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 466, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_r = __pyx_t_1;
+  __pyx_t_1 = 0;
+  goto __pyx_L0;
+
+  /* "CART.pyx":465
+ * 
+ *     property idx_nodes:
+ *         def __get__(self):             # <<<<<<<<<<<<<<
+ *             return self.idx_nodes
+ *         def __set__(self, value):
+ */
+
+  /* function exit code */
+  __pyx_L1_error:;
+  __Pyx_XDECREF(__pyx_t_1);
+  __Pyx_AddTraceback("CART.CART.idx_nodes.__get__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = NULL;
+  __pyx_L0:;
+  __Pyx_XGIVEREF(__pyx_r);
+  __Pyx_TraceReturn(__pyx_r, 0);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "CART.pyx":467
+ *         def __get__(self):
+ *             return self.idx_nodes
+ *         def __set__(self, value):             # <<<<<<<<<<<<<<
+ *             self.idx_nodes = value
+ * 
+ */
+
+/* Python wrapper */
+static int __pyx_pw_4CART_4CART_9idx_nodes_3__set__(PyObject *__pyx_v_self, PyObject *__pyx_v_value); /*proto*/
+static int __pyx_pw_4CART_4CART_9idx_nodes_3__set__(PyObject *__pyx_v_self, PyObject *__pyx_v_value) {
+  int __pyx_r;
+  __Pyx_RefNannyDeclarations
+  __Pyx_RefNannySetupContext("__set__ (wrapper)", 0);
+  __pyx_r = __pyx_pf_4CART_4CART_9idx_nodes_2__set__(((struct __pyx_obj_4CART_CART *)__pyx_v_self), ((PyObject *)__pyx_v_value));
+
+  /* function exit code */
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+static int __pyx_pf_4CART_4CART_9idx_nodes_2__set__(struct __pyx_obj_4CART_CART *__pyx_v_self, PyObject *__pyx_v_value) {
+  int __pyx_r;
+  __Pyx_TraceDeclarations
+  __Pyx_RefNannyDeclarations
+  int __pyx_t_1;
+  int __pyx_lineno = 0;
+  const char *__pyx_filename = NULL;
+  int __pyx_clineno = 0;
+  __Pyx_RefNannySetupContext("__set__", 0);
+  __Pyx_TraceCall("__set__", __pyx_f[0], 467, 0, __PYX_ERR(0, 467, __pyx_L1_error));
+
+  /* "CART.pyx":468
+ *             return self.idx_nodes
+ *         def __set__(self, value):
+ *             self.idx_nodes = value             # <<<<<<<<<<<<<<
+ * 
+ *     def __dealloc__(self):
+ */
+  __Pyx_TraceLine(468,0,__PYX_ERR(0, 468, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyInt_As_int(__pyx_v_value); if (unlikely((__pyx_t_1 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 468, __pyx_L1_error)
+  __pyx_v_self->idx_nodes = __pyx_t_1;
+
+  /* "CART.pyx":467
+ *         def __get__(self):
+ *             return self.idx_nodes
+ *         def __set__(self, value):             # <<<<<<<<<<<<<<
+ *             self.idx_nodes = value
+ * 
+ */
+
+  /* function exit code */
+  __pyx_r = 0;
+  goto __pyx_L0;
+  __pyx_L1_error:;
+  __Pyx_AddTraceback("CART.CART.idx_nodes.__set__", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  __pyx_r = -1;
+  __pyx_L0:;
+  __Pyx_TraceReturn(Py_None, 0);
+  __Pyx_RefNannyFinishContext();
+  return __pyx_r;
+}
+
+/* "CART.pyx":470
+ *             self.idx_nodes = value
  * 
  *     def __dealloc__(self):             # <<<<<<<<<<<<<<
  *         clear_node(self.root)
@@ -12000,20 +12569,20 @@ static void __pyx_pf_4CART_4CART_2__dealloc__(struct __pyx_obj_4CART_CART *__pyx
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("__dealloc__", 0);
-  __Pyx_TraceCall("__dealloc__", __pyx_f[0], 440, 0, __PYX_ERR(0, 440, __pyx_L1_error));
+  __Pyx_TraceCall("__dealloc__", __pyx_f[0], 470, 0, __PYX_ERR(0, 470, __pyx_L1_error));
 
-  /* "CART.pyx":441
+  /* "CART.pyx":471
  * 
  *     def __dealloc__(self):
  *         clear_node(self.root)             # <<<<<<<<<<<<<<
  * 
  *     cdef np.float64_t _loss(self, np.float64_t[:] ys) nogil:
  */
-  __Pyx_TraceLine(441,0,__PYX_ERR(0, 441, __pyx_L1_error))
+  __Pyx_TraceLine(471,0,__PYX_ERR(0, 471, __pyx_L1_error))
   clear_node(__pyx_v_self->root);
 
-  /* "CART.pyx":440
- *             self.nb_cov = value
+  /* "CART.pyx":470
+ *             self.idx_nodes = value
  * 
  *     def __dealloc__(self):             # <<<<<<<<<<<<<<
  *         clear_node(self.root)
@@ -12029,7 +12598,7 @@ static void __pyx_pf_4CART_4CART_2__dealloc__(struct __pyx_obj_4CART_CART *__pyx
   __Pyx_RefNannyFinishContext();
 }
 
-/* "CART.pyx":443
+/* "CART.pyx":473
  *         clear_node(self.root)
  * 
  *     cdef np.float64_t _loss(self, np.float64_t[:] ys) nogil:             # <<<<<<<<<<<<<<
@@ -12045,30 +12614,30 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__loss(struct __pyx_obj_4CART
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("_loss", __pyx_f[0], 443, 1, __PYX_ERR(0, 443, __pyx_L1_error));
+  __Pyx_TraceCall("_loss", __pyx_f[0], 473, 1, __PYX_ERR(0, 473, __pyx_L1_error));
 
-  /* "CART.pyx":445
+  /* "CART.pyx":475
  *     cdef np.float64_t _loss(self, np.float64_t[:] ys) nogil:
  *         cdef np.float64_t ret
  *         if self.loss_fct == MSE:             # <<<<<<<<<<<<<<
  *             ret = mse(ys)
  *         else:
  */
-  __Pyx_TraceLine(445,1,__PYX_ERR(0, 445, __pyx_L1_error))
+  __Pyx_TraceLine(475,1,__PYX_ERR(0, 475, __pyx_L1_error))
   __pyx_t_1 = ((__pyx_v_self->loss_fct == __pyx_e_4CART_MSE) != 0);
   if (__pyx_t_1) {
 
-    /* "CART.pyx":446
+    /* "CART.pyx":476
  *         cdef np.float64_t ret
  *         if self.loss_fct == MSE:
  *             ret = mse(ys)             # <<<<<<<<<<<<<<
  *         else:
  *             ret = poisson(ys)
  */
-    __Pyx_TraceLine(446,1,__PYX_ERR(0, 446, __pyx_L1_error))
+    __Pyx_TraceLine(476,1,__PYX_ERR(0, 476, __pyx_L1_error))
     __pyx_v_ret = __pyx_f_4CART_mse(__pyx_v_ys);
 
-    /* "CART.pyx":445
+    /* "CART.pyx":475
  *     cdef np.float64_t _loss(self, np.float64_t[:] ys) nogil:
  *         cdef np.float64_t ret
  *         if self.loss_fct == MSE:             # <<<<<<<<<<<<<<
@@ -12078,31 +12647,31 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__loss(struct __pyx_obj_4CART
     goto __pyx_L3;
   }
 
-  /* "CART.pyx":448
+  /* "CART.pyx":478
  *             ret = mse(ys)
  *         else:
  *             ret = poisson(ys)             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-  __Pyx_TraceLine(448,1,__PYX_ERR(0, 448, __pyx_L1_error))
+  __Pyx_TraceLine(478,1,__PYX_ERR(0, 478, __pyx_L1_error))
   /*else*/ {
     __pyx_v_ret = __pyx_f_4CART_poisson(__pyx_v_ys);
   }
   __pyx_L3:;
 
-  /* "CART.pyx":449
+  /* "CART.pyx":479
  *         else:
  *             ret = poisson(ys)
  *         return ret             # <<<<<<<<<<<<<<
  * 
  *     def fit(self, dataset: Dataset):
  */
-  __Pyx_TraceLine(449,1,__PYX_ERR(0, 449, __pyx_L1_error))
+  __Pyx_TraceLine(479,1,__PYX_ERR(0, 479, __pyx_L1_error))
   __pyx_r = __pyx_v_ret;
   goto __pyx_L0;
 
-  /* "CART.pyx":443
+  /* "CART.pyx":473
  *         clear_node(self.root)
  * 
  *     cdef np.float64_t _loss(self, np.float64_t[:] ys) nogil:             # <<<<<<<<<<<<<<
@@ -12119,7 +12688,7 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__loss(struct __pyx_obj_4CART
   return __pyx_r;
 }
 
-/* "CART.pyx":451
+/* "CART.pyx":481
  *         return ret
  * 
  *     def fit(self, dataset: Dataset):             # <<<<<<<<<<<<<<
@@ -12136,7 +12705,7 @@ static PyObject *__pyx_pw_4CART_4CART_5fit(PyObject *__pyx_v_self, PyObject *__p
   PyObject *__pyx_r = 0;
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("fit (wrapper)", 0);
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_dataset), __pyx_ptype_4CART_Dataset, 1, "dataset", 0))) __PYX_ERR(0, 451, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_dataset), __pyx_ptype_4CART_Dataset, 1, "dataset", 0))) __PYX_ERR(0, 481, __pyx_L1_error)
   __pyx_r = __pyx_pf_4CART_4CART_4fit(((struct __pyx_obj_4CART_CART *)__pyx_v_self), ((struct __pyx_obj_4CART_Dataset *)__pyx_v_dataset));
 
   /* function exit code */
@@ -12164,27 +12733,27 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("fit", 0);
-  __Pyx_TraceCall("fit", __pyx_f[0], 451, 0, __PYX_ERR(0, 451, __pyx_L1_error));
+  __Pyx_TraceCall("fit", __pyx_f[0], 481, 0, __PYX_ERR(0, 481, __pyx_L1_error));
 
-  /* "CART.pyx":453
+  /* "CART.pyx":483
  *     def fit(self, dataset: Dataset):
  *         global PROBE
  *         PROBE = 0             # <<<<<<<<<<<<<<
  *         start = time()
  *         self.data = dataset
  */
-  __Pyx_TraceLine(453,0,__PYX_ERR(0, 453, __pyx_L1_error))
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_PROBE, __pyx_int_0) < 0) __PYX_ERR(0, 453, __pyx_L1_error)
+  __Pyx_TraceLine(483,0,__PYX_ERR(0, 483, __pyx_L1_error))
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_PROBE, __pyx_int_0) < 0) __PYX_ERR(0, 483, __pyx_L1_error)
 
-  /* "CART.pyx":454
+  /* "CART.pyx":484
  *         global PROBE
  *         PROBE = 0
  *         start = time()             # <<<<<<<<<<<<<<
  *         self.data = dataset
  *         if self.bootstrap:
  */
-  __Pyx_TraceLine(454,0,__PYX_ERR(0, 454, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 454, __pyx_L1_error)
+  __Pyx_TraceLine(484,0,__PYX_ERR(0, 484, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 484, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_3 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_2))) {
@@ -12198,58 +12767,58 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   }
   __pyx_t_1 = (__pyx_t_3) ? __Pyx_PyObject_CallOneArg(__pyx_t_2, __pyx_t_3) : __Pyx_PyObject_CallNoArg(__pyx_t_2);
   __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 454, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 484, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_v_start = __pyx_t_1;
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":455
+  /* "CART.pyx":485
  *         PROBE = 0
  *         start = time()
  *         self.data = dataset             # <<<<<<<<<<<<<<
  *         if self.bootstrap:
  *             print('Bootstrapping...')
  */
-  __Pyx_TraceLine(455,0,__PYX_ERR(0, 455, __pyx_L1_error))
+  __Pyx_TraceLine(485,0,__PYX_ERR(0, 485, __pyx_L1_error))
   __Pyx_INCREF(((PyObject *)__pyx_v_dataset));
   __Pyx_GIVEREF(((PyObject *)__pyx_v_dataset));
   __Pyx_GOTREF(__pyx_v_self->data);
   __Pyx_DECREF(((PyObject *)__pyx_v_self->data));
   __pyx_v_self->data = __pyx_v_dataset;
 
-  /* "CART.pyx":456
+  /* "CART.pyx":486
  *         start = time()
  *         self.data = dataset
  *         if self.bootstrap:             # <<<<<<<<<<<<<<
  *             print('Bootstrapping...')
  *             self.data = self.data.sample(self.prop_sample, self.replacement)
  */
-  __Pyx_TraceLine(456,0,__PYX_ERR(0, 456, __pyx_L1_error))
+  __Pyx_TraceLine(486,0,__PYX_ERR(0, 486, __pyx_L1_error))
   __pyx_t_4 = (__pyx_v_self->bootstrap != 0);
   if (__pyx_t_4) {
 
-    /* "CART.pyx":457
+    /* "CART.pyx":487
  *         self.data = dataset
  *         if self.bootstrap:
  *             print('Bootstrapping...')             # <<<<<<<<<<<<<<
  *             self.data = self.data.sample(self.prop_sample, self.replacement)
  *         # split train vs test ?!
  */
-    __Pyx_TraceLine(457,0,__PYX_ERR(0, 457, __pyx_L1_error))
-    __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__9, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 457, __pyx_L1_error)
+    __Pyx_TraceLine(487,0,__PYX_ERR(0, 487, __pyx_L1_error))
+    __pyx_t_1 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__9, NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 487, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-    /* "CART.pyx":458
+    /* "CART.pyx":488
  *         if self.bootstrap:
  *             print('Bootstrapping...')
  *             self.data = self.data.sample(self.prop_sample, self.replacement)             # <<<<<<<<<<<<<<
  *         # split train vs test ?!
  *         self.root = self._build_tree(self.data)
  */
-    __Pyx_TraceLine(458,0,__PYX_ERR(0, 458, __pyx_L1_error))
-    __pyx_t_1 = ((PyObject *)__pyx_f_4CART_7Dataset_sample(__pyx_v_self->data, __pyx_v_self->prop_sample, __pyx_v_self->replacement)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 458, __pyx_L1_error)
+    __Pyx_TraceLine(488,0,__PYX_ERR(0, 488, __pyx_L1_error))
+    __pyx_t_1 = ((PyObject *)__pyx_f_4CART_7Dataset_sample(__pyx_v_self->data, __pyx_v_self->prop_sample, __pyx_v_self->replacement)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 488, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_GIVEREF(__pyx_t_1);
     __Pyx_GOTREF(__pyx_v_self->data);
@@ -12257,7 +12826,7 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
     __pyx_v_self->data = ((struct __pyx_obj_4CART_Dataset *)__pyx_t_1);
     __pyx_t_1 = 0;
 
-    /* "CART.pyx":456
+    /* "CART.pyx":486
  *         start = time()
  *         self.data = dataset
  *         if self.bootstrap:             # <<<<<<<<<<<<<<
@@ -12266,49 +12835,49 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
  */
   }
 
-  /* "CART.pyx":460
+  /* "CART.pyx":490
  *             self.data = self.data.sample(self.prop_sample, self.replacement)
  *         # split train vs test ?!
  *         self.root = self._build_tree(self.data)             # <<<<<<<<<<<<<<
  *         self._retrieve_all_nodes()
  *         if self.pruning:
  */
-  __Pyx_TraceLine(460,0,__PYX_ERR(0, 460, __pyx_L1_error))
+  __Pyx_TraceLine(490,0,__PYX_ERR(0, 490, __pyx_L1_error))
   __pyx_t_1 = ((PyObject *)__pyx_v_self->data);
   __Pyx_INCREF(__pyx_t_1);
   __pyx_v_self->root = __pyx_f_4CART_4CART__build_tree(__pyx_v_self, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_1), NULL);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "CART.pyx":461
+  /* "CART.pyx":491
  *         # split train vs test ?!
  *         self.root = self._build_tree(self.data)
  *         self._retrieve_all_nodes()             # <<<<<<<<<<<<<<
  *         if self.pruning:
  *             raise TODOError()
  */
-  __Pyx_TraceLine(461,0,__PYX_ERR(0, 461, __pyx_L1_error))
+  __Pyx_TraceLine(491,0,__PYX_ERR(0, 491, __pyx_L1_error))
   __pyx_f_4CART_4CART__retrieve_all_nodes(__pyx_v_self);
 
-  /* "CART.pyx":462
+  /* "CART.pyx":492
  *         self.root = self._build_tree(self.data)
  *         self._retrieve_all_nodes()
  *         if self.pruning:             # <<<<<<<<<<<<<<
  *             raise TODOError()
  *         time_elapsed = time() - start
  */
-  __Pyx_TraceLine(462,0,__PYX_ERR(0, 462, __pyx_L1_error))
+  __Pyx_TraceLine(492,0,__PYX_ERR(0, 492, __pyx_L1_error))
   __pyx_t_4 = (__pyx_v_self->pruning != 0);
   if (unlikely(__pyx_t_4)) {
 
-    /* "CART.pyx":463
+    /* "CART.pyx":493
  *         self._retrieve_all_nodes()
  *         if self.pruning:
  *             raise TODOError()             # <<<<<<<<<<<<<<
  *         time_elapsed = time() - start
  *         print("\n")
  */
-    __Pyx_TraceLine(463,0,__PYX_ERR(0, 463, __pyx_L1_error))
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_TODOError); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 463, __pyx_L1_error)
+    __Pyx_TraceLine(493,0,__PYX_ERR(0, 493, __pyx_L1_error))
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_TODOError); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 493, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __pyx_t_3 = NULL;
     if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_2))) {
@@ -12322,14 +12891,14 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
     }
     __pyx_t_1 = (__pyx_t_3) ? __Pyx_PyObject_CallOneArg(__pyx_t_2, __pyx_t_3) : __Pyx_PyObject_CallNoArg(__pyx_t_2);
     __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 463, __pyx_L1_error)
+    if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 493, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_Raise(__pyx_t_1, 0, 0, 0);
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    __PYX_ERR(0, 463, __pyx_L1_error)
+    __PYX_ERR(0, 493, __pyx_L1_error)
 
-    /* "CART.pyx":462
+    /* "CART.pyx":492
  *         self.root = self._build_tree(self.data)
  *         self._retrieve_all_nodes()
  *         if self.pruning:             # <<<<<<<<<<<<<<
@@ -12338,15 +12907,15 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
  */
   }
 
-  /* "CART.pyx":464
+  /* "CART.pyx":494
  *         if self.pruning:
  *             raise TODOError()
  *         time_elapsed = time() - start             # <<<<<<<<<<<<<<
  *         print("\n")
  *         print('*******************************')
  */
-  __Pyx_TraceLine(464,0,__PYX_ERR(0, 464, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 464, __pyx_L1_error)
+  __Pyx_TraceLine(494,0,__PYX_ERR(0, 494, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 494, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_3 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_2))) {
@@ -12360,48 +12929,48 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   }
   __pyx_t_1 = (__pyx_t_3) ? __Pyx_PyObject_CallOneArg(__pyx_t_2, __pyx_t_3) : __Pyx_PyObject_CallNoArg(__pyx_t_2);
   __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 464, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 494, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = PyNumber_Subtract(__pyx_t_1, __pyx_v_start); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 464, __pyx_L1_error)
+  __pyx_t_2 = PyNumber_Subtract(__pyx_t_1, __pyx_v_start); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 494, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_time_elapsed = __pyx_t_2;
   __pyx_t_2 = 0;
 
-  /* "CART.pyx":465
+  /* "CART.pyx":495
  *             raise TODOError()
  *         time_elapsed = time() - start
  *         print("\n")             # <<<<<<<<<<<<<<
  *         print('*******************************')
  *         print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
  */
-  __Pyx_TraceLine(465,0,__PYX_ERR(0, 465, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__11, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 465, __pyx_L1_error)
+  __Pyx_TraceLine(495,0,__PYX_ERR(0, 495, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__11, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 495, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":466
+  /* "CART.pyx":496
  *         time_elapsed = time() - start
  *         print("\n")
  *         print('*******************************')             # <<<<<<<<<<<<<<
  *         print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
  *         print(f"Time elapsed: {time_elapsed}")
  */
-  __Pyx_TraceLine(466,0,__PYX_ERR(0, 466, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__13, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 466, __pyx_L1_error)
+  __Pyx_TraceLine(496,0,__PYX_ERR(0, 496, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__13, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 496, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":467
+  /* "CART.pyx":497
  *         print("\n")
  *         print('*******************************')
  *         print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")             # <<<<<<<<<<<<<<
  *         print(f"Time elapsed: {time_elapsed}")
  *         print(f"Tree depth:{self.max_depth}")
  */
-  __Pyx_TraceLine(467,0,__PYX_ERR(0, 467, __pyx_L1_error))
-  __pyx_t_2 = PyTuple_New(7); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 467, __pyx_L1_error)
+  __Pyx_TraceLine(497,0,__PYX_ERR(0, 497, __pyx_L1_error))
+  __pyx_t_2 = PyTuple_New(7); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 497, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_5 = 0;
   __pyx_t_6 = 127;
@@ -12409,7 +12978,7 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   __pyx_t_5 += 5;
   __Pyx_GIVEREF(__pyx_kp_u_Tree);
   PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_kp_u_Tree);
-  __pyx_t_1 = __Pyx_PyUnicode_From_int(__pyx_v_self->id, 0, ' ', 'd'); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 467, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyUnicode_From_int(__pyx_v_self->id, 0, ' ', 'd'); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 497, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_t_5 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -12419,7 +12988,7 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   __pyx_t_5 += 12;
   __Pyx_GIVEREF(__pyx_kp_u_Params_id);
   PyTuple_SET_ITEM(__pyx_t_2, 2, __pyx_kp_u_Params_id);
-  __pyx_t_1 = __Pyx_PyUnicode_From_int(__pyx_v_self->max_interaction_depth, 0, ' ', 'd'); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 467, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyUnicode_From_int(__pyx_v_self->max_interaction_depth, 0, ' ', 'd'); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 497, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_t_5 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -12429,7 +12998,7 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   __pyx_t_5 += 6;
   __Pyx_GIVEREF(__pyx_kp_u_cov);
   PyTuple_SET_ITEM(__pyx_t_2, 4, __pyx_kp_u_cov);
-  __pyx_t_1 = __Pyx_PyUnicode_From_int(__pyx_v_self->nb_cov, 0, ' ', 'd'); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 467, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyUnicode_From_int(__pyx_v_self->nb_cov, 0, ' ', 'd'); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 497, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_t_5 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
@@ -12439,93 +13008,93 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   __pyx_t_5 += 1;
   __Pyx_GIVEREF(__pyx_kp_u__14);
   PyTuple_SET_ITEM(__pyx_t_2, 6, __pyx_kp_u__14);
-  __pyx_t_1 = __Pyx_PyUnicode_Join(__pyx_t_2, 7, __pyx_t_5, __pyx_t_6); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 467, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyUnicode_Join(__pyx_t_2, 7, __pyx_t_5, __pyx_t_6); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 497, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 467, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 497, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":468
+  /* "CART.pyx":498
  *         print('*******************************')
  *         print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
  *         print(f"Time elapsed: {time_elapsed}")             # <<<<<<<<<<<<<<
  *         print(f"Tree depth:{self.max_depth}")
  *         print(f"Nb nodes: {len(self.nodes)}")
  */
-  __Pyx_TraceLine(468,0,__PYX_ERR(0, 468, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyObject_FormatSimple(__pyx_v_time_elapsed, __pyx_empty_unicode); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 468, __pyx_L1_error)
+  __Pyx_TraceLine(498,0,__PYX_ERR(0, 498, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyObject_FormatSimple(__pyx_v_time_elapsed, __pyx_empty_unicode); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 498, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_PyUnicode_Concat(__pyx_kp_u_Time_elapsed, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 468, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyUnicode_Concat(__pyx_kp_u_Time_elapsed, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 498, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 468, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 498, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":469
+  /* "CART.pyx":499
  *         print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
  *         print(f"Time elapsed: {time_elapsed}")
  *         print(f"Tree depth:{self.max_depth}")             # <<<<<<<<<<<<<<
  *         print(f"Nb nodes: {len(self.nodes)}")
  *         print('*******************************')
  */
-  __Pyx_TraceLine(469,0,__PYX_ERR(0, 469, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyUnicode_From_size_t(__pyx_v_self->max_depth, 0, ' ', 'd'); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 469, __pyx_L1_error)
+  __Pyx_TraceLine(499,0,__PYX_ERR(0, 499, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyUnicode_From_size_t(__pyx_v_self->max_depth, 0, ' ', 'd'); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 499, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_PyUnicode_Concat(__pyx_kp_u_Tree_depth, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 469, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyUnicode_Concat(__pyx_kp_u_Tree_depth, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 499, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 469, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 499, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":470
+  /* "CART.pyx":500
  *         print(f"Time elapsed: {time_elapsed}")
  *         print(f"Tree depth:{self.max_depth}")
  *         print(f"Nb nodes: {len(self.nodes)}")             # <<<<<<<<<<<<<<
  *         print('*******************************')
  *         print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
  */
-  __Pyx_TraceLine(470,0,__PYX_ERR(0, 470, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_nodes); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 470, __pyx_L1_error)
+  __Pyx_TraceLine(500,0,__PYX_ERR(0, 500, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_nodes); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 500, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_5 = PyObject_Length(__pyx_t_2); if (unlikely(__pyx_t_5 == ((Py_ssize_t)-1))) __PYX_ERR(0, 470, __pyx_L1_error)
+  __pyx_t_5 = PyObject_Length(__pyx_t_2); if (unlikely(__pyx_t_5 == ((Py_ssize_t)-1))) __PYX_ERR(0, 500, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyUnicode_From_Py_ssize_t(__pyx_t_5, 0, ' ', 'd'); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 470, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyUnicode_From_Py_ssize_t(__pyx_t_5, 0, ' ', 'd'); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 500, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_PyUnicode_Concat(__pyx_kp_u_Nb_nodes, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 470, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyUnicode_Concat(__pyx_kp_u_Nb_nodes, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 500, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 470, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 500, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":471
+  /* "CART.pyx":501
  *         print(f"Tree depth:{self.max_depth}")
  *         print(f"Nb nodes: {len(self.nodes)}")
  *         print('*******************************')             # <<<<<<<<<<<<<<
  *         print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
  *         return self.nodes
  */
-  __Pyx_TraceLine(471,0,__PYX_ERR(0, 471, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__13, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 471, __pyx_L1_error)
+  __Pyx_TraceLine(501,0,__PYX_ERR(0, 501, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_builtin_print, __pyx_tuple__13, NULL); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 501, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":472
+  /* "CART.pyx":502
  *         print(f"Nb nodes: {len(self.nodes)}")
  *         print('*******************************')
  *         print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')             # <<<<<<<<<<<<<<
  *         return self.nodes
  * 
  */
-  __Pyx_TraceLine(472,0,__PYX_ERR(0, 472, __pyx_L1_error))
-  __pyx_t_2 = PyTuple_New(3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __Pyx_TraceLine(502,0,__PYX_ERR(0, 502, __pyx_L1_error))
+  __pyx_t_2 = PyTuple_New(3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 502, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_t_5 = 0;
   __pyx_t_6 = 127;
@@ -12533,15 +13102,15 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   __pyx_t_5 += 2;
   __Pyx_GIVEREF(__pyx_kp_u__15);
   PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_kp_u__15);
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_PROBE); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_PROBE); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 502, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = PyNumber_Multiply(__pyx_int_100, __pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __pyx_t_3 = PyNumber_Multiply(__pyx_int_100, __pyx_t_1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 502, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyNumber_Divide(__pyx_t_3, __pyx_v_time_elapsed); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyNumber_Divide(__pyx_t_3, __pyx_v_time_elapsed); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 502, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_PyObject_Format(__pyx_t_1, __pyx_kp_u_3_2f); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_Format(__pyx_t_1, __pyx_kp_u_3_2f); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 502, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_t_6 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_3) > __pyx_t_6) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_3) : __pyx_t_6;
@@ -12553,30 +13122,30 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   __pyx_t_5 += 1;
   __Pyx_GIVEREF(__pyx_kp_u__16);
   PyTuple_SET_ITEM(__pyx_t_2, 2, __pyx_kp_u__16);
-  __pyx_t_3 = __Pyx_PyUnicode_Join(__pyx_t_2, 3, __pyx_t_5, __pyx_t_6); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyUnicode_Join(__pyx_t_2, 3, __pyx_t_5, __pyx_t_6); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 502, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 472, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_3); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 502, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":473
+  /* "CART.pyx":503
  *         print('*******************************')
  *         print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
  *         return self.nodes             # <<<<<<<<<<<<<<
  * 
  *     cdef void _retrieve_all_nodes(self):
  */
-  __Pyx_TraceLine(473,0,__PYX_ERR(0, 473, __pyx_L1_error))
+  __Pyx_TraceLine(503,0,__PYX_ERR(0, 503, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_nodes); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 473, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_self), __pyx_n_s_nodes); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 503, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __pyx_r = __pyx_t_2;
   __pyx_t_2 = 0;
   goto __pyx_L0;
 
-  /* "CART.pyx":451
+  /* "CART.pyx":481
  *         return ret
  * 
  *     def fit(self, dataset: Dataset):             # <<<<<<<<<<<<<<
@@ -12600,7 +13169,7 @@ static PyObject *__pyx_pf_4CART_4CART_4fit(struct __pyx_obj_4CART_CART *__pyx_v_
   return __pyx_r;
 }
 
-/* "CART.pyx":475
+/* "CART.pyx":505
  *         return self.nodes
  * 
  *     cdef void _retrieve_all_nodes(self):             # <<<<<<<<<<<<<<
@@ -12621,17 +13190,17 @@ static void __pyx_f_4CART_4CART__retrieve_all_nodes(struct __pyx_obj_4CART_CART 
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_retrieve_all_nodes", 0);
-  __Pyx_TraceCall("_retrieve_all_nodes", __pyx_f[0], 475, 0, __PYX_ERR(0, 475, __pyx_L1_error));
+  __Pyx_TraceCall("_retrieve_all_nodes", __pyx_f[0], 505, 0, __PYX_ERR(0, 505, __pyx_L1_error));
 
-  /* "CART.pyx":476
+  /* "CART.pyx":506
  * 
  *     cdef void _retrieve_all_nodes(self):
  *         self.all_nodes = list()             # <<<<<<<<<<<<<<
  *         cdef Node node
  *         cdef list stack = []
  */
-  __Pyx_TraceLine(476,0,__PYX_ERR(0, 476, __pyx_L1_error))
-  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 476, __pyx_L1_error)
+  __Pyx_TraceLine(506,0,__PYX_ERR(0, 506, __pyx_L1_error))
+  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 506, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_GIVEREF(__pyx_t_1);
   __Pyx_GOTREF(__pyx_v_self->all_nodes);
@@ -12639,98 +13208,98 @@ static void __pyx_f_4CART_4CART__retrieve_all_nodes(struct __pyx_obj_4CART_CART 
   __pyx_v_self->all_nodes = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":478
+  /* "CART.pyx":508
  *         self.all_nodes = list()
  *         cdef Node node
  *         cdef list stack = []             # <<<<<<<<<<<<<<
  *         stack.append(Node.from_ptr(self.root))
  *         while len(stack) > 0:
  */
-  __Pyx_TraceLine(478,0,__PYX_ERR(0, 478, __pyx_L1_error))
-  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 478, __pyx_L1_error)
+  __Pyx_TraceLine(508,0,__PYX_ERR(0, 508, __pyx_L1_error))
+  __pyx_t_1 = PyList_New(0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 508, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_stack = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":479
+  /* "CART.pyx":509
  *         cdef Node node
  *         cdef list stack = []
  *         stack.append(Node.from_ptr(self.root))             # <<<<<<<<<<<<<<
  *         while len(stack) > 0:
  *             node = stack.pop()
  */
-  __Pyx_TraceLine(479,0,__PYX_ERR(0, 479, __pyx_L1_error))
-  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr(__pyx_v_self->root)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 479, __pyx_L1_error)
+  __Pyx_TraceLine(509,0,__PYX_ERR(0, 509, __pyx_L1_error))
+  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr(__pyx_v_self->root)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 509, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyList_Append(__pyx_v_stack, __pyx_t_1); if (unlikely(__pyx_t_2 == ((int)-1))) __PYX_ERR(0, 479, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyList_Append(__pyx_v_stack, __pyx_t_1); if (unlikely(__pyx_t_2 == ((int)-1))) __PYX_ERR(0, 509, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "CART.pyx":480
+  /* "CART.pyx":510
  *         cdef list stack = []
  *         stack.append(Node.from_ptr(self.root))
  *         while len(stack) > 0:             # <<<<<<<<<<<<<<
  *             node = stack.pop()
  *             self.all_nodes.append(node)
  */
-  __Pyx_TraceLine(480,0,__PYX_ERR(0, 480, __pyx_L1_error))
+  __Pyx_TraceLine(510,0,__PYX_ERR(0, 510, __pyx_L1_error))
   while (1) {
-    __pyx_t_3 = PyList_GET_SIZE(__pyx_v_stack); if (unlikely(__pyx_t_3 == ((Py_ssize_t)-1))) __PYX_ERR(0, 480, __pyx_L1_error)
+    __pyx_t_3 = PyList_GET_SIZE(__pyx_v_stack); if (unlikely(__pyx_t_3 == ((Py_ssize_t)-1))) __PYX_ERR(0, 510, __pyx_L1_error)
     __pyx_t_4 = ((__pyx_t_3 > 0) != 0);
     if (!__pyx_t_4) break;
 
-    /* "CART.pyx":481
+    /* "CART.pyx":511
  *         stack.append(Node.from_ptr(self.root))
  *         while len(stack) > 0:
  *             node = stack.pop()             # <<<<<<<<<<<<<<
  *             self.all_nodes.append(node)
  *             if dereference(node.node).left_child != NULL:
  */
-    __Pyx_TraceLine(481,0,__PYX_ERR(0, 481, __pyx_L1_error))
-    __pyx_t_1 = __Pyx_PyList_Pop(__pyx_v_stack); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 481, __pyx_L1_error)
+    __Pyx_TraceLine(511,0,__PYX_ERR(0, 511, __pyx_L1_error))
+    __pyx_t_1 = __Pyx_PyList_Pop(__pyx_v_stack); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 511, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_4CART_Node))))) __PYX_ERR(0, 481, __pyx_L1_error)
+    if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_4CART_Node))))) __PYX_ERR(0, 511, __pyx_L1_error)
     __Pyx_XDECREF_SET(__pyx_v_node, ((struct __pyx_obj_4CART_Node *)__pyx_t_1));
     __pyx_t_1 = 0;
 
-    /* "CART.pyx":482
+    /* "CART.pyx":512
  *         while len(stack) > 0:
  *             node = stack.pop()
  *             self.all_nodes.append(node)             # <<<<<<<<<<<<<<
  *             if dereference(node.node).left_child != NULL:
  *                 stack.append(Node.from_ptr(dereference(node.node).left_child))
  */
-    __Pyx_TraceLine(482,0,__PYX_ERR(0, 482, __pyx_L1_error))
+    __Pyx_TraceLine(512,0,__PYX_ERR(0, 512, __pyx_L1_error))
     if (unlikely(__pyx_v_self->all_nodes == Py_None)) {
       PyErr_Format(PyExc_AttributeError, "'NoneType' object has no attribute '%.30s'", "append");
-      __PYX_ERR(0, 482, __pyx_L1_error)
+      __PYX_ERR(0, 512, __pyx_L1_error)
     }
-    __pyx_t_2 = __Pyx_PyList_Append(__pyx_v_self->all_nodes, ((PyObject *)__pyx_v_node)); if (unlikely(__pyx_t_2 == ((int)-1))) __PYX_ERR(0, 482, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyList_Append(__pyx_v_self->all_nodes, ((PyObject *)__pyx_v_node)); if (unlikely(__pyx_t_2 == ((int)-1))) __PYX_ERR(0, 512, __pyx_L1_error)
 
-    /* "CART.pyx":483
+    /* "CART.pyx":513
  *             node = stack.pop()
  *             self.all_nodes.append(node)
  *             if dereference(node.node).left_child != NULL:             # <<<<<<<<<<<<<<
  *                 stack.append(Node.from_ptr(dereference(node.node).left_child))
  *             if dereference(node.node).right_child != NULL:
  */
-    __Pyx_TraceLine(483,0,__PYX_ERR(0, 483, __pyx_L1_error))
+    __Pyx_TraceLine(513,0,__PYX_ERR(0, 513, __pyx_L1_error))
     __pyx_t_4 = (((*__pyx_v_node->node).left_child != NULL) != 0);
     if (__pyx_t_4) {
 
-      /* "CART.pyx":484
+      /* "CART.pyx":514
  *             self.all_nodes.append(node)
  *             if dereference(node.node).left_child != NULL:
  *                 stack.append(Node.from_ptr(dereference(node.node).left_child))             # <<<<<<<<<<<<<<
  *             if dereference(node.node).right_child != NULL:
  *                 stack.append(Node.from_ptr(dereference(node.node).right_child))
  */
-      __Pyx_TraceLine(484,0,__PYX_ERR(0, 484, __pyx_L1_error))
-      __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_node->node).left_child)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 484, __pyx_L1_error)
+      __Pyx_TraceLine(514,0,__PYX_ERR(0, 514, __pyx_L1_error))
+      __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_node->node).left_child)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 514, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_2 = __Pyx_PyList_Append(__pyx_v_stack, __pyx_t_1); if (unlikely(__pyx_t_2 == ((int)-1))) __PYX_ERR(0, 484, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyList_Append(__pyx_v_stack, __pyx_t_1); if (unlikely(__pyx_t_2 == ((int)-1))) __PYX_ERR(0, 514, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-      /* "CART.pyx":483
+      /* "CART.pyx":513
  *             node = stack.pop()
  *             self.all_nodes.append(node)
  *             if dereference(node.node).left_child != NULL:             # <<<<<<<<<<<<<<
@@ -12739,31 +13308,31 @@ static void __pyx_f_4CART_4CART__retrieve_all_nodes(struct __pyx_obj_4CART_CART 
  */
     }
 
-    /* "CART.pyx":485
+    /* "CART.pyx":515
  *             if dereference(node.node).left_child != NULL:
  *                 stack.append(Node.from_ptr(dereference(node.node).left_child))
  *             if dereference(node.node).right_child != NULL:             # <<<<<<<<<<<<<<
  *                 stack.append(Node.from_ptr(dereference(node.node).right_child))
  * 
  */
-    __Pyx_TraceLine(485,0,__PYX_ERR(0, 485, __pyx_L1_error))
+    __Pyx_TraceLine(515,0,__PYX_ERR(0, 515, __pyx_L1_error))
     __pyx_t_4 = (((*__pyx_v_node->node).right_child != NULL) != 0);
     if (__pyx_t_4) {
 
-      /* "CART.pyx":486
+      /* "CART.pyx":516
  *                 stack.append(Node.from_ptr(dereference(node.node).left_child))
  *             if dereference(node.node).right_child != NULL:
  *                 stack.append(Node.from_ptr(dereference(node.node).right_child))             # <<<<<<<<<<<<<<
  * 
  *     cdef _Node* _build_tree(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
  */
-      __Pyx_TraceLine(486,0,__PYX_ERR(0, 486, __pyx_L1_error))
-      __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_node->node).right_child)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 486, __pyx_L1_error)
+      __Pyx_TraceLine(516,0,__PYX_ERR(0, 516, __pyx_L1_error))
+      __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4Node_from_ptr((*__pyx_v_node->node).right_child)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 516, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_1);
-      __pyx_t_2 = __Pyx_PyList_Append(__pyx_v_stack, __pyx_t_1); if (unlikely(__pyx_t_2 == ((int)-1))) __PYX_ERR(0, 486, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyList_Append(__pyx_v_stack, __pyx_t_1); if (unlikely(__pyx_t_2 == ((int)-1))) __PYX_ERR(0, 516, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-      /* "CART.pyx":485
+      /* "CART.pyx":515
  *             if dereference(node.node).left_child != NULL:
  *                 stack.append(Node.from_ptr(dereference(node.node).left_child))
  *             if dereference(node.node).right_child != NULL:             # <<<<<<<<<<<<<<
@@ -12773,7 +13342,7 @@ static void __pyx_f_4CART_4CART__retrieve_all_nodes(struct __pyx_obj_4CART_CART 
     }
   }
 
-  /* "CART.pyx":475
+  /* "CART.pyx":505
  *         return self.nodes
  * 
  *     cdef void _retrieve_all_nodes(self):             # <<<<<<<<<<<<<<
@@ -12793,7 +13362,7 @@ static void __pyx_f_4CART_4CART__retrieve_all_nodes(struct __pyx_obj_4CART_CART 
   __Pyx_RefNannyFinishContext();
 }
 
-/* "CART.pyx":488
+/* "CART.pyx":518
  *                 stack.append(Node.from_ptr(dereference(node.node).right_child))
  * 
  *     cdef _Node* _build_tree(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):             # <<<<<<<<<<<<<<
@@ -12810,7 +13379,7 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
   int __pyx_v__kind;
   int __pyx_v__idx;
   __pyx_t_5numpy_float64_t __pyx_v__threshold;
-  __pyx_t_5numpy_float64_t __pyx_v__loss;
+  CYTHON_UNUSED __pyx_t_5numpy_float64_t __pyx_v__loss;
   __pyx_t_5numpy_float64_t __pyx_v__avg;
   PyObject *__pyx_v_kind = 0;
   struct _Node *__pyx_r;
@@ -12822,20 +13391,20 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
   int __pyx_t_4;
   int __pyx_t_5;
   size_t __pyx_t_6;
-  Py_ssize_t __pyx_t_7;
-  __pyx_t_5numpy_float64_t __pyx_t_8;
-  struct _Node *__pyx_t_9;
-  struct __pyx_opt_args_4CART_4CART__build_tree __pyx_t_10;
-  int __pyx_t_11;
-  Py_ssize_t __pyx_t_12;
-  Py_UCS4 __pyx_t_13;
-  PyObject *__pyx_t_14 = NULL;
-  PyObject *__pyx_t_15 = NULL;
+  __pyx_t_5numpy_float64_t __pyx_t_7;
+  Py_ssize_t __pyx_t_8;
+  int __pyx_t_9;
+  Py_ssize_t __pyx_t_10;
+  Py_UCS4 __pyx_t_11;
+  PyObject *__pyx_t_12 = NULL;
+  PyObject *__pyx_t_13 = NULL;
+  struct _Node *__pyx_t_14;
+  struct __pyx_opt_args_4CART_4CART__build_tree __pyx_t_15;
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_build_tree", 0);
-  __Pyx_TraceCall("_build_tree", __pyx_f[0], 488, 0, __PYX_ERR(0, 488, __pyx_L1_error));
+  __Pyx_TraceCall("_build_tree", __pyx_f[0], 518, 0, __PYX_ERR(0, 518, __pyx_L1_error));
   if (__pyx_optional_args) {
     if (__pyx_optional_args->__pyx_n > 0) {
       __pyx_v_depth = __pyx_optional_args->depth;
@@ -12845,78 +13414,109 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
     }
   }
 
-  /* "CART.pyx":490
+  /* "CART.pyx":520
  *     cdef _Node* _build_tree(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
  *         # Should use a PQ to expand the nodes in decreasing order of H/Gini
  *         cdef SplitChoice split = self._find_best_split(data, loss)             # <<<<<<<<<<<<<<
  *         cdef _Node* ret = self._create_node(data.y, depth)
  *         if split is None:
  */
-  __Pyx_TraceLine(490,0,__PYX_ERR(0, 490, __pyx_L1_error))
+  __Pyx_TraceLine(520,0,__PYX_ERR(0, 520, __pyx_L1_error))
   __pyx_t_2.__pyx_n = 1;
   __pyx_t_2.precomputed_loss = __pyx_v_loss;
-  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4CART__find_best_split(__pyx_v_self, __pyx_v_data, &__pyx_t_2)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 490, __pyx_L1_error)
+  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4CART__find_best_split(__pyx_v_self, __pyx_v_data, &__pyx_t_2)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 520, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_v_split = ((struct __pyx_obj_4CART_SplitChoice *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":491
+  /* "CART.pyx":521
  *         # Should use a PQ to expand the nodes in decreasing order of H/Gini
  *         cdef SplitChoice split = self._find_best_split(data, loss)
  *         cdef _Node* ret = self._create_node(data.y, depth)             # <<<<<<<<<<<<<<
  *         if split is None:
  *             return ret
  */
-  __Pyx_TraceLine(491,0,__PYX_ERR(0, 491, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_y); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 491, __pyx_L1_error)
+  __Pyx_TraceLine(521,0,__PYX_ERR(0, 521, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_y); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 521, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_1, PyBUF_WRITABLE); if (unlikely(!__pyx_t_3.memview)) __PYX_ERR(0, 491, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_1, PyBUF_WRITABLE); if (unlikely(!__pyx_t_3.memview)) __PYX_ERR(0, 521, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_ret = __pyx_f_4CART_4CART__create_node(__pyx_v_self, __pyx_t_3, __pyx_v_depth);
   __PYX_XDEC_MEMVIEW(&__pyx_t_3, 1);
   __pyx_t_3.memview = NULL;
   __pyx_t_3.data = NULL;
 
-  /* "CART.pyx":492
+  /* "CART.pyx":522
  *         cdef SplitChoice split = self._find_best_split(data, loss)
  *         cdef _Node* ret = self._create_node(data.y, depth)
  *         if split is None:             # <<<<<<<<<<<<<<
  *             return ret
- *         if split.left_data.get_length() <= self.minobs or \
+ *         self.nb_nodes += 1
  */
-  __Pyx_TraceLine(492,0,__PYX_ERR(0, 492, __pyx_L1_error))
+  __Pyx_TraceLine(522,0,__PYX_ERR(0, 522, __pyx_L1_error))
   __pyx_t_4 = (((PyObject *)__pyx_v_split) == Py_None);
   __pyx_t_5 = (__pyx_t_4 != 0);
   if (__pyx_t_5) {
 
-    /* "CART.pyx":493
+    /* "CART.pyx":523
  *         cdef _Node* ret = self._create_node(data.y, depth)
  *         if split is None:
  *             return ret             # <<<<<<<<<<<<<<
- *         if split.left_data.get_length() <= self.minobs or \
- *                 split.right_data.get_length() <= self.minobs or \
+ *         self.nb_nodes += 1
+ *         self.idx_nodes +=1
  */
-    __Pyx_TraceLine(493,0,__PYX_ERR(0, 493, __pyx_L1_error))
+    __Pyx_TraceLine(523,0,__PYX_ERR(0, 523, __pyx_L1_error))
     __pyx_r = __pyx_v_ret;
     goto __pyx_L0;
 
-    /* "CART.pyx":492
+    /* "CART.pyx":522
  *         cdef SplitChoice split = self._find_best_split(data, loss)
  *         cdef _Node* ret = self._create_node(data.y, depth)
  *         if split is None:             # <<<<<<<<<<<<<<
  *             return ret
- *         if split.left_data.get_length() <= self.minobs or \
+ *         self.nb_nodes += 1
  */
   }
 
-  /* "CART.pyx":494
+  /* "CART.pyx":524
  *         if split is None:
  *             return ret
+ *         self.nb_nodes += 1             # <<<<<<<<<<<<<<
+ *         self.idx_nodes +=1
+ *         ret.feature_idx = split.feature_idx
+ */
+  __Pyx_TraceLine(524,0,__PYX_ERR(0, 524, __pyx_L1_error))
+  __pyx_v_self->nb_nodes = (__pyx_v_self->nb_nodes + 1);
+
+  /* "CART.pyx":525
+ *             return ret
+ *         self.nb_nodes += 1
+ *         self.idx_nodes +=1             # <<<<<<<<<<<<<<
+ *         ret.feature_idx = split.feature_idx
+ *         if split.left_data.get_length() <= self.minobs or \
+ */
+  __Pyx_TraceLine(525,0,__PYX_ERR(0, 525, __pyx_L1_error))
+  __pyx_v_self->idx_nodes = (__pyx_v_self->idx_nodes + 1);
+
+  /* "CART.pyx":526
+ *         self.nb_nodes += 1
+ *         self.idx_nodes +=1
+ *         ret.feature_idx = split.feature_idx             # <<<<<<<<<<<<<<
+ *         if split.left_data.get_length() <= self.minobs or \
+ *                 split.right_data.get_length() <= self.minobs or \
+ */
+  __Pyx_TraceLine(526,0,__PYX_ERR(0, 526, __pyx_L1_error))
+  __pyx_t_6 = __pyx_v_split->feature_idx;
+  __pyx_v_ret->feature_idx = __pyx_t_6;
+
+  /* "CART.pyx":527
+ *         self.idx_nodes +=1
+ *         ret.feature_idx = split.feature_idx
  *         if split.left_data.get_length() <= self.minobs or \             # <<<<<<<<<<<<<<
  *                 split.right_data.get_length() <= self.minobs or \
  *                 split.dloss < self.delta_loss or split.loss <= 0 or \
  */
-  __Pyx_TraceLine(494,0,__PYX_ERR(0, 494, __pyx_L1_error))
+  __Pyx_TraceLine(527,0,__PYX_ERR(0, 527, __pyx_L1_error))
   __pyx_t_4 = ((__pyx_f_4CART_7Dataset_get_length(__pyx_v_split->left_data) <= __pyx_v_self->minobs) != 0);
   if (!__pyx_t_4) {
   } else {
@@ -12924,14 +13524,14 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
     goto __pyx_L5_bool_binop_done;
   }
 
-  /* "CART.pyx":495
- *             return ret
+  /* "CART.pyx":528
+ *         ret.feature_idx = split.feature_idx
  *         if split.left_data.get_length() <= self.minobs or \
  *                 split.right_data.get_length() <= self.minobs or \             # <<<<<<<<<<<<<<
  *                 split.dloss < self.delta_loss or split.loss <= 0 or \
- *                 self.nb_nodes > self.max_interaction_depth:
+ *                 self.nb_splitting_nodes > self.max_interaction_depth:
  */
-  __Pyx_TraceLine(495,0,__PYX_ERR(0, 495, __pyx_L1_error))
+  __Pyx_TraceLine(528,0,__PYX_ERR(0, 528, __pyx_L1_error))
   __pyx_t_4 = ((__pyx_f_4CART_7Dataset_get_length(__pyx_v_split->right_data) <= __pyx_v_self->minobs) != 0);
   if (!__pyx_t_4) {
   } else {
@@ -12939,14 +13539,14 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
     goto __pyx_L5_bool_binop_done;
   }
 
-  /* "CART.pyx":496
+  /* "CART.pyx":529
  *         if split.left_data.get_length() <= self.minobs or \
  *                 split.right_data.get_length() <= self.minobs or \
  *                 split.dloss < self.delta_loss or split.loss <= 0 or \             # <<<<<<<<<<<<<<
- *                 self.nb_nodes > self.max_interaction_depth:
+ *                 self.nb_splitting_nodes > self.max_interaction_depth:
  *             return ret
  */
-  __Pyx_TraceLine(496,0,__PYX_ERR(0, 496, __pyx_L1_error))
+  __Pyx_TraceLine(529,0,__PYX_ERR(0, 529, __pyx_L1_error))
   __pyx_t_4 = ((__pyx_v_split->dloss < __pyx_v_self->delta_loss) != 0);
   if (!__pyx_t_4) {
   } else {
@@ -12960,104 +13560,114 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
     goto __pyx_L5_bool_binop_done;
   }
 
-  /* "CART.pyx":497
+  /* "CART.pyx":530
  *                 split.right_data.get_length() <= self.minobs or \
  *                 split.dloss < self.delta_loss or split.loss <= 0 or \
- *                 self.nb_nodes > self.max_interaction_depth:             # <<<<<<<<<<<<<<
+ *                 self.nb_splitting_nodes > self.max_interaction_depth:             # <<<<<<<<<<<<<<
  *             return ret
- *         self.nb_nodes += 1
+ *         self.nb_splitting_nodes += 1
  */
-  __Pyx_TraceLine(497,0,__PYX_ERR(0, 497, __pyx_L1_error))
-  __pyx_t_4 = ((__pyx_v_self->nb_nodes > __pyx_v_self->max_interaction_depth) != 0);
+  __Pyx_TraceLine(530,0,__PYX_ERR(0, 530, __pyx_L1_error))
+  __pyx_t_4 = ((__pyx_v_self->nb_splitting_nodes > __pyx_v_self->max_interaction_depth) != 0);
   __pyx_t_5 = __pyx_t_4;
   __pyx_L5_bool_binop_done:;
 
-  /* "CART.pyx":494
- *         if split is None:
- *             return ret
+  /* "CART.pyx":527
+ *         self.idx_nodes +=1
+ *         ret.feature_idx = split.feature_idx
  *         if split.left_data.get_length() <= self.minobs or \             # <<<<<<<<<<<<<<
  *                 split.right_data.get_length() <= self.minobs or \
  *                 split.dloss < self.delta_loss or split.loss <= 0 or \
  */
-  __Pyx_TraceLine(494,0,__PYX_ERR(0, 494, __pyx_L1_error))
+  __Pyx_TraceLine(527,0,__PYX_ERR(0, 527, __pyx_L1_error))
   if (__pyx_t_5) {
 
-    /* "CART.pyx":498
+    /* "CART.pyx":531
  *                 split.dloss < self.delta_loss or split.loss <= 0 or \
- *                 self.nb_nodes > self.max_interaction_depth:
+ *                 self.nb_splitting_nodes > self.max_interaction_depth:
  *             return ret             # <<<<<<<<<<<<<<
- *         self.nb_nodes += 1
- *         ret.feature_idx = split.feature_idx
+ *         self.nb_splitting_nodes += 1
+ *         ret.dloss = split.dloss
  */
-    __Pyx_TraceLine(498,0,__PYX_ERR(0, 498, __pyx_L1_error))
+    __Pyx_TraceLine(531,0,__PYX_ERR(0, 531, __pyx_L1_error))
     __pyx_r = __pyx_v_ret;
     goto __pyx_L0;
 
-    /* "CART.pyx":494
- *         if split is None:
- *             return ret
+    /* "CART.pyx":527
+ *         self.idx_nodes +=1
+ *         ret.feature_idx = split.feature_idx
  *         if split.left_data.get_length() <= self.minobs or \             # <<<<<<<<<<<<<<
  *                 split.right_data.get_length() <= self.minobs or \
  *                 split.dloss < self.delta_loss or split.loss <= 0 or \
  */
   }
 
-  /* "CART.pyx":499
- *                 self.nb_nodes > self.max_interaction_depth:
+  /* "CART.pyx":532
+ *                 self.nb_splitting_nodes > self.max_interaction_depth:
  *             return ret
- *         self.nb_nodes += 1             # <<<<<<<<<<<<<<
- *         ret.feature_idx = split.feature_idx
+ *         self.nb_splitting_nodes += 1             # <<<<<<<<<<<<<<
+ *         ret.dloss = split.dloss
  *         if split.is_categorical:
  */
-  __Pyx_TraceLine(499,0,__PYX_ERR(0, 499, __pyx_L1_error))
-  __pyx_v_self->nb_nodes = (__pyx_v_self->nb_nodes + 1);
+  __Pyx_TraceLine(532,0,__PYX_ERR(0, 532, __pyx_L1_error))
+  __pyx_v_self->nb_splitting_nodes = (__pyx_v_self->nb_splitting_nodes + 1);
 
-  /* "CART.pyx":500
+  /* "CART.pyx":533
  *             return ret
- *         self.nb_nodes += 1
- *         ret.feature_idx = split.feature_idx             # <<<<<<<<<<<<<<
+ *         self.nb_splitting_nodes += 1
+ *         ret.dloss = split.dloss             # <<<<<<<<<<<<<<
  *         if split.is_categorical:
  *             _set_categorical_node_left_right_values(
  */
-  __Pyx_TraceLine(500,0,__PYX_ERR(0, 500, __pyx_L1_error))
-  __pyx_t_6 = __pyx_v_split->feature_idx;
-  __pyx_v_ret->feature_idx = __pyx_t_6;
+  __Pyx_TraceLine(533,0,__PYX_ERR(0, 533, __pyx_L1_error))
+  __pyx_t_7 = __pyx_v_split->dloss;
+  __pyx_v_ret->dloss = __pyx_t_7;
 
-  /* "CART.pyx":501
- *         self.nb_nodes += 1
- *         ret.feature_idx = split.feature_idx
+  /* "CART.pyx":534
+ *         self.nb_splitting_nodes += 1
+ *         ret.dloss = split.dloss
  *         if split.is_categorical:             # <<<<<<<<<<<<<<
  *             _set_categorical_node_left_right_values(
  *                 ret, &split.labels[0], split.labels.shape[0], split.threshold_idx
  */
-  __Pyx_TraceLine(501,0,__PYX_ERR(0, 501, __pyx_L1_error))
+  __Pyx_TraceLine(534,0,__PYX_ERR(0, 534, __pyx_L1_error))
   __pyx_t_5 = (__pyx_v_split->is_categorical != 0);
   if (__pyx_t_5) {
 
-    /* "CART.pyx":503
+    /* "CART.pyx":536
  *         if split.is_categorical:
  *             _set_categorical_node_left_right_values(
  *                 ret, &split.labels[0], split.labels.shape[0], split.threshold_idx             # <<<<<<<<<<<<<<
  *             )
- *         else:
+ *             ret.threshold = split.threshold_idx + .5
  */
-    __Pyx_TraceLine(503,0,__PYX_ERR(0, 503, __pyx_L1_error))
-    __pyx_t_7 = 0;
-    if (__pyx_t_7 < 0) __pyx_t_7 += __pyx_v_split->labels.shape[0];
+    __Pyx_TraceLine(536,0,__PYX_ERR(0, 536, __pyx_L1_error))
+    __pyx_t_8 = 0;
+    if (__pyx_t_8 < 0) __pyx_t_8 += __pyx_v_split->labels.shape[0];
 
-    /* "CART.pyx":502
- *         ret.feature_idx = split.feature_idx
+    /* "CART.pyx":535
+ *         ret.dloss = split.dloss
  *         if split.is_categorical:
  *             _set_categorical_node_left_right_values(             # <<<<<<<<<<<<<<
  *                 ret, &split.labels[0], split.labels.shape[0], split.threshold_idx
  *             )
  */
-    __Pyx_TraceLine(502,0,__PYX_ERR(0, 502, __pyx_L1_error))
-    _set_categorical_node_left_right_values(__pyx_v_ret, (&(*((__pyx_t_5numpy_int32_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_int32_t *) __pyx_v_split->labels.data) + __pyx_t_7)) )))), (__pyx_v_split->labels.shape[0]), __pyx_v_split->threshold_idx);
+    __Pyx_TraceLine(535,0,__PYX_ERR(0, 535, __pyx_L1_error))
+    _set_categorical_node_left_right_values(__pyx_v_ret, (&(*((__pyx_t_5numpy_int32_t *) ( /* dim=0 */ ((char *) (((__pyx_t_5numpy_int32_t *) __pyx_v_split->labels.data) + __pyx_t_8)) )))), (__pyx_v_split->labels.shape[0]), __pyx_v_split->threshold_idx);
 
-    /* "CART.pyx":501
- *         self.nb_nodes += 1
- *         ret.feature_idx = split.feature_idx
+    /* "CART.pyx":538
+ *                 ret, &split.labels[0], split.labels.shape[0], split.threshold_idx
+ *             )
+ *             ret.threshold = split.threshold_idx + .5             # <<<<<<<<<<<<<<
+ *         else:
+ *             ret.threshold = split.threshold
+ */
+    __Pyx_TraceLine(538,0,__PYX_ERR(0, 538, __pyx_L1_error))
+    __pyx_v_ret->threshold = (__pyx_v_split->threshold_idx + .5);
+
+    /* "CART.pyx":534
+ *         self.nb_splitting_nodes += 1
+ *         ret.dloss = split.dloss
  *         if split.is_categorical:             # <<<<<<<<<<<<<<
  *             _set_categorical_node_left_right_values(
  *                 ret, &split.labels[0], split.labels.shape[0], split.threshold_idx
@@ -13065,145 +13675,93 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
     goto __pyx_L10;
   }
 
-  /* "CART.pyx":506
- *             )
+  /* "CART.pyx":540
+ *             ret.threshold = split.threshold_idx + .5
  *         else:
  *             ret.threshold = split.threshold             # <<<<<<<<<<<<<<
- *         _set_left_child(
- *             ret, self._build_tree(split.left_data, depth+1, split.loss_left)
+ *         cdef size_t _depth = dereference(ret).depth
+ *         cdef bint   _kind = _is_root(ret)
  */
-  __Pyx_TraceLine(506,0,__PYX_ERR(0, 506, __pyx_L1_error))
+  __Pyx_TraceLine(540,0,__PYX_ERR(0, 540, __pyx_L1_error))
   /*else*/ {
-    __pyx_t_8 = __pyx_v_split->threshold;
-    __pyx_v_ret->threshold = __pyx_t_8;
+    __pyx_t_7 = __pyx_v_split->threshold;
+    __pyx_v_ret->threshold = __pyx_t_7;
   }
   __pyx_L10:;
 
-  /* "CART.pyx":508
- *             ret.threshold = split.threshold
- *         _set_left_child(
- *             ret, self._build_tree(split.left_data, depth+1, split.loss_left)             # <<<<<<<<<<<<<<
- *         )
- *         _set_right_child(
- */
-  __Pyx_TraceLine(508,0,__PYX_ERR(0, 508, __pyx_L1_error))
-  __pyx_t_1 = ((PyObject *)__pyx_v_split->left_data);
-  __Pyx_INCREF(__pyx_t_1);
-  __pyx_t_10.__pyx_n = 2;
-  __pyx_t_10.depth = (__pyx_v_depth + 1);
-  __pyx_t_10.loss = __pyx_v_split->loss_left;
-  __pyx_t_9 = __pyx_f_4CART_4CART__build_tree(__pyx_v_self, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_1), &__pyx_t_10); 
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-
-  /* "CART.pyx":507
+  /* "CART.pyx":541
  *         else:
  *             ret.threshold = split.threshold
- *         _set_left_child(             # <<<<<<<<<<<<<<
- *             ret, self._build_tree(split.left_data, depth+1, split.loss_left)
- *         )
- */
-  __Pyx_TraceLine(507,0,__PYX_ERR(0, 507, __pyx_L1_error))
-  _set_left_child(__pyx_v_ret, __pyx_t_9);
-
-  /* "CART.pyx":511
- *         )
- *         _set_right_child(
- *             ret, self._build_tree(split.right_data, depth+1, split.loss_right)             # <<<<<<<<<<<<<<
- *         )
- *         cdef size_t _depth = dereference(ret).depth
- */
-  __Pyx_TraceLine(511,0,__PYX_ERR(0, 511, __pyx_L1_error))
-  __pyx_t_1 = ((PyObject *)__pyx_v_split->right_data);
-  __Pyx_INCREF(__pyx_t_1);
-  __pyx_t_10.__pyx_n = 2;
-  __pyx_t_10.depth = (__pyx_v_depth + 1);
-  __pyx_t_10.loss = __pyx_v_split->loss_right;
-  __pyx_t_9 = __pyx_f_4CART_4CART__build_tree(__pyx_v_self, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_1), &__pyx_t_10); 
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-
-  /* "CART.pyx":510
- *             ret, self._build_tree(split.left_data, depth+1, split.loss_left)
- *         )
- *         _set_right_child(             # <<<<<<<<<<<<<<
- *             ret, self._build_tree(split.right_data, depth+1, split.loss_right)
- *         )
- */
-  __Pyx_TraceLine(510,0,__PYX_ERR(0, 510, __pyx_L1_error))
-  _set_right_child(__pyx_v_ret, __pyx_t_9);
-
-  /* "CART.pyx":513
- *             ret, self._build_tree(split.right_data, depth+1, split.loss_right)
- *         )
  *         cdef size_t _depth = dereference(ret).depth             # <<<<<<<<<<<<<<
  *         cdef bint   _kind = _is_root(ret)
  *         cdef int    _idx = dereference(ret).feature_idx
  */
-  __Pyx_TraceLine(513,0,__PYX_ERR(0, 513, __pyx_L1_error))
+  __Pyx_TraceLine(541,0,__PYX_ERR(0, 541, __pyx_L1_error))
   __pyx_t_6 = (*__pyx_v_ret).depth;
   __pyx_v__depth = __pyx_t_6;
 
-  /* "CART.pyx":514
- *         )
+  /* "CART.pyx":542
+ *             ret.threshold = split.threshold
  *         cdef size_t _depth = dereference(ret).depth
  *         cdef bint   _kind = _is_root(ret)             # <<<<<<<<<<<<<<
  *         cdef int    _idx = dereference(ret).feature_idx
  *         cdef np.float64_t _threshold = dereference(ret).threshold
  */
-  __Pyx_TraceLine(514,0,__PYX_ERR(0, 514, __pyx_L1_error))
+  __Pyx_TraceLine(542,0,__PYX_ERR(0, 542, __pyx_L1_error))
   __pyx_v__kind = _is_root(__pyx_v_ret);
 
-  /* "CART.pyx":515
+  /* "CART.pyx":543
  *         cdef size_t _depth = dereference(ret).depth
  *         cdef bint   _kind = _is_root(ret)
  *         cdef int    _idx = dereference(ret).feature_idx             # <<<<<<<<<<<<<<
  *         cdef np.float64_t _threshold = dereference(ret).threshold
  *         cdef np.float64_t _loss = dereference(ret).loss
  */
-  __Pyx_TraceLine(515,0,__PYX_ERR(0, 515, __pyx_L1_error))
-  __pyx_t_11 = (*__pyx_v_ret).feature_idx;
-  __pyx_v__idx = __pyx_t_11;
+  __Pyx_TraceLine(543,0,__PYX_ERR(0, 543, __pyx_L1_error))
+  __pyx_t_9 = (*__pyx_v_ret).feature_idx;
+  __pyx_v__idx = __pyx_t_9;
 
-  /* "CART.pyx":516
+  /* "CART.pyx":544
  *         cdef bint   _kind = _is_root(ret)
  *         cdef int    _idx = dereference(ret).feature_idx
  *         cdef np.float64_t _threshold = dereference(ret).threshold             # <<<<<<<<<<<<<<
  *         cdef np.float64_t _loss = dereference(ret).loss
  *         cdef np.float64_t _avg = dereference(ret).avg_value
  */
-  __Pyx_TraceLine(516,0,__PYX_ERR(0, 516, __pyx_L1_error))
-  __pyx_t_8 = (*__pyx_v_ret).threshold;
-  __pyx_v__threshold = __pyx_t_8;
+  __Pyx_TraceLine(544,0,__PYX_ERR(0, 544, __pyx_L1_error))
+  __pyx_t_7 = (*__pyx_v_ret).threshold;
+  __pyx_v__threshold = __pyx_t_7;
 
-  /* "CART.pyx":517
+  /* "CART.pyx":545
  *         cdef int    _idx = dereference(ret).feature_idx
  *         cdef np.float64_t _threshold = dereference(ret).threshold
  *         cdef np.float64_t _loss = dereference(ret).loss             # <<<<<<<<<<<<<<
  *         cdef np.float64_t _avg = dereference(ret).avg_value
  *         cdef str kind = 'Node' if _kind else 'Leaf'
  */
-  __Pyx_TraceLine(517,0,__PYX_ERR(0, 517, __pyx_L1_error))
-  __pyx_t_8 = (*__pyx_v_ret).loss;
-  __pyx_v__loss = __pyx_t_8;
+  __Pyx_TraceLine(545,0,__PYX_ERR(0, 545, __pyx_L1_error))
+  __pyx_t_7 = (*__pyx_v_ret).loss;
+  __pyx_v__loss = __pyx_t_7;
 
-  /* "CART.pyx":518
+  /* "CART.pyx":546
  *         cdef np.float64_t _threshold = dereference(ret).threshold
  *         cdef np.float64_t _loss = dereference(ret).loss
  *         cdef np.float64_t _avg = dereference(ret).avg_value             # <<<<<<<<<<<<<<
  *         cdef str kind = 'Node' if _kind else 'Leaf'
  *         print(f"{'  ' * _depth} {kind}, Depth: {_depth}, "
  */
-  __Pyx_TraceLine(518,0,__PYX_ERR(0, 518, __pyx_L1_error))
-  __pyx_t_8 = (*__pyx_v_ret).avg_value;
-  __pyx_v__avg = __pyx_t_8;
+  __Pyx_TraceLine(546,0,__PYX_ERR(0, 546, __pyx_L1_error))
+  __pyx_t_7 = (*__pyx_v_ret).avg_value;
+  __pyx_v__avg = __pyx_t_7;
 
-  /* "CART.pyx":519
+  /* "CART.pyx":547
  *         cdef np.float64_t _loss = dereference(ret).loss
  *         cdef np.float64_t _avg = dereference(ret).avg_value
  *         cdef str kind = 'Node' if _kind else 'Leaf'             # <<<<<<<<<<<<<<
  *         print(f"{'  ' * _depth} {kind}, Depth: {_depth}, "
- *               f"Feature: {_idx}, Threshold: {_threshold}, Loss: {_loss}"
+ *               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
  */
-  __Pyx_TraceLine(519,0,__PYX_ERR(0, 519, __pyx_L1_error))
+  __Pyx_TraceLine(547,0,__PYX_ERR(0, 547, __pyx_L1_error))
   if ((__pyx_v__kind != 0)) {
     __Pyx_INCREF(__pyx_n_u_Node);
     __pyx_t_1 = __pyx_n_u_Node;
@@ -13214,151 +13772,203 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
   __pyx_v_kind = ((PyObject*)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":520
+  /* "CART.pyx":548
  *         cdef np.float64_t _avg = dereference(ret).avg_value
  *         cdef str kind = 'Node' if _kind else 'Leaf'
  *         print(f"{'  ' * _depth} {kind}, Depth: {_depth}, "             # <<<<<<<<<<<<<<
- *               f"Feature: {_idx}, Threshold: {_threshold}, Loss: {_loss}"
+ *               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
  *               f", Mean_value: {_avg}")
  */
-  __Pyx_TraceLine(520,0,__PYX_ERR(0, 520, __pyx_L1_error))
-  __pyx_t_1 = PyTuple_New(13); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 520, __pyx_L1_error)
+  __Pyx_TraceLine(548,0,__PYX_ERR(0, 548, __pyx_L1_error))
+  __pyx_t_1 = PyTuple_New(13); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 548, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_10 = 0;
+  __pyx_t_11 = 127;
+  __pyx_t_12 = __Pyx_PyInt_FromSize_t(__pyx_v__depth); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __pyx_t_13 = PyNumber_Multiply(__pyx_kp_u__18, __pyx_t_12); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+  __pyx_t_12 = __Pyx_PyObject_FormatSimple(__pyx_t_13, __pyx_empty_unicode); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
+  __pyx_t_11 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_12) > __pyx_t_11) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_12) : __pyx_t_11;
+  __pyx_t_10 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_12);
+  __Pyx_GIVEREF(__pyx_t_12);
+  PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_12);
   __pyx_t_12 = 0;
-  __pyx_t_13 = 127;
-  __pyx_t_14 = __Pyx_PyInt_FromSize_t(__pyx_v__depth); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 520, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_14);
-  __pyx_t_15 = PyNumber_Multiply(__pyx_kp_u__18, __pyx_t_14); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 520, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_15);
-  __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-  __pyx_t_14 = __Pyx_PyObject_FormatSimple(__pyx_t_15, __pyx_empty_unicode); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 520, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_14);
-  __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-  __pyx_t_13 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_14) > __pyx_t_13) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_14) : __pyx_t_13;
-  __pyx_t_12 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_14);
-  __Pyx_GIVEREF(__pyx_t_14);
-  PyTuple_SET_ITEM(__pyx_t_1, 0, __pyx_t_14);
-  __pyx_t_14 = 0;
   __Pyx_INCREF(__pyx_kp_u__19);
-  __pyx_t_12 += 1;
+  __pyx_t_10 += 1;
   __Pyx_GIVEREF(__pyx_kp_u__19);
   PyTuple_SET_ITEM(__pyx_t_1, 1, __pyx_kp_u__19);
-  __pyx_t_14 = __Pyx_PyUnicode_Unicode(__pyx_v_kind); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 520, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_14);
-  __pyx_t_13 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_14) > __pyx_t_13) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_14) : __pyx_t_13;
-  __pyx_t_12 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_14);
-  __Pyx_GIVEREF(__pyx_t_14);
-  PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_t_14);
-  __pyx_t_14 = 0;
+  __pyx_t_12 = __Pyx_PyUnicode_Unicode(__pyx_v_kind); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __pyx_t_11 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_12) > __pyx_t_11) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_12) : __pyx_t_11;
+  __pyx_t_10 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_12);
+  __Pyx_GIVEREF(__pyx_t_12);
+  PyTuple_SET_ITEM(__pyx_t_1, 2, __pyx_t_12);
+  __pyx_t_12 = 0;
   __Pyx_INCREF(__pyx_kp_u_Depth);
-  __pyx_t_12 += 9;
+  __pyx_t_10 += 9;
   __Pyx_GIVEREF(__pyx_kp_u_Depth);
   PyTuple_SET_ITEM(__pyx_t_1, 3, __pyx_kp_u_Depth);
-  __pyx_t_14 = __Pyx_PyUnicode_From_size_t(__pyx_v__depth, 0, ' ', 'd'); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 520, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_14);
-  __pyx_t_12 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_14);
-  __Pyx_GIVEREF(__pyx_t_14);
-  PyTuple_SET_ITEM(__pyx_t_1, 4, __pyx_t_14);
-  __pyx_t_14 = 0;
+  __pyx_t_12 = __Pyx_PyUnicode_From_size_t(__pyx_v__depth, 0, ' ', 'd'); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __pyx_t_10 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_12);
+  __Pyx_GIVEREF(__pyx_t_12);
+  PyTuple_SET_ITEM(__pyx_t_1, 4, __pyx_t_12);
+  __pyx_t_12 = 0;
   __Pyx_INCREF(__pyx_kp_u_Feature);
-  __pyx_t_12 += 11;
+  __pyx_t_10 += 11;
   __Pyx_GIVEREF(__pyx_kp_u_Feature);
   PyTuple_SET_ITEM(__pyx_t_1, 5, __pyx_kp_u_Feature);
 
-  /* "CART.pyx":521
+  /* "CART.pyx":549
  *         cdef str kind = 'Node' if _kind else 'Leaf'
  *         print(f"{'  ' * _depth} {kind}, Depth: {_depth}, "
- *               f"Feature: {_idx}, Threshold: {_threshold}, Loss: {_loss}"             # <<<<<<<<<<<<<<
+ *               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"             # <<<<<<<<<<<<<<
  *               f", Mean_value: {_avg}")
- *         return ret
+ *         _set_left_child(
  */
-  __Pyx_TraceLine(521,0,__PYX_ERR(0, 521, __pyx_L1_error))
-  __pyx_t_14 = __Pyx_PyUnicode_From_int(__pyx_v__idx, 0, ' ', 'd'); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 521, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_14);
-  __pyx_t_12 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_14);
-  __Pyx_GIVEREF(__pyx_t_14);
-  PyTuple_SET_ITEM(__pyx_t_1, 6, __pyx_t_14);
-  __pyx_t_14 = 0;
+  __Pyx_TraceLine(549,0,__PYX_ERR(0, 549, __pyx_L1_error))
+  __pyx_t_12 = __Pyx_PyUnicode_From_int(__pyx_v__idx, 0, ' ', 'd'); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 549, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __pyx_t_10 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_12);
+  __Pyx_GIVEREF(__pyx_t_12);
+  PyTuple_SET_ITEM(__pyx_t_1, 6, __pyx_t_12);
+  __pyx_t_12 = 0;
   __Pyx_INCREF(__pyx_kp_u_Threshold);
-  __pyx_t_12 += 13;
+  __pyx_t_10 += 13;
   __Pyx_GIVEREF(__pyx_kp_u_Threshold);
   PyTuple_SET_ITEM(__pyx_t_1, 7, __pyx_kp_u_Threshold);
-  __pyx_t_14 = PyFloat_FromDouble(__pyx_v__threshold); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 521, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_14);
-  __pyx_t_15 = __Pyx_PyObject_FormatSimple(__pyx_t_14, __pyx_empty_unicode); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 521, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_15);
-  __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-  __pyx_t_13 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_15) > __pyx_t_13) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_15) : __pyx_t_13;
-  __pyx_t_12 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_15);
-  __Pyx_GIVEREF(__pyx_t_15);
-  PyTuple_SET_ITEM(__pyx_t_1, 8, __pyx_t_15);
-  __pyx_t_15 = 0;
-  __Pyx_INCREF(__pyx_kp_u_Loss);
-  __pyx_t_12 += 8;
-  __Pyx_GIVEREF(__pyx_kp_u_Loss);
-  PyTuple_SET_ITEM(__pyx_t_1, 9, __pyx_kp_u_Loss);
-  __pyx_t_15 = PyFloat_FromDouble(__pyx_v__loss); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 521, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_15);
-  __pyx_t_14 = __Pyx_PyObject_FormatSimple(__pyx_t_15, __pyx_empty_unicode); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 521, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_14);
-  __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-  __pyx_t_13 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_14) > __pyx_t_13) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_14) : __pyx_t_13;
-  __pyx_t_12 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_14);
-  __Pyx_GIVEREF(__pyx_t_14);
-  PyTuple_SET_ITEM(__pyx_t_1, 10, __pyx_t_14);
-  __pyx_t_14 = 0;
+  __pyx_t_12 = PyFloat_FromDouble(__pyx_v__threshold); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 549, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __pyx_t_13 = __Pyx_PyObject_FormatSimple(__pyx_t_12, __pyx_empty_unicode); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 549, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+  __pyx_t_11 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_13) > __pyx_t_11) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_13) : __pyx_t_11;
+  __pyx_t_10 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_13);
+  __Pyx_GIVEREF(__pyx_t_13);
+  PyTuple_SET_ITEM(__pyx_t_1, 8, __pyx_t_13);
+  __pyx_t_13 = 0;
+  __Pyx_INCREF(__pyx_kp_u_DLoss);
+  __pyx_t_10 += 9;
+  __Pyx_GIVEREF(__pyx_kp_u_DLoss);
+  PyTuple_SET_ITEM(__pyx_t_1, 9, __pyx_kp_u_DLoss);
+  __pyx_t_13 = PyFloat_FromDouble(__pyx_v_ret->dloss); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 549, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __pyx_t_12 = __Pyx_PyObject_FormatSimple(__pyx_t_13, __pyx_empty_unicode); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 549, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
+  __pyx_t_11 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_12) > __pyx_t_11) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_12) : __pyx_t_11;
+  __pyx_t_10 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_12);
+  __Pyx_GIVEREF(__pyx_t_12);
+  PyTuple_SET_ITEM(__pyx_t_1, 10, __pyx_t_12);
+  __pyx_t_12 = 0;
   __Pyx_INCREF(__pyx_kp_u_Mean_value);
-  __pyx_t_12 += 14;
+  __pyx_t_10 += 14;
   __Pyx_GIVEREF(__pyx_kp_u_Mean_value);
   PyTuple_SET_ITEM(__pyx_t_1, 11, __pyx_kp_u_Mean_value);
 
-  /* "CART.pyx":522
+  /* "CART.pyx":550
  *         print(f"{'  ' * _depth} {kind}, Depth: {_depth}, "
- *               f"Feature: {_idx}, Threshold: {_threshold}, Loss: {_loss}"
+ *               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
  *               f", Mean_value: {_avg}")             # <<<<<<<<<<<<<<
- *         return ret
- * 
+ *         _set_left_child(
+ *             ret, self._build_tree(split.left_data, depth+1, split.loss_left)
  */
-  __Pyx_TraceLine(522,0,__PYX_ERR(0, 522, __pyx_L1_error))
-  __pyx_t_14 = PyFloat_FromDouble(__pyx_v__avg); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 522, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_14);
-  __pyx_t_15 = __Pyx_PyObject_FormatSimple(__pyx_t_14, __pyx_empty_unicode); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 522, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_15);
-  __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
-  __pyx_t_13 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_15) > __pyx_t_13) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_15) : __pyx_t_13;
-  __pyx_t_12 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_15);
-  __Pyx_GIVEREF(__pyx_t_15);
-  PyTuple_SET_ITEM(__pyx_t_1, 12, __pyx_t_15);
-  __pyx_t_15 = 0;
+  __Pyx_TraceLine(550,0,__PYX_ERR(0, 550, __pyx_L1_error))
+  __pyx_t_12 = PyFloat_FromDouble(__pyx_v__avg); if (unlikely(!__pyx_t_12)) __PYX_ERR(0, 550, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_12);
+  __pyx_t_13 = __Pyx_PyObject_FormatSimple(__pyx_t_12, __pyx_empty_unicode); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 550, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
+  __Pyx_DECREF(__pyx_t_12); __pyx_t_12 = 0;
+  __pyx_t_11 = (__Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_13) > __pyx_t_11) ? __Pyx_PyUnicode_MAX_CHAR_VALUE(__pyx_t_13) : __pyx_t_11;
+  __pyx_t_10 += __Pyx_PyUnicode_GET_LENGTH(__pyx_t_13);
+  __Pyx_GIVEREF(__pyx_t_13);
+  PyTuple_SET_ITEM(__pyx_t_1, 12, __pyx_t_13);
+  __pyx_t_13 = 0;
 
-  /* "CART.pyx":520
+  /* "CART.pyx":548
  *         cdef np.float64_t _avg = dereference(ret).avg_value
  *         cdef str kind = 'Node' if _kind else 'Leaf'
  *         print(f"{'  ' * _depth} {kind}, Depth: {_depth}, "             # <<<<<<<<<<<<<<
- *               f"Feature: {_idx}, Threshold: {_threshold}, Loss: {_loss}"
+ *               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
  *               f", Mean_value: {_avg}")
  */
-  __Pyx_TraceLine(520,0,__PYX_ERR(0, 520, __pyx_L1_error))
-  __pyx_t_15 = __Pyx_PyUnicode_Join(__pyx_t_1, 13, __pyx_t_12, __pyx_t_13); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 520, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_15);
+  __Pyx_TraceLine(548,0,__PYX_ERR(0, 548, __pyx_L1_error))
+  __pyx_t_13 = __Pyx_PyUnicode_Join(__pyx_t_1, 13, __pyx_t_10, __pyx_t_11); if (unlikely(!__pyx_t_13)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_13);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_15); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 520, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_CallOneArg(__pyx_builtin_print, __pyx_t_13); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 548, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
+  __Pyx_DECREF(__pyx_t_13); __pyx_t_13 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "CART.pyx":523
- *               f"Feature: {_idx}, Threshold: {_threshold}, Loss: {_loss}"
+  /* "CART.pyx":552
  *               f", Mean_value: {_avg}")
+ *         _set_left_child(
+ *             ret, self._build_tree(split.left_data, depth+1, split.loss_left)             # <<<<<<<<<<<<<<
+ *         )
+ *         _set_right_child(
+ */
+  __Pyx_TraceLine(552,0,__PYX_ERR(0, 552, __pyx_L1_error))
+  __pyx_t_1 = ((PyObject *)__pyx_v_split->left_data);
+  __Pyx_INCREF(__pyx_t_1);
+  __pyx_t_15.__pyx_n = 2;
+  __pyx_t_15.depth = (__pyx_v_depth + 1);
+  __pyx_t_15.loss = __pyx_v_split->loss_left;
+  __pyx_t_14 = __pyx_f_4CART_4CART__build_tree(__pyx_v_self, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_1), &__pyx_t_15); 
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "CART.pyx":551
+ *               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
+ *               f", Mean_value: {_avg}")
+ *         _set_left_child(             # <<<<<<<<<<<<<<
+ *             ret, self._build_tree(split.left_data, depth+1, split.loss_left)
+ *         )
+ */
+  __Pyx_TraceLine(551,0,__PYX_ERR(0, 551, __pyx_L1_error))
+  _set_left_child(__pyx_v_ret, __pyx_t_14);
+
+  /* "CART.pyx":555
+ *         )
+ *         _set_right_child(
+ *             ret, self._build_tree(split.right_data, depth+1, split.loss_right)             # <<<<<<<<<<<<<<
+ *         )
+ *         return ret
+ */
+  __Pyx_TraceLine(555,0,__PYX_ERR(0, 555, __pyx_L1_error))
+  __pyx_t_1 = ((PyObject *)__pyx_v_split->right_data);
+  __Pyx_INCREF(__pyx_t_1);
+  __pyx_t_15.__pyx_n = 2;
+  __pyx_t_15.depth = (__pyx_v_depth + 1);
+  __pyx_t_15.loss = __pyx_v_split->loss_right;
+  __pyx_t_14 = __pyx_f_4CART_4CART__build_tree(__pyx_v_self, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_1), &__pyx_t_15); 
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+
+  /* "CART.pyx":554
+ *             ret, self._build_tree(split.left_data, depth+1, split.loss_left)
+ *         )
+ *         _set_right_child(             # <<<<<<<<<<<<<<
+ *             ret, self._build_tree(split.right_data, depth+1, split.loss_right)
+ *         )
+ */
+  __Pyx_TraceLine(554,0,__PYX_ERR(0, 554, __pyx_L1_error))
+  _set_right_child(__pyx_v_ret, __pyx_t_14);
+
+  /* "CART.pyx":557
+ *             ret, self._build_tree(split.right_data, depth+1, split.loss_right)
+ *         )
  *         return ret             # <<<<<<<<<<<<<<
  * 
  *     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):
  */
-  __Pyx_TraceLine(523,0,__PYX_ERR(0, 523, __pyx_L1_error))
+  __Pyx_TraceLine(557,0,__PYX_ERR(0, 557, __pyx_L1_error))
   __pyx_r = __pyx_v_ret;
   goto __pyx_L0;
 
-  /* "CART.pyx":488
+  /* "CART.pyx":518
  *                 stack.append(Node.from_ptr(dereference(node.node).right_child))
  * 
  *     cdef _Node* _build_tree(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):             # <<<<<<<<<<<<<<
@@ -13370,8 +13980,8 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
   __pyx_L1_error:;
   __Pyx_XDECREF(__pyx_t_1);
   __PYX_XDEC_MEMVIEW(&__pyx_t_3, 1);
-  __Pyx_XDECREF(__pyx_t_14);
-  __Pyx_XDECREF(__pyx_t_15);
+  __Pyx_XDECREF(__pyx_t_12);
+  __Pyx_XDECREF(__pyx_t_13);
   __Pyx_WriteUnraisable("CART.CART._build_tree", __pyx_clineno, __pyx_lineno, __pyx_filename, 1, 0);
   __pyx_r = 0;
   __pyx_L0:;
@@ -13382,7 +13992,7 @@ static struct _Node *__pyx_f_4CART_4CART__build_tree(struct __pyx_obj_4CART_CART
   return __pyx_r;
 }
 
-/* "CART.pyx":525
+/* "CART.pyx":559
  *         return ret
  * 
  *     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):             # <<<<<<<<<<<<<<
@@ -13407,16 +14017,16 @@ static struct _Node *__pyx_f_4CART_4CART__create_node(struct __pyx_obj_4CART_CAR
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_create_node", 0);
-  __Pyx_TraceCall("_create_node", __pyx_f[0], 525, 0, __PYX_ERR(0, 525, __pyx_L1_error));
+  __Pyx_TraceCall("_create_node", __pyx_f[0], 559, 0, __PYX_ERR(0, 559, __pyx_L1_error));
 
-  /* "CART.pyx":526
+  /* "CART.pyx":560
  * 
  *     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):
  *         self.max_depth = max(depth, self.max_depth)             # <<<<<<<<<<<<<<
  *         cdef _Node* node = new_node(depth)
- *         _set_ys(node, np.mean(ys), self._loss(ys), ys.shape[0])
+ *         _set_ys(node, self.idx_nodes, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])
  */
-  __Pyx_TraceLine(526,0,__PYX_ERR(0, 526, __pyx_L1_error))
+  __Pyx_TraceLine(560,0,__PYX_ERR(0, 560, __pyx_L1_error))
   __pyx_t_1 = __pyx_v_self->max_depth;
   __pyx_t_2 = __pyx_v_depth;
   if (((__pyx_t_1 > __pyx_t_2) != 0)) {
@@ -13426,30 +14036,30 @@ static struct _Node *__pyx_f_4CART_4CART__create_node(struct __pyx_obj_4CART_CAR
   }
   __pyx_v_self->max_depth = __pyx_t_3;
 
-  /* "CART.pyx":527
+  /* "CART.pyx":561
  *     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):
  *         self.max_depth = max(depth, self.max_depth)
  *         cdef _Node* node = new_node(depth)             # <<<<<<<<<<<<<<
- *         _set_ys(node, np.mean(ys), self._loss(ys), ys.shape[0])
+ *         _set_ys(node, self.idx_nodes, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])
  *         return node
  */
-  __Pyx_TraceLine(527,0,__PYX_ERR(0, 527, __pyx_L1_error))
+  __Pyx_TraceLine(561,0,__PYX_ERR(0, 561, __pyx_L1_error))
   __pyx_v_node = new_node(__pyx_v_depth);
 
-  /* "CART.pyx":528
+  /* "CART.pyx":562
  *         self.max_depth = max(depth, self.max_depth)
  *         cdef _Node* node = new_node(depth)
- *         _set_ys(node, np.mean(ys), self._loss(ys), ys.shape[0])             # <<<<<<<<<<<<<<
+ *         _set_ys(node, self.idx_nodes, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])             # <<<<<<<<<<<<<<
  *         return node
  * 
  */
-  __Pyx_TraceLine(528,0,__PYX_ERR(0, 528, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 528, __pyx_L1_error)
+  __Pyx_TraceLine(562,0,__PYX_ERR(0, 562, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 562, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_mean); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 528, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_mean); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 562, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __pyx_memoryview_fromslice(__pyx_v_ys, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 528, __pyx_L1_error)
+  __pyx_t_5 = __pyx_memoryview_fromslice(__pyx_v_ys, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_float64_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_float64_t, 0);; if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 562, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __pyx_t_7 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_6))) {
@@ -13464,25 +14074,25 @@ static struct _Node *__pyx_f_4CART_4CART__create_node(struct __pyx_obj_4CART_CAR
   __pyx_t_4 = (__pyx_t_7) ? __Pyx_PyObject_Call2Args(__pyx_t_6, __pyx_t_7, __pyx_t_5) : __Pyx_PyObject_CallOneArg(__pyx_t_6, __pyx_t_5);
   __Pyx_XDECREF(__pyx_t_7); __pyx_t_7 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 528, __pyx_L1_error)
+  if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 562, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  __pyx_t_8 = __pyx_PyFloat_AsDouble(__pyx_t_4); if (unlikely((__pyx_t_8 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 528, __pyx_L1_error)
+  __pyx_t_8 = __pyx_PyFloat_AsDouble(__pyx_t_4); if (unlikely((__pyx_t_8 == (double)-1) && PyErr_Occurred())) __PYX_ERR(0, 562, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  _set_ys(__pyx_v_node, __pyx_t_8, __pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_v_ys), (__pyx_v_ys.shape[0]));
+  _set_ys(__pyx_v_node, __pyx_v_self->idx_nodes, __pyx_t_8, (__pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_v_ys) * (__pyx_v_ys.shape[0])), (__pyx_v_ys.shape[0]));
 
-  /* "CART.pyx":529
+  /* "CART.pyx":563
  *         cdef _Node* node = new_node(depth)
- *         _set_ys(node, np.mean(ys), self._loss(ys), ys.shape[0])
+ *         _set_ys(node, self.idx_nodes, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])
  *         return node             # <<<<<<<<<<<<<<
  * 
  *     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):
  */
-  __Pyx_TraceLine(529,0,__PYX_ERR(0, 529, __pyx_L1_error))
+  __Pyx_TraceLine(563,0,__PYX_ERR(0, 563, __pyx_L1_error))
   __pyx_r = __pyx_v_node;
   goto __pyx_L0;
 
-  /* "CART.pyx":525
+  /* "CART.pyx":559
  *         return ret
  * 
  *     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):             # <<<<<<<<<<<<<<
@@ -13504,7 +14114,7 @@ static struct _Node *__pyx_f_4CART_4CART__create_node(struct __pyx_obj_4CART_CAR
   return __pyx_r;
 }
 
-/* "CART.pyx":531
+/* "CART.pyx":565
  *         return node
  * 
  *     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):             # <<<<<<<<<<<<<<
@@ -13522,7 +14132,7 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
   __pyx_t_5numpy_float64_t __pyx_v_prop_p0;
   struct __pyx_obj_4CART_SplitChoice *__pyx_v_ret = 0;
   struct __pyx_obj_4CART_SplitChoice *__pyx_v_best_split = 0;
-  PyObject *__pyx_v_feature_idx = NULL;
+  int __pyx_v_feature_idx;
   struct __pyx_obj_4CART_SplitChoice *__pyx_r = NULL;
   __Pyx_TraceDeclarations
   __Pyx_RefNannyDeclarations
@@ -13548,80 +14158,80 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_find_best_split", 0);
-  __Pyx_TraceCall("_find_best_split", __pyx_f[0], 531, 0, __PYX_ERR(0, 531, __pyx_L1_error));
+  __Pyx_TraceCall("_find_best_split", __pyx_f[0], 565, 0, __PYX_ERR(0, 565, __pyx_L1_error));
   if (__pyx_optional_args) {
     if (__pyx_optional_args->__pyx_n > 0) {
       __pyx_v_precomputed_loss = __pyx_optional_args->precomputed_loss;
     }
   }
 
-  /* "CART.pyx":532
+  /* "CART.pyx":566
  * 
  *     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):
  *         cdef np.uint8_t[:] usable = np.ones(data.X.shape[1], dtype=np.uint8)             # <<<<<<<<<<<<<<
  *         cdef int j
  *         for j in range(usable.shape[0]):
  */
-  __Pyx_TraceLine(532,0,__PYX_ERR(0, 532, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __Pyx_TraceLine(566,0,__PYX_ERR(0, 566, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_ones); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_ones); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_shape); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_shape); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_GetItemInt(__pyx_t_3, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_GetItemInt(__pyx_t_3, 1, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_3 = PyTuple_New(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_GIVEREF(__pyx_t_1);
   PyTuple_SET_ITEM(__pyx_t_3, 0, __pyx_t_1);
   __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_uint8); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_uint8); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 532, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_dtype, __pyx_t_5) < 0) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_3, __pyx_t_1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_2, __pyx_t_3, __pyx_t_1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint8_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 532, __pyx_L1_error)
+  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint8_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 566, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __pyx_v_usable = __pyx_t_6;
   __pyx_t_6.memview = NULL;
   __pyx_t_6.data = NULL;
 
-  /* "CART.pyx":534
+  /* "CART.pyx":568
  *         cdef np.uint8_t[:] usable = np.ones(data.X.shape[1], dtype=np.uint8)
  *         cdef int j
  *         for j in range(usable.shape[0]):             # <<<<<<<<<<<<<<
  *             if usable[j] and not data.not_all_equal(j):
  *                 usable[j] = False
  */
-  __Pyx_TraceLine(534,0,__PYX_ERR(0, 534, __pyx_L1_error))
+  __Pyx_TraceLine(568,0,__PYX_ERR(0, 568, __pyx_L1_error))
   __pyx_t_7 = (__pyx_v_usable.shape[0]);
   __pyx_t_8 = __pyx_t_7;
   for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_8; __pyx_t_9+=1) {
     __pyx_v_j = __pyx_t_9;
 
-    /* "CART.pyx":535
+    /* "CART.pyx":569
  *         cdef int j
  *         for j in range(usable.shape[0]):
  *             if usable[j] and not data.not_all_equal(j):             # <<<<<<<<<<<<<<
  *                 usable[j] = False
  *         cdef np.ndarray covariates = np.where(usable)[0]
  */
-    __Pyx_TraceLine(535,0,__PYX_ERR(0, 535, __pyx_L1_error))
+    __Pyx_TraceLine(569,0,__PYX_ERR(0, 569, __pyx_L1_error))
     __pyx_t_11 = __pyx_v_j;
     if (__pyx_t_11 < 0) __pyx_t_11 += __pyx_v_usable.shape[0];
     __pyx_t_12 = ((*((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_usable.data + __pyx_t_11 * __pyx_v_usable.strides[0]) ))) != 0);
@@ -13635,19 +14245,19 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
     __pyx_L6_bool_binop_done:;
     if (__pyx_t_10) {
 
-      /* "CART.pyx":536
+      /* "CART.pyx":570
  *         for j in range(usable.shape[0]):
  *             if usable[j] and not data.not_all_equal(j):
  *                 usable[j] = False             # <<<<<<<<<<<<<<
  *         cdef np.ndarray covariates = np.where(usable)[0]
  *         cdef np.ndarray indices
  */
-      __Pyx_TraceLine(536,0,__PYX_ERR(0, 536, __pyx_L1_error))
+      __Pyx_TraceLine(570,0,__PYX_ERR(0, 570, __pyx_L1_error))
       __pyx_t_11 = __pyx_v_j;
       if (__pyx_t_11 < 0) __pyx_t_11 += __pyx_v_usable.shape[0];
       *((__pyx_t_5numpy_uint8_t *) ( /* dim=0 */ (__pyx_v_usable.data + __pyx_t_11 * __pyx_v_usable.strides[0]) )) = 0;
 
-      /* "CART.pyx":535
+      /* "CART.pyx":569
  *         cdef int j
  *         for j in range(usable.shape[0]):
  *             if usable[j] and not data.not_all_equal(j):             # <<<<<<<<<<<<<<
@@ -13657,20 +14267,20 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
     }
   }
 
-  /* "CART.pyx":537
+  /* "CART.pyx":571
  *             if usable[j] and not data.not_all_equal(j):
  *                 usable[j] = False
  *         cdef np.ndarray covariates = np.where(usable)[0]             # <<<<<<<<<<<<<<
  *         cdef np.ndarray indices
  *         if covariates.shape[0] > self.nb_cov:
  */
-  __Pyx_TraceLine(537,0,__PYX_ERR(0, 537, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 537, __pyx_L1_error)
+  __Pyx_TraceLine(571,0,__PYX_ERR(0, 571, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 571, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_where); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 537, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_where); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 571, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __pyx_memoryview_fromslice(__pyx_v_usable, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_uint8_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_uint8_t, 0);; if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 537, __pyx_L1_error)
+  __pyx_t_1 = __pyx_memoryview_fromslice(__pyx_v_usable, 1, (PyObject *(*)(char *)) __pyx_memview_get_nn___pyx_t_5numpy_uint8_t, (int (*)(char *, PyObject *)) __pyx_memview_set_nn___pyx_t_5numpy_uint8_t, 0);; if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 571, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __pyx_t_2 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
@@ -13685,48 +14295,48 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
   __pyx_t_5 = (__pyx_t_2) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_2, __pyx_t_1) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_1);
   __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 537, __pyx_L1_error)
+  if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 571, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_GetItemInt(__pyx_t_5, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 537, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_GetItemInt(__pyx_t_5, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 571, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  if (!(likely(((__pyx_t_3) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_3, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 537, __pyx_L1_error)
+  if (!(likely(((__pyx_t_3) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_3, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 571, __pyx_L1_error)
   __pyx_v_covariates = ((PyArrayObject *)__pyx_t_3);
   __pyx_t_3 = 0;
 
-  /* "CART.pyx":539
+  /* "CART.pyx":573
  *         cdef np.ndarray covariates = np.where(usable)[0]
  *         cdef np.ndarray indices
  *         if covariates.shape[0] > self.nb_cov:             # <<<<<<<<<<<<<<
  *             indices = np.random.choice(covariates.shape[0], self.nb_cov, replace=False)
  *             covariates = covariates[indices]
  */
-  __Pyx_TraceLine(539,0,__PYX_ERR(0, 539, __pyx_L1_error))
+  __Pyx_TraceLine(573,0,__PYX_ERR(0, 573, __pyx_L1_error))
   __pyx_t_10 = (((__pyx_v_covariates->dimensions[0]) > __pyx_v_self->nb_cov) != 0);
   if (__pyx_t_10) {
 
-    /* "CART.pyx":540
+    /* "CART.pyx":574
  *         cdef np.ndarray indices
  *         if covariates.shape[0] > self.nb_cov:
  *             indices = np.random.choice(covariates.shape[0], self.nb_cov, replace=False)             # <<<<<<<<<<<<<<
  *             covariates = covariates[indices]
  * 
  */
-    __Pyx_TraceLine(540,0,__PYX_ERR(0, 540, __pyx_L1_error))
-    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 540, __pyx_L1_error)
+    __Pyx_TraceLine(574,0,__PYX_ERR(0, 574, __pyx_L1_error))
+    __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 574, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
-    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_random); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 540, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_random); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 574, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_choice); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 540, __pyx_L1_error)
+    __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_choice); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 574, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_3);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_t_5 = __Pyx_PyInt_From_Py_intptr_t((__pyx_v_covariates->dimensions[0])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 540, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyInt_From_Py_intptr_t((__pyx_v_covariates->dimensions[0])); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 574, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
-    __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->nb_cov); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 540, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_self->nb_cov); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 574, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_2 = PyTuple_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 540, __pyx_L1_error)
+    __pyx_t_2 = PyTuple_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 574, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_GIVEREF(__pyx_t_5);
     PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_t_5);
@@ -13734,33 +14344,33 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
     PyTuple_SET_ITEM(__pyx_t_2, 1, __pyx_t_1);
     __pyx_t_5 = 0;
     __pyx_t_1 = 0;
-    __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 540, __pyx_L1_error)
+    __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 574, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_replace, Py_False) < 0) __PYX_ERR(0, 540, __pyx_L1_error)
-    __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_2, __pyx_t_1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 540, __pyx_L1_error)
+    if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_replace, Py_False) < 0) __PYX_ERR(0, 574, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_2, __pyx_t_1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 574, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-    if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 540, __pyx_L1_error)
+    if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 574, __pyx_L1_error)
     __pyx_v_indices = ((PyArrayObject *)__pyx_t_5);
     __pyx_t_5 = 0;
 
-    /* "CART.pyx":541
+    /* "CART.pyx":575
  *         if covariates.shape[0] > self.nb_cov:
  *             indices = np.random.choice(covariates.shape[0], self.nb_cov, replace=False)
  *             covariates = covariates[indices]             # <<<<<<<<<<<<<<
  * 
  *         cdef np.float64_t current_loss
  */
-    __Pyx_TraceLine(541,0,__PYX_ERR(0, 541, __pyx_L1_error))
-    __pyx_t_5 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_covariates), ((PyObject *)__pyx_v_indices)); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 541, __pyx_L1_error)
+    __Pyx_TraceLine(575,0,__PYX_ERR(0, 575, __pyx_L1_error))
+    __pyx_t_5 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_covariates), ((PyObject *)__pyx_v_indices)); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 575, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
-    if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 541, __pyx_L1_error)
+    if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 575, __pyx_L1_error)
     __Pyx_DECREF_SET(__pyx_v_covariates, ((PyArrayObject *)__pyx_t_5));
     __pyx_t_5 = 0;
 
-    /* "CART.pyx":539
+    /* "CART.pyx":573
  *         cdef np.ndarray covariates = np.where(usable)[0]
  *         cdef np.ndarray indices
  *         if covariates.shape[0] > self.nb_cov:             # <<<<<<<<<<<<<<
@@ -13769,46 +14379,46 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
  */
   }
 
-  /* "CART.pyx":544
+  /* "CART.pyx":578
  * 
  *         cdef np.float64_t current_loss
  *         if precomputed_loss == np.inf:             # <<<<<<<<<<<<<<
  *             current_loss = self._loss(data.y) * data.get_length()
  *         else:
  */
-  __Pyx_TraceLine(544,0,__PYX_ERR(0, 544, __pyx_L1_error))
-  __pyx_t_5 = PyFloat_FromDouble(__pyx_v_precomputed_loss); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 544, __pyx_L1_error)
+  __Pyx_TraceLine(578,0,__PYX_ERR(0, 578, __pyx_L1_error))
+  __pyx_t_5 = PyFloat_FromDouble(__pyx_v_precomputed_loss); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 578, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 544, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 578, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_inf); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 544, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_inf); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 578, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = PyObject_RichCompare(__pyx_t_5, __pyx_t_2, Py_EQ); __Pyx_XGOTREF(__pyx_t_1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 544, __pyx_L1_error)
+  __pyx_t_1 = PyObject_RichCompare(__pyx_t_5, __pyx_t_2, Py_EQ); __Pyx_XGOTREF(__pyx_t_1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 578, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_10 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely(__pyx_t_10 < 0)) __PYX_ERR(0, 544, __pyx_L1_error)
+  __pyx_t_10 = __Pyx_PyObject_IsTrue(__pyx_t_1); if (unlikely(__pyx_t_10 < 0)) __PYX_ERR(0, 578, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   if (__pyx_t_10) {
 
-    /* "CART.pyx":545
+    /* "CART.pyx":579
  *         cdef np.float64_t current_loss
  *         if precomputed_loss == np.inf:
  *             current_loss = self._loss(data.y) * data.get_length()             # <<<<<<<<<<<<<<
  *         else:
  *             current_loss = precomputed_loss
  */
-    __Pyx_TraceLine(545,0,__PYX_ERR(0, 545, __pyx_L1_error))
-    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_y); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 545, __pyx_L1_error)
+    __Pyx_TraceLine(579,0,__PYX_ERR(0, 579, __pyx_L1_error))
+    __pyx_t_1 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_y); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 579, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_13 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_1, PyBUF_WRITABLE); if (unlikely(!__pyx_t_13.memview)) __PYX_ERR(0, 545, __pyx_L1_error)
+    __pyx_t_13 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_1, PyBUF_WRITABLE); if (unlikely(!__pyx_t_13.memview)) __PYX_ERR(0, 579, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
     __pyx_v_current_loss = (__pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_13) * __pyx_f_4CART_7Dataset_get_length(__pyx_v_data));
     __PYX_XDEC_MEMVIEW(&__pyx_t_13, 1);
     __pyx_t_13.memview = NULL;
     __pyx_t_13.data = NULL;
 
-    /* "CART.pyx":544
+    /* "CART.pyx":578
  * 
  *         cdef np.float64_t current_loss
  *         if precomputed_loss == np.inf:             # <<<<<<<<<<<<<<
@@ -13818,38 +14428,38 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
     goto __pyx_L9;
   }
 
-  /* "CART.pyx":547
+  /* "CART.pyx":581
  *             current_loss = self._loss(data.y) * data.get_length()
  *         else:
  *             current_loss = precomputed_loss             # <<<<<<<<<<<<<<
  *         cdef np.float64_t prop_p0 = np.mean(np.asarray(data.p) == 0)
  * 
  */
-  __Pyx_TraceLine(547,0,__PYX_ERR(0, 547, __pyx_L1_error))
+  __Pyx_TraceLine(581,0,__PYX_ERR(0, 581, __pyx_L1_error))
   /*else*/ {
     __pyx_v_current_loss = __pyx_v_precomputed_loss;
   }
   __pyx_L9:;
 
-  /* "CART.pyx":548
+  /* "CART.pyx":582
  *         else:
  *             current_loss = precomputed_loss
  *         cdef np.float64_t prop_p0 = np.mean(np.asarray(data.p) == 0)             # <<<<<<<<<<<<<<
  * 
  *         cdef SplitChoice ret = None
  */
-  __Pyx_TraceLine(548,0,__PYX_ERR(0, 548, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __Pyx_TraceLine(582,0,__PYX_ERR(0, 582, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_mean); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_mean); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_asarray); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_p); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_p); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __pyx_t_14 = NULL;
   if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
@@ -13864,10 +14474,10 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
   __pyx_t_2 = (__pyx_t_14) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_14, __pyx_t_3) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_3);
   __Pyx_XDECREF(__pyx_t_14); __pyx_t_14 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 548, __pyx_L1_error)
+  if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyInt_EqObjC(__pyx_t_2, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 548, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyInt_EqObjC(__pyx_t_2, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = NULL;
@@ -13883,96 +14493,97 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
   __pyx_t_1 = (__pyx_t_2) ? __Pyx_PyObject_Call2Args(__pyx_t_5, __pyx_t_2, __pyx_t_4) : __Pyx_PyObject_CallOneArg(__pyx_t_5, __pyx_t_4);
   __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 548, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_15 = __pyx_PyFloat_AsDouble(__pyx_t_1); if (unlikely((__pyx_t_15 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 548, __pyx_L1_error)
+  __pyx_t_15 = __pyx_PyFloat_AsDouble(__pyx_t_1); if (unlikely((__pyx_t_15 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 582, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_prop_p0 = __pyx_t_15;
 
-  /* "CART.pyx":550
+  /* "CART.pyx":584
  *         cdef np.float64_t prop_p0 = np.mean(np.asarray(data.p) == 0)
  * 
  *         cdef SplitChoice ret = None             # <<<<<<<<<<<<<<
  *         cdef SplitChoice best_split
  * 
  */
-  __Pyx_TraceLine(550,0,__PYX_ERR(0, 550, __pyx_L1_error))
+  __Pyx_TraceLine(584,0,__PYX_ERR(0, 584, __pyx_L1_error))
   __Pyx_INCREF(Py_None);
   __pyx_v_ret = ((struct __pyx_obj_4CART_SplitChoice *)Py_None);
 
-  /* "CART.pyx":553
+  /* "CART.pyx":587
  *         cdef SplitChoice best_split
+ * 
+ *         cdef int feature_idx = 0             # <<<<<<<<<<<<<<
+ * 
+ *         for j in range(covariates.shape[0]):
+ */
+  __Pyx_TraceLine(587,0,__PYX_ERR(0, 587, __pyx_L1_error))
+  __pyx_v_feature_idx = 0;
+
+  /* "CART.pyx":589
+ *         cdef int feature_idx = 0
  * 
  *         for j in range(covariates.shape[0]):             # <<<<<<<<<<<<<<
  *             feature_idx = covariates[j]
  *             best_split = self._find_best_threshold(
  */
-  __Pyx_TraceLine(553,0,__PYX_ERR(0, 553, __pyx_L1_error))
+  __Pyx_TraceLine(589,0,__PYX_ERR(0, 589, __pyx_L1_error))
   __pyx_t_16 = (__pyx_v_covariates->dimensions[0]);
   __pyx_t_17 = __pyx_t_16;
   for (__pyx_t_9 = 0; __pyx_t_9 < __pyx_t_17; __pyx_t_9+=1) {
     __pyx_v_j = __pyx_t_9;
 
-    /* "CART.pyx":554
+    /* "CART.pyx":590
  * 
  *         for j in range(covariates.shape[0]):
  *             feature_idx = covariates[j]             # <<<<<<<<<<<<<<
  *             best_split = self._find_best_threshold(
  *                 data, feature_idx, current_loss, prop_p0
  */
-    __Pyx_TraceLine(554,0,__PYX_ERR(0, 554, __pyx_L1_error))
-    __pyx_t_1 = __Pyx_GetItemInt(((PyObject *)__pyx_v_covariates), __pyx_v_j, int, 1, __Pyx_PyInt_From_int, 0, 1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 554, __pyx_L1_error)
+    __Pyx_TraceLine(590,0,__PYX_ERR(0, 590, __pyx_L1_error))
+    __pyx_t_1 = __Pyx_GetItemInt(((PyObject *)__pyx_v_covariates), __pyx_v_j, int, 1, __Pyx_PyInt_From_int, 0, 1, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 590, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __Pyx_XDECREF_SET(__pyx_v_feature_idx, __pyx_t_1);
-    __pyx_t_1 = 0;
+    __pyx_t_18 = __Pyx_PyInt_As_int(__pyx_t_1); if (unlikely((__pyx_t_18 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 590, __pyx_L1_error)
+    __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+    __pyx_v_feature_idx = __pyx_t_18;
 
-    /* "CART.pyx":556
- *             feature_idx = covariates[j]
- *             best_split = self._find_best_threshold(
- *                 data, feature_idx, current_loss, prop_p0             # <<<<<<<<<<<<<<
- *             )
- *             if best_split.is_better_than(ret):
- */
-    __Pyx_TraceLine(556,0,__PYX_ERR(0, 556, __pyx_L1_error))
-    __pyx_t_18 = __Pyx_PyInt_As_int(__pyx_v_feature_idx); if (unlikely((__pyx_t_18 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 556, __pyx_L1_error)
-
-    /* "CART.pyx":555
+    /* "CART.pyx":591
  *         for j in range(covariates.shape[0]):
  *             feature_idx = covariates[j]
  *             best_split = self._find_best_threshold(             # <<<<<<<<<<<<<<
  *                 data, feature_idx, current_loss, prop_p0
  *             )
  */
-    __Pyx_TraceLine(555,0,__PYX_ERR(0, 555, __pyx_L1_error))
-    __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4CART__find_best_threshold(__pyx_v_self, __pyx_v_data, __pyx_t_18, __pyx_v_current_loss, __pyx_v_prop_p0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 555, __pyx_L1_error)
+    __Pyx_TraceLine(591,0,__PYX_ERR(0, 591, __pyx_L1_error))
+    __pyx_t_1 = ((PyObject *)__pyx_f_4CART_4CART__find_best_threshold(__pyx_v_self, __pyx_v_data, __pyx_v_feature_idx, __pyx_v_current_loss, __pyx_v_prop_p0)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 591, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
     __Pyx_XDECREF_SET(__pyx_v_best_split, ((struct __pyx_obj_4CART_SplitChoice *)__pyx_t_1));
     __pyx_t_1 = 0;
 
-    /* "CART.pyx":558
+    /* "CART.pyx":594
  *                 data, feature_idx, current_loss, prop_p0
  *             )
  *             if best_split.is_better_than(ret):             # <<<<<<<<<<<<<<
  *                 ret = best_split
  *         return ret
  */
-    __Pyx_TraceLine(558,0,__PYX_ERR(0, 558, __pyx_L1_error))
+    __Pyx_TraceLine(594,0,__PYX_ERR(0, 594, __pyx_L1_error))
     __pyx_t_10 = (__pyx_f_4CART_11SplitChoice_is_better_than(__pyx_v_best_split, __pyx_v_ret) != 0);
     if (__pyx_t_10) {
 
-      /* "CART.pyx":559
+      /* "CART.pyx":595
  *             )
  *             if best_split.is_better_than(ret):
  *                 ret = best_split             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-      __Pyx_TraceLine(559,0,__PYX_ERR(0, 559, __pyx_L1_error))
+      __Pyx_TraceLine(595,0,__PYX_ERR(0, 595, __pyx_L1_error))
       __Pyx_INCREF(((PyObject *)__pyx_v_best_split));
       __Pyx_DECREF_SET(__pyx_v_ret, __pyx_v_best_split);
 
-      /* "CART.pyx":558
+      /* "CART.pyx":594
  *                 data, feature_idx, current_loss, prop_p0
  *             )
  *             if best_split.is_better_than(ret):             # <<<<<<<<<<<<<<
@@ -13982,20 +14593,20 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
     }
   }
 
-  /* "CART.pyx":560
+  /* "CART.pyx":596
  *             if best_split.is_better_than(ret):
  *                 ret = best_split
  *         return ret             # <<<<<<<<<<<<<<
  * 
  *     cdef SplitChoice _find_best_threshold(
  */
-  __Pyx_TraceLine(560,0,__PYX_ERR(0, 560, __pyx_L1_error))
+  __Pyx_TraceLine(596,0,__PYX_ERR(0, 596, __pyx_L1_error))
   __Pyx_XDECREF(((PyObject *)__pyx_r));
   __Pyx_INCREF(((PyObject *)__pyx_v_ret));
   __pyx_r = __pyx_v_ret;
   goto __pyx_L0;
 
-  /* "CART.pyx":531
+  /* "CART.pyx":565
  *         return node
  * 
  *     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):             # <<<<<<<<<<<<<<
@@ -14021,14 +14632,13 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_split(
   __Pyx_XDECREF((PyObject *)__pyx_v_indices);
   __Pyx_XDECREF((PyObject *)__pyx_v_ret);
   __Pyx_XDECREF((PyObject *)__pyx_v_best_split);
-  __Pyx_XDECREF(__pyx_v_feature_idx);
   __Pyx_XGIVEREF((PyObject *)__pyx_r);
   __Pyx_TraceReturn(__pyx_r, 0);
   __Pyx_RefNannyFinishContext();
   return __pyx_r;
 }
 
-/* "CART.pyx":562
+/* "CART.pyx":598
  *         return ret
  * 
  *     cdef SplitChoice _find_best_threshold(             # <<<<<<<<<<<<<<
@@ -14046,54 +14656,54 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_find_best_threshold", 0);
-  __Pyx_TraceCall("_find_best_threshold", __pyx_f[0], 562, 0, __PYX_ERR(0, 562, __pyx_L1_error));
+  __Pyx_TraceCall("_find_best_threshold", __pyx_f[0], 598, 0, __PYX_ERR(0, 598, __pyx_L1_error));
 
-  /* "CART.pyx":565
+  /* "CART.pyx":601
  *             self, Dataset data, int feature_idx,
  *             np.float64_t current_loss, np.float64_t prop_p0):
  *         if data.is_categorical(feature_idx):             # <<<<<<<<<<<<<<
  *             return self._find_best_threshold_categorical(
  *                 data, feature_idx, current_loss, prop_p0
  */
-  __Pyx_TraceLine(565,0,__PYX_ERR(0, 565, __pyx_L1_error))
+  __Pyx_TraceLine(601,0,__PYX_ERR(0, 601, __pyx_L1_error))
   __pyx_t_1 = (__pyx_f_4CART_7Dataset_is_categorical(__pyx_v_data, __pyx_v_feature_idx, 0) != 0);
   if (__pyx_t_1) {
 
-    /* "CART.pyx":566
+    /* "CART.pyx":602
  *             np.float64_t current_loss, np.float64_t prop_p0):
  *         if data.is_categorical(feature_idx):
  *             return self._find_best_threshold_categorical(             # <<<<<<<<<<<<<<
  *                 data, feature_idx, current_loss, prop_p0
  *             )
  */
-    __Pyx_TraceLine(566,0,__PYX_ERR(0, 566, __pyx_L1_error))
+    __Pyx_TraceLine(602,0,__PYX_ERR(0, 602, __pyx_L1_error))
     __Pyx_XDECREF(((PyObject *)__pyx_r));
 
-    /* "CART.pyx":567
+    /* "CART.pyx":603
  *         if data.is_categorical(feature_idx):
  *             return self._find_best_threshold_categorical(
  *                 data, feature_idx, current_loss, prop_p0             # <<<<<<<<<<<<<<
  *             )
  *         else:
  */
-    __Pyx_TraceLine(567,0,__PYX_ERR(0, 567, __pyx_L1_error))
-    __pyx_t_2 = __pyx_f_4CART_4CART__find_best_threshold_categorical(__pyx_v_self, __pyx_v_data, __pyx_v_feature_idx, __pyx_v_current_loss, __pyx_v_prop_p0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 566, __pyx_L1_error)
+    __Pyx_TraceLine(603,0,__PYX_ERR(0, 603, __pyx_L1_error))
+    __pyx_t_2 = __pyx_f_4CART_4CART__find_best_threshold_categorical(__pyx_v_self, __pyx_v_data, __pyx_v_feature_idx, __pyx_v_current_loss, __pyx_v_prop_p0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 602, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
 
-    /* "CART.pyx":566
+    /* "CART.pyx":602
  *             np.float64_t current_loss, np.float64_t prop_p0):
  *         if data.is_categorical(feature_idx):
  *             return self._find_best_threshold_categorical(             # <<<<<<<<<<<<<<
  *                 data, feature_idx, current_loss, prop_p0
  *             )
  */
-    __Pyx_TraceLine(566,0,__PYX_ERR(0, 566, __pyx_L1_error))
-    if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_ptype_4CART_SplitChoice))))) __PYX_ERR(0, 566, __pyx_L1_error)
+    __Pyx_TraceLine(602,0,__PYX_ERR(0, 602, __pyx_L1_error))
+    if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_ptype_4CART_SplitChoice))))) __PYX_ERR(0, 602, __pyx_L1_error)
     __pyx_r = ((struct __pyx_obj_4CART_SplitChoice *)__pyx_t_2);
     __pyx_t_2 = 0;
     goto __pyx_L0;
 
-    /* "CART.pyx":565
+    /* "CART.pyx":601
  *             self, Dataset data, int feature_idx,
  *             np.float64_t current_loss, np.float64_t prop_p0):
  *         if data.is_categorical(feature_idx):             # <<<<<<<<<<<<<<
@@ -14102,33 +14712,33 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
  */
   }
 
-  /* "CART.pyx":570
+  /* "CART.pyx":606
  *             )
  *         else:
  *             return self._find_best_threshold_numerical(             # <<<<<<<<<<<<<<
  *                 data, feature_idx, current_loss, prop_p0
  *             )
  */
-  __Pyx_TraceLine(570,0,__PYX_ERR(0, 570, __pyx_L1_error))
+  __Pyx_TraceLine(606,0,__PYX_ERR(0, 606, __pyx_L1_error))
   /*else*/ {
     __Pyx_XDECREF(((PyObject *)__pyx_r));
 
-    /* "CART.pyx":571
+    /* "CART.pyx":607
  *         else:
  *             return self._find_best_threshold_numerical(
  *                 data, feature_idx, current_loss, prop_p0             # <<<<<<<<<<<<<<
  *             )
  * 
  */
-    __Pyx_TraceLine(571,0,__PYX_ERR(0, 571, __pyx_L1_error))
-    __pyx_t_2 = ((PyObject *)__pyx_f_4CART_4CART__find_best_threshold_numerical(__pyx_v_self, __pyx_v_data, __pyx_v_feature_idx, __pyx_v_current_loss, __pyx_v_prop_p0)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 570, __pyx_L1_error)
+    __Pyx_TraceLine(607,0,__PYX_ERR(0, 607, __pyx_L1_error))
+    __pyx_t_2 = ((PyObject *)__pyx_f_4CART_4CART__find_best_threshold_numerical(__pyx_v_self, __pyx_v_data, __pyx_v_feature_idx, __pyx_v_current_loss, __pyx_v_prop_p0)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 606, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __pyx_r = ((struct __pyx_obj_4CART_SplitChoice *)__pyx_t_2);
     __pyx_t_2 = 0;
     goto __pyx_L0;
   }
 
-  /* "CART.pyx":562
+  /* "CART.pyx":598
  *         return ret
  * 
  *     cdef SplitChoice _find_best_threshold(             # <<<<<<<<<<<<<<
@@ -14148,7 +14758,7 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
   return __pyx_r;
 }
 
-/* "CART.pyx":574
+/* "CART.pyx":610
  *             )
  * 
  *     cdef SplitChoice _find_best_threshold_numerical(             # <<<<<<<<<<<<<<
@@ -14197,26 +14807,26 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_find_best_threshold_numerical", 0);
-  __Pyx_TraceCall("_find_best_threshold_numerical", __pyx_f[0], 574, 0, __PYX_ERR(0, 574, __pyx_L1_error));
+  __Pyx_TraceCall("_find_best_threshold_numerical", __pyx_f[0], 610, 0, __PYX_ERR(0, 610, __pyx_L1_error));
 
-  /* "CART.pyx":578
+  /* "CART.pyx":614
  *             np.float64_t current_loss, np.float64_t prop_p0):
  *         global PROBE
  *         cdef np.ndarray values = np.unique(data.X[:, feature_idx])             # <<<<<<<<<<<<<<
  *         cdef int base_idx = 0
  *         cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])
  */
-  __Pyx_TraceLine(578,0,__PYX_ERR(0, 578, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 578, __pyx_L1_error)
+  __Pyx_TraceLine(614,0,__PYX_ERR(0, 614, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 614, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_unique); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 578, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_unique); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 614, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 578, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 614, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 578, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 614, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 578, __pyx_L1_error)
+  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 614, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_INCREF(__pyx_slice__4);
   __Pyx_GIVEREF(__pyx_slice__4);
@@ -14224,7 +14834,7 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
   __Pyx_GIVEREF(__pyx_t_4);
   PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_4);
   __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyObject_GetItem(__pyx_t_2, __pyx_t_5); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 578, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetItem(__pyx_t_2, __pyx_t_5); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 614, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
@@ -14241,41 +14851,41 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
   __pyx_t_1 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_5, __pyx_t_4) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_4);
   __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 578, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 614, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 578, __pyx_L1_error)
+  if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 614, __pyx_L1_error)
   __pyx_v_values = ((PyArrayObject *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":579
+  /* "CART.pyx":615
  *         global PROBE
  *         cdef np.ndarray values = np.unique(data.X[:, feature_idx])
  *         cdef int base_idx = 0             # <<<<<<<<<<<<<<
  *         cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])
  * 
  */
-  __Pyx_TraceLine(579,0,__PYX_ERR(0, 579, __pyx_L1_error))
+  __Pyx_TraceLine(615,0,__PYX_ERR(0, 615, __pyx_L1_error))
   __pyx_v_base_idx = 0;
 
-  /* "CART.pyx":580
+  /* "CART.pyx":616
  *         cdef np.ndarray values = np.unique(data.X[:, feature_idx])
  *         cdef int base_idx = 0
  *         cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])             # <<<<<<<<<<<<<<
  * 
  *         cdef Dataset left_data
  */
-  __Pyx_TraceLine(580,0,__PYX_ERR(0, 580, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 580, __pyx_L1_error)
+  __Pyx_TraceLine(616,0,__PYX_ERR(0, 616, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 616, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_argsort); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 580, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_argsort); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 616, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 580, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 616, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 580, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 616, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_2 = PyTuple_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 580, __pyx_L1_error)
+  __pyx_t_2 = PyTuple_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 616, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_INCREF(__pyx_slice__4);
   __Pyx_GIVEREF(__pyx_slice__4);
@@ -14283,7 +14893,7 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
   __Pyx_GIVEREF(__pyx_t_5);
   PyTuple_SET_ITEM(__pyx_t_2, 1, __pyx_t_5);
   __pyx_t_5 = 0;
-  __pyx_t_5 = __Pyx_PyObject_GetItem(__pyx_t_3, __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 580, __pyx_L1_error)
+  __pyx_t_5 = __Pyx_PyObject_GetItem(__pyx_t_3, __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 616, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
@@ -14300,44 +14910,44 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
   __pyx_t_1 = (__pyx_t_2) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_2, __pyx_t_5) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_5);
   __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 580, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 616, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 580, __pyx_L1_error)
+  if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 616, __pyx_L1_error)
   __pyx_v_sorted_indices = ((PyArrayObject *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":592
+  /* "CART.pyx":628
  *         cdef np.float64_t loss, dloss
  * 
  *         cdef SplitChoice ret  = None             # <<<<<<<<<<<<<<
  *         cdef SplitChoice split
  * 
  */
-  __Pyx_TraceLine(592,0,__PYX_ERR(0, 592, __pyx_L1_error))
+  __Pyx_TraceLine(628,0,__PYX_ERR(0, 628, __pyx_L1_error))
   __Pyx_INCREF(Py_None);
   __pyx_v_ret = ((struct __pyx_obj_4CART_SplitChoice *)Py_None);
 
-  /* "CART.pyx":595
+  /* "CART.pyx":631
  *         cdef SplitChoice split
  * 
  *         for threshold_idx in range(values.shape[0]-1):             # <<<<<<<<<<<<<<
  *             # extract this into a C function
  *             threshold = (values[threshold_idx] + values[threshold_idx+1]) / 2.
  */
-  __Pyx_TraceLine(595,0,__PYX_ERR(0, 595, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyInt_From_long(((__pyx_v_values->dimensions[0]) - 1)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 595, __pyx_L1_error)
+  __Pyx_TraceLine(631,0,__PYX_ERR(0, 631, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyInt_From_long(((__pyx_v_values->dimensions[0]) - 1)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 631, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_4 = __Pyx_PyObject_CallOneArg(__pyx_builtin_range, __pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 595, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_CallOneArg(__pyx_builtin_range, __pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 631, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   if (likely(PyList_CheckExact(__pyx_t_4)) || PyTuple_CheckExact(__pyx_t_4)) {
     __pyx_t_1 = __pyx_t_4; __Pyx_INCREF(__pyx_t_1); __pyx_t_6 = 0;
     __pyx_t_7 = NULL;
   } else {
-    __pyx_t_6 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_t_4); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 595, __pyx_L1_error)
+    __pyx_t_6 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_t_4); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 631, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_7 = Py_TYPE(__pyx_t_1)->tp_iternext; if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 595, __pyx_L1_error)
+    __pyx_t_7 = Py_TYPE(__pyx_t_1)->tp_iternext; if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 631, __pyx_L1_error)
   }
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   for (;;) {
@@ -14345,17 +14955,17 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
       if (likely(PyList_CheckExact(__pyx_t_1))) {
         if (__pyx_t_6 >= PyList_GET_SIZE(__pyx_t_1)) break;
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_4 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_4); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 595, __pyx_L1_error)
+        __pyx_t_4 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_4); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 631, __pyx_L1_error)
         #else
-        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 595, __pyx_L1_error)
+        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 631, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_4);
         #endif
       } else {
         if (__pyx_t_6 >= PyTuple_GET_SIZE(__pyx_t_1)) break;
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_4 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_4); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 595, __pyx_L1_error)
+        __pyx_t_4 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_4); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 631, __pyx_L1_error)
         #else
-        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 595, __pyx_L1_error)
+        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 631, __pyx_L1_error)
         __Pyx_GOTREF(__pyx_t_4);
         #endif
       }
@@ -14365,7 +14975,7 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
         PyObject* exc_type = PyErr_Occurred();
         if (exc_type) {
           if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-          else __PYX_ERR(0, 595, __pyx_L1_error)
+          else __PYX_ERR(0, 631, __pyx_L1_error)
         }
         break;
       }
@@ -14374,41 +14984,41 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
     __Pyx_XDECREF_SET(__pyx_v_threshold_idx, __pyx_t_4);
     __pyx_t_4 = 0;
 
-    /* "CART.pyx":597
+    /* "CART.pyx":633
  *         for threshold_idx in range(values.shape[0]-1):
  *             # extract this into a C function
  *             threshold = (values[threshold_idx] + values[threshold_idx+1]) / 2.             # <<<<<<<<<<<<<<
  *             start = time()
  *             base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)
  */
-    __Pyx_TraceLine(597,0,__PYX_ERR(0, 597, __pyx_L1_error))
-    __pyx_t_4 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_values), __pyx_v_threshold_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 597, __pyx_L1_error)
+    __Pyx_TraceLine(633,0,__PYX_ERR(0, 633, __pyx_L1_error))
+    __pyx_t_4 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_values), __pyx_v_threshold_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 633, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    __pyx_t_5 = __Pyx_PyInt_AddObjC(__pyx_v_threshold_idx, __pyx_int_1, 1, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 597, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyInt_AddObjC(__pyx_v_threshold_idx, __pyx_int_1, 1, 0, 0); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 633, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
-    __pyx_t_2 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_values), __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 597, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_values), __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 633, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_t_5 = PyNumber_Add(__pyx_t_4, __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 597, __pyx_L1_error)
+    __pyx_t_5 = PyNumber_Add(__pyx_t_4, __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 633, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = __Pyx_PyFloat_TrueDivideObjC(__pyx_t_5, __pyx_float_2_, 2., 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 597, __pyx_L1_error)
+    __pyx_t_2 = __Pyx_PyFloat_TrueDivideObjC(__pyx_t_5, __pyx_float_2_, 2., 0, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 633, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_t_8 = __pyx_PyFloat_AsDouble(__pyx_t_2); if (unlikely((__pyx_t_8 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 597, __pyx_L1_error)
+    __pyx_t_8 = __pyx_PyFloat_AsDouble(__pyx_t_2); if (unlikely((__pyx_t_8 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 633, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __pyx_v_threshold = __pyx_t_8;
 
-    /* "CART.pyx":598
+    /* "CART.pyx":634
  *             # extract this into a C function
  *             threshold = (values[threshold_idx] + values[threshold_idx+1]) / 2.
  *             start = time()             # <<<<<<<<<<<<<<
  *             base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)
  *             PROBE += time() - start
  */
-    __Pyx_TraceLine(598,0,__PYX_ERR(0, 598, __pyx_L1_error))
-    __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_time); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 598, __pyx_L1_error)
+    __Pyx_TraceLine(634,0,__PYX_ERR(0, 634, __pyx_L1_error))
+    __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_time); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 634, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __pyx_t_4 = NULL;
     if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_5))) {
@@ -14422,25 +15032,25 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
     }
     __pyx_t_2 = (__pyx_t_4) ? __Pyx_PyObject_CallOneArg(__pyx_t_5, __pyx_t_4) : __Pyx_PyObject_CallNoArg(__pyx_t_5);
     __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 598, __pyx_L1_error)
+    if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 634, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __Pyx_XDECREF_SET(__pyx_v_start, __pyx_t_2);
     __pyx_t_2 = 0;
 
-    /* "CART.pyx":599
+    /* "CART.pyx":635
  *             threshold = (values[threshold_idx] + values[threshold_idx+1]) / 2.
  *             start = time()
  *             base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)             # <<<<<<<<<<<<<<
  *             PROBE += time() - start
- *             left_data = data[:base_idx]
+ *             left_data = data[sorted_indices[:base_idx]]
  */
-    __Pyx_TraceLine(599,0,__PYX_ERR(0, 599, __pyx_L1_error))
-    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 599, __pyx_L1_error)
+    __Pyx_TraceLine(635,0,__PYX_ERR(0, 635, __pyx_L1_error))
+    __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 635, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 599, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 635, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
-    __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 599, __pyx_L1_error)
+    __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 635, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_INCREF(__pyx_slice__4);
     __Pyx_GIVEREF(__pyx_slice__4);
@@ -14448,13 +15058,13 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
     __Pyx_GIVEREF(__pyx_t_5);
     PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_t_5);
     __pyx_t_5 = 0;
-    __pyx_t_5 = __Pyx_PyObject_GetItem(__pyx_t_2, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 599, __pyx_L1_error)
+    __pyx_t_5 = __Pyx_PyObject_GetItem(__pyx_t_2, __pyx_t_4); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 635, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 599, __pyx_L1_error)
+    __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 635, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-    __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_int64_t(((PyObject *)__pyx_v_sorted_indices), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 599, __pyx_L1_error)
+    __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_int64_t(((PyObject *)__pyx_v_sorted_indices), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 635, __pyx_L1_error)
     __pyx_v_base_idx = __pyx_f_4CART__masks(__pyx_t_9, __pyx_v_threshold, __pyx_v_base_idx, __pyx_t_10);
     __PYX_XDEC_MEMVIEW(&__pyx_t_9, 1);
     __pyx_t_9.memview = NULL;
@@ -14463,17 +15073,17 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
     __pyx_t_10.memview = NULL;
     __pyx_t_10.data = NULL;
 
-    /* "CART.pyx":600
+    /* "CART.pyx":636
  *             start = time()
  *             base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)
  *             PROBE += time() - start             # <<<<<<<<<<<<<<
- *             left_data = data[:base_idx]
- *             right_data = data[base_idx:]
+ *             left_data = data[sorted_indices[:base_idx]]
+ *             right_data = data[sorted_indices[base_idx:]]
  */
-    __Pyx_TraceLine(600,0,__PYX_ERR(0, 600, __pyx_L1_error))
-    __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_PROBE); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 600, __pyx_L1_error)
+    __Pyx_TraceLine(636,0,__PYX_ERR(0, 636, __pyx_L1_error))
+    __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_PROBE); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 636, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_5);
-    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 600, __pyx_L1_error)
+    __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 636, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __pyx_t_3 = NULL;
     if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_2))) {
@@ -14487,55 +15097,61 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
     }
     __pyx_t_4 = (__pyx_t_3) ? __Pyx_PyObject_CallOneArg(__pyx_t_2, __pyx_t_3) : __Pyx_PyObject_CallNoArg(__pyx_t_2);
     __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
-    if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 600, __pyx_L1_error)
+    if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 636, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_t_2 = PyNumber_Subtract(__pyx_t_4, __pyx_v_start); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 600, __pyx_L1_error)
+    __pyx_t_2 = PyNumber_Subtract(__pyx_t_4, __pyx_v_start); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 636, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-    __pyx_t_4 = PyNumber_InPlaceAdd(__pyx_t_5, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 600, __pyx_L1_error)
+    __pyx_t_4 = PyNumber_InPlaceAdd(__pyx_t_5, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 636, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
     __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
     __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    if (PyDict_SetItem(__pyx_d, __pyx_n_s_PROBE, __pyx_t_4) < 0) __PYX_ERR(0, 600, __pyx_L1_error)
+    if (PyDict_SetItem(__pyx_d, __pyx_n_s_PROBE, __pyx_t_4) < 0) __PYX_ERR(0, 636, __pyx_L1_error)
     __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
 
-    /* "CART.pyx":601
+    /* "CART.pyx":637
  *             base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)
  *             PROBE += time() - start
- *             left_data = data[:base_idx]             # <<<<<<<<<<<<<<
- *             right_data = data[base_idx:]
+ *             left_data = data[sorted_indices[:base_idx]]             # <<<<<<<<<<<<<<
+ *             right_data = data[sorted_indices[base_idx:]]
  * 
  */
-    __Pyx_TraceLine(601,0,__PYX_ERR(0, 601, __pyx_L1_error))
-    __pyx_t_4 = __Pyx_PyObject_GetSlice(((PyObject *)__pyx_v_data), 0, __pyx_v_base_idx, NULL, NULL, NULL, 0, 1, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 601, __pyx_L1_error)
+    __Pyx_TraceLine(637,0,__PYX_ERR(0, 637, __pyx_L1_error))
+    __pyx_t_4 = __Pyx_PyObject_GetSlice(((PyObject *)__pyx_v_sorted_indices), 0, __pyx_v_base_idx, NULL, NULL, NULL, 0, 1, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 637, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    if (!(likely(((__pyx_t_4) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_4, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 601, __pyx_L1_error)
-    __Pyx_XDECREF_SET(__pyx_v_left_data, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_4));
-    __pyx_t_4 = 0;
+    __pyx_t_2 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_data), __pyx_t_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 637, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_2);
+    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+    if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 637, __pyx_L1_error)
+    __Pyx_XDECREF_SET(__pyx_v_left_data, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_2));
+    __pyx_t_2 = 0;
 
-    /* "CART.pyx":602
+    /* "CART.pyx":638
  *             PROBE += time() - start
- *             left_data = data[:base_idx]
- *             right_data = data[base_idx:]             # <<<<<<<<<<<<<<
+ *             left_data = data[sorted_indices[:base_idx]]
+ *             right_data = data[sorted_indices[base_idx:]]             # <<<<<<<<<<<<<<
  * 
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
  */
-    __Pyx_TraceLine(602,0,__PYX_ERR(0, 602, __pyx_L1_error))
-    __pyx_t_4 = __Pyx_PyObject_GetSlice(((PyObject *)__pyx_v_data), __pyx_v_base_idx, 0, NULL, NULL, NULL, 1, 0, 1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 602, __pyx_L1_error)
+    __Pyx_TraceLine(638,0,__PYX_ERR(0, 638, __pyx_L1_error))
+    __pyx_t_2 = __Pyx_PyObject_GetSlice(((PyObject *)__pyx_v_sorted_indices), __pyx_v_base_idx, 0, NULL, NULL, NULL, 1, 0, 1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 638, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_2);
+    __pyx_t_4 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_data), __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 638, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_4);
-    if (!(likely(((__pyx_t_4) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_4, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 602, __pyx_L1_error)
+    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+    if (!(likely(((__pyx_t_4) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_4, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 638, __pyx_L1_error)
     __Pyx_XDECREF_SET(__pyx_v_right_data, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_4));
     __pyx_t_4 = 0;
 
-    /* "CART.pyx":604
- *             right_data = data[base_idx:]
+    /* "CART.pyx":640
+ *             right_data = data[sorted_indices[base_idx:]]
  * 
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:             # <<<<<<<<<<<<<<
  *                 loss = dloss = 0.
  *                 prop_left_p0 = prop_right_p0 = 0
  */
-    __Pyx_TraceLine(604,0,__PYX_ERR(0, 604, __pyx_L1_error))
+    __Pyx_TraceLine(640,0,__PYX_ERR(0, 640, __pyx_L1_error))
     __pyx_t_11 = __pyx_f_4CART_7Dataset_get_length(__pyx_v_right_data);
     __pyx_t_12 = __pyx_f_4CART_7Dataset_get_length(__pyx_v_left_data);
     if (((__pyx_t_11 < __pyx_t_12) != 0)) {
@@ -14546,30 +15162,30 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
     __pyx_t_14 = ((__pyx_t_13 <= __pyx_v_self->minobs) != 0);
     if (__pyx_t_14) {
 
-      /* "CART.pyx":605
+      /* "CART.pyx":641
  * 
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
  *                 loss = dloss = 0.             # <<<<<<<<<<<<<<
  *                 prop_left_p0 = prop_right_p0 = 0
  *             else:
  */
-      __Pyx_TraceLine(605,0,__PYX_ERR(0, 605, __pyx_L1_error))
+      __Pyx_TraceLine(641,0,__PYX_ERR(0, 641, __pyx_L1_error))
       __pyx_v_loss = 0.;
       __pyx_v_dloss = 0.;
 
-      /* "CART.pyx":606
+      /* "CART.pyx":642
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
  *                 loss = dloss = 0.
  *                 prop_left_p0 = prop_right_p0 = 0             # <<<<<<<<<<<<<<
  *             else:
- *                 loss_left = self._loss(left_data.y)
+ *                 loss_left = self._loss(left_data.y) * left_data.get_length()
  */
-      __Pyx_TraceLine(606,0,__PYX_ERR(0, 606, __pyx_L1_error))
+      __Pyx_TraceLine(642,0,__PYX_ERR(0, 642, __pyx_L1_error))
       __pyx_v_prop_left_p0 = 0.0;
       __pyx_v_prop_right_p0 = 0.0;
 
-      /* "CART.pyx":604
- *             right_data = data[base_idx:]
+      /* "CART.pyx":640
+ *             right_data = data[sorted_indices[base_idx:]]
  * 
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:             # <<<<<<<<<<<<<<
  *                 loss = dloss = 0.
@@ -14578,60 +15194,60 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
       goto __pyx_L5;
     }
 
-    /* "CART.pyx":608
+    /* "CART.pyx":644
  *                 prop_left_p0 = prop_right_p0 = 0
  *             else:
- *                 loss_left = self._loss(left_data.y)             # <<<<<<<<<<<<<<
- *                 loss_right = self._loss(right_data.y)
+ *                 loss_left = self._loss(left_data.y) * left_data.get_length()             # <<<<<<<<<<<<<<
+ *                 loss_right = self._loss(right_data.y) * right_data.get_length()
  * 
  */
-    __Pyx_TraceLine(608,0,__PYX_ERR(0, 608, __pyx_L1_error))
+    __Pyx_TraceLine(644,0,__PYX_ERR(0, 644, __pyx_L1_error))
     /*else*/ {
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_left_data), __pyx_n_s_y); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 608, __pyx_L1_error)
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_left_data), __pyx_n_s_y); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 644, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_4, PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 608, __pyx_L1_error)
+      __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_4, PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 644, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_v_loss_left = __pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_9);
+      __pyx_v_loss_left = (__pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_9) * __pyx_f_4CART_7Dataset_get_length(__pyx_v_left_data));
       __PYX_XDEC_MEMVIEW(&__pyx_t_9, 1);
       __pyx_t_9.memview = NULL;
       __pyx_t_9.data = NULL;
 
-      /* "CART.pyx":609
+      /* "CART.pyx":645
  *             else:
- *                 loss_left = self._loss(left_data.y)
- *                 loss_right = self._loss(right_data.y)             # <<<<<<<<<<<<<<
+ *                 loss_left = self._loss(left_data.y) * left_data.get_length()
+ *                 loss_right = self._loss(right_data.y) * right_data.get_length()             # <<<<<<<<<<<<<<
  * 
  *                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
  */
-      __Pyx_TraceLine(609,0,__PYX_ERR(0, 609, __pyx_L1_error))
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_right_data), __pyx_n_s_y); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 609, __pyx_L1_error)
+      __Pyx_TraceLine(645,0,__PYX_ERR(0, 645, __pyx_L1_error))
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_right_data), __pyx_n_s_y); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 645, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_4, PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 609, __pyx_L1_error)
+      __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_4, PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 645, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_v_loss_right = __pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_9);
+      __pyx_v_loss_right = (__pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_9) * __pyx_f_4CART_7Dataset_get_length(__pyx_v_right_data));
       __PYX_XDEC_MEMVIEW(&__pyx_t_9, 1);
       __pyx_t_9.memview = NULL;
       __pyx_t_9.data = NULL;
 
-      /* "CART.pyx":611
- *                 loss_right = self._loss(right_data.y)
+      /* "CART.pyx":647
+ *                 loss_right = self._loss(right_data.y) * right_data.get_length()
  * 
  *                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)             # <<<<<<<<<<<<<<
  *                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
  * 
  */
-      __Pyx_TraceLine(611,0,__PYX_ERR(0, 611, __pyx_L1_error))
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 611, __pyx_L1_error)
+      __Pyx_TraceLine(647,0,__PYX_ERR(0, 647, __pyx_L1_error))
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_mean); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 611, __pyx_L1_error)
+      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_mean); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 611, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_asarray); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 611, __pyx_L1_error)
+      __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_asarray); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_15);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_left_data), __pyx_n_s_p); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 611, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_left_data), __pyx_n_s_p); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __pyx_t_16 = NULL;
       if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_15))) {
@@ -14646,10 +15262,10 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
       __pyx_t_2 = (__pyx_t_16) ? __Pyx_PyObject_Call2Args(__pyx_t_15, __pyx_t_16, __pyx_t_3) : __Pyx_PyObject_CallOneArg(__pyx_t_15, __pyx_t_3);
       __Pyx_XDECREF(__pyx_t_16); __pyx_t_16 = 0;
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 611, __pyx_L1_error)
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-      __pyx_t_15 = __Pyx_PyInt_EqObjC(__pyx_t_2, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 611, __pyx_L1_error)
+      __pyx_t_15 = __Pyx_PyInt_EqObjC(__pyx_t_2, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_15);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __pyx_t_2 = NULL;
@@ -14665,32 +15281,32 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
       __pyx_t_4 = (__pyx_t_2) ? __Pyx_PyObject_Call2Args(__pyx_t_5, __pyx_t_2, __pyx_t_15) : __Pyx_PyObject_CallOneArg(__pyx_t_5, __pyx_t_15);
       __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 611, __pyx_L1_error)
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __pyx_t_8 = __pyx_PyFloat_AsDouble(__pyx_t_4); if (unlikely((__pyx_t_8 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 611, __pyx_L1_error)
+      __pyx_t_8 = __pyx_PyFloat_AsDouble(__pyx_t_4); if (unlikely((__pyx_t_8 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 647, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __pyx_v_prop_left_p0 = __pyx_t_8;
 
-      /* "CART.pyx":612
+      /* "CART.pyx":648
  * 
  *                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
  *                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)             # <<<<<<<<<<<<<<
  * 
- *                 loss = loss_left * left_data.get_length()
+ *                 loss = loss_left + loss_right
  */
-      __Pyx_TraceLine(612,0,__PYX_ERR(0, 612, __pyx_L1_error))
-      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 612, __pyx_L1_error)
+      __Pyx_TraceLine(648,0,__PYX_ERR(0, 648, __pyx_L1_error))
+      __Pyx_GetModuleGlobalName(__pyx_t_5, __pyx_n_s_np); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_mean); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 612, __pyx_L1_error)
+      __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_5, __pyx_n_s_mean); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_15);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 612, __pyx_L1_error)
+      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 612, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_right_data), __pyx_n_s_p); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 612, __pyx_L1_error)
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_right_data), __pyx_n_s_p); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
       __pyx_t_16 = NULL;
       if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
@@ -14705,10 +15321,10 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
       __pyx_t_5 = (__pyx_t_16) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_16, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_2);
       __Pyx_XDECREF(__pyx_t_16); __pyx_t_16 = 0;
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 612, __pyx_L1_error)
+      if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyInt_EqObjC(__pyx_t_5, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 612, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyInt_EqObjC(__pyx_t_5, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
       __pyx_t_5 = NULL;
@@ -14724,51 +15340,41 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
       __pyx_t_4 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_15, __pyx_t_5, __pyx_t_3) : __Pyx_PyObject_CallOneArg(__pyx_t_15, __pyx_t_3);
       __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 612, __pyx_L1_error)
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
       __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-      __pyx_t_8 = __pyx_PyFloat_AsDouble(__pyx_t_4); if (unlikely((__pyx_t_8 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 612, __pyx_L1_error)
+      __pyx_t_8 = __pyx_PyFloat_AsDouble(__pyx_t_4); if (unlikely((__pyx_t_8 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 648, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
       __pyx_v_prop_right_p0 = __pyx_t_8;
 
-      /* "CART.pyx":614
+      /* "CART.pyx":650
  *                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
  * 
- *                 loss = loss_left * left_data.get_length()             # <<<<<<<<<<<<<<
- *                 loss += loss_right * right_data.get_length()
- *                 dloss = current_loss - loss #/ data.get_length()
- */
-      __Pyx_TraceLine(614,0,__PYX_ERR(0, 614, __pyx_L1_error))
-      __pyx_v_loss = (__pyx_v_loss_left * __pyx_f_4CART_7Dataset_get_length(__pyx_v_left_data));
-
-      /* "CART.pyx":615
- * 
- *                 loss = loss_left * left_data.get_length()
- *                 loss += loss_right * right_data.get_length()             # <<<<<<<<<<<<<<
+ *                 loss = loss_left + loss_right             # <<<<<<<<<<<<<<
  *                 dloss = current_loss - loss #/ data.get_length()
  * 
  */
-      __Pyx_TraceLine(615,0,__PYX_ERR(0, 615, __pyx_L1_error))
-      __pyx_v_loss = (__pyx_v_loss + (__pyx_v_loss_right * __pyx_f_4CART_7Dataset_get_length(__pyx_v_right_data)));
+      __Pyx_TraceLine(650,0,__PYX_ERR(0, 650, __pyx_L1_error))
+      __pyx_v_loss = (__pyx_v_loss_left + __pyx_v_loss_right);
 
-      /* "CART.pyx":616
- *                 loss = loss_left * left_data.get_length()
- *                 loss += loss_right * right_data.get_length()
+      /* "CART.pyx":651
+ * 
+ *                 loss = loss_left + loss_right
  *                 dloss = current_loss - loss #/ data.get_length()             # <<<<<<<<<<<<<<
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
  */
-      __Pyx_TraceLine(616,0,__PYX_ERR(0, 616, __pyx_L1_error))
+      __Pyx_TraceLine(651,0,__PYX_ERR(0, 651, __pyx_L1_error))
       __pyx_v_dloss = (__pyx_v_current_loss - __pyx_v_loss);
 
-      /* "CART.pyx":618
+      /* "CART.pyx":653
  *                 dloss = current_loss - loss #/ data.get_length()
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \             # <<<<<<<<<<<<<<
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue
  */
-      __Pyx_TraceLine(618,0,__PYX_ERR(0, 618, __pyx_L1_error))
+      __Pyx_TraceLine(653,0,__PYX_ERR(0, 653, __pyx_L1_error))
       __pyx_t_17 = ((fabs((__pyx_v_prop_left_p0 - __pyx_v_prop_p0)) > (__pyx_v_self->epsilon * __pyx_v_prop_p0)) != 0);
       if (!__pyx_t_17) {
       } else {
@@ -14776,39 +15382,39 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
         goto __pyx_L7_bool_binop_done;
       }
 
-      /* "CART.pyx":619
+      /* "CART.pyx":654
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:             # <<<<<<<<<<<<<<
  *                     continue
  *                 split = SplitChoice(
  */
-      __Pyx_TraceLine(619,0,__PYX_ERR(0, 619, __pyx_L1_error))
+      __Pyx_TraceLine(654,0,__PYX_ERR(0, 654, __pyx_L1_error))
       __pyx_t_17 = ((fabs((__pyx_v_prop_right_p0 - __pyx_v_prop_p0)) > (__pyx_v_self->epsilon * __pyx_v_prop_p0)) != 0);
       __pyx_t_14 = __pyx_t_17;
       __pyx_L7_bool_binop_done:;
 
-      /* "CART.pyx":618
+      /* "CART.pyx":653
  *                 dloss = current_loss - loss #/ data.get_length()
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \             # <<<<<<<<<<<<<<
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue
  */
-      __Pyx_TraceLine(618,0,__PYX_ERR(0, 618, __pyx_L1_error))
+      __Pyx_TraceLine(653,0,__PYX_ERR(0, 653, __pyx_L1_error))
       if (__pyx_t_14) {
 
-        /* "CART.pyx":620
+        /* "CART.pyx":655
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue             # <<<<<<<<<<<<<<
  *                 split = SplitChoice(
  *                     feature_idx, False, current_loss,
  */
-        __Pyx_TraceLine(620,0,__PYX_ERR(0, 620, __pyx_L1_error))
+        __Pyx_TraceLine(655,0,__PYX_ERR(0, 655, __pyx_L1_error))
         goto __pyx_L3_continue;
 
-        /* "CART.pyx":618
+        /* "CART.pyx":653
  *                 dloss = current_loss - loss #/ data.get_length()
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \             # <<<<<<<<<<<<<<
@@ -14817,43 +15423,43 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
  */
       }
 
-      /* "CART.pyx":622
+      /* "CART.pyx":657
  *                     continue
  *                 split = SplitChoice(
  *                     feature_idx, False, current_loss,             # <<<<<<<<<<<<<<
  *                     dloss, loss_left, loss_right,
  *                     left_data, right_data,
  */
-      __Pyx_TraceLine(622,0,__PYX_ERR(0, 622, __pyx_L1_error))
-      __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 622, __pyx_L1_error)
+      __Pyx_TraceLine(657,0,__PYX_ERR(0, 657, __pyx_L1_error))
+      __pyx_t_4 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 657, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_15 = PyFloat_FromDouble(__pyx_v_current_loss); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 622, __pyx_L1_error)
+      __pyx_t_15 = PyFloat_FromDouble(__pyx_v_current_loss); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 657, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_15);
 
-      /* "CART.pyx":623
+      /* "CART.pyx":658
  *                 split = SplitChoice(
  *                     feature_idx, False, current_loss,
  *                     dloss, loss_left, loss_right,             # <<<<<<<<<<<<<<
  *                     left_data, right_data,
  *                     threshold=threshold
  */
-      __Pyx_TraceLine(623,0,__PYX_ERR(0, 623, __pyx_L1_error))
-      __pyx_t_3 = PyFloat_FromDouble(__pyx_v_dloss); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 623, __pyx_L1_error)
+      __Pyx_TraceLine(658,0,__PYX_ERR(0, 658, __pyx_L1_error))
+      __pyx_t_3 = PyFloat_FromDouble(__pyx_v_dloss); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 658, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_5 = PyFloat_FromDouble(__pyx_v_loss_left); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 623, __pyx_L1_error)
+      __pyx_t_5 = PyFloat_FromDouble(__pyx_v_loss_left); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 658, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_2 = PyFloat_FromDouble(__pyx_v_loss_right); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 623, __pyx_L1_error)
+      __pyx_t_2 = PyFloat_FromDouble(__pyx_v_loss_right); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 658, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
 
-      /* "CART.pyx":621
+      /* "CART.pyx":656
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue
  *                 split = SplitChoice(             # <<<<<<<<<<<<<<
  *                     feature_idx, False, current_loss,
  *                     dloss, loss_left, loss_right,
  */
-      __Pyx_TraceLine(621,0,__PYX_ERR(0, 621, __pyx_L1_error))
-      __pyx_t_16 = PyTuple_New(8); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 621, __pyx_L1_error)
+      __Pyx_TraceLine(656,0,__PYX_ERR(0, 656, __pyx_L1_error))
+      __pyx_t_16 = PyTuple_New(8); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 656, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_16);
       __Pyx_GIVEREF(__pyx_t_4);
       PyTuple_SET_ITEM(__pyx_t_16, 0, __pyx_t_4);
@@ -14880,59 +15486,59 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
       __pyx_t_5 = 0;
       __pyx_t_2 = 0;
 
-      /* "CART.pyx":625
+      /* "CART.pyx":660
  *                     dloss, loss_left, loss_right,
  *                     left_data, right_data,
  *                     threshold=threshold             # <<<<<<<<<<<<<<
  *                 )
  *                 if split.is_better_than(ret):
  */
-      __Pyx_TraceLine(625,0,__PYX_ERR(0, 625, __pyx_L1_error))
-      __pyx_t_2 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 625, __pyx_L1_error)
+      __Pyx_TraceLine(660,0,__PYX_ERR(0, 660, __pyx_L1_error))
+      __pyx_t_2 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 660, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_5 = PyFloat_FromDouble(__pyx_v_threshold); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 625, __pyx_L1_error)
+      __pyx_t_5 = PyFloat_FromDouble(__pyx_v_threshold); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 660, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
-      if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_threshold, __pyx_t_5) < 0) __PYX_ERR(0, 625, __pyx_L1_error)
+      if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_threshold, __pyx_t_5) < 0) __PYX_ERR(0, 660, __pyx_L1_error)
       __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
 
-      /* "CART.pyx":621
+      /* "CART.pyx":656
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue
  *                 split = SplitChoice(             # <<<<<<<<<<<<<<
  *                     feature_idx, False, current_loss,
  *                     dloss, loss_left, loss_right,
  */
-      __Pyx_TraceLine(621,0,__PYX_ERR(0, 621, __pyx_L1_error))
-      __pyx_t_5 = __Pyx_PyObject_Call(((PyObject *)__pyx_ptype_4CART_SplitChoice), __pyx_t_16, __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 621, __pyx_L1_error)
+      __Pyx_TraceLine(656,0,__PYX_ERR(0, 656, __pyx_L1_error))
+      __pyx_t_5 = __Pyx_PyObject_Call(((PyObject *)__pyx_ptype_4CART_SplitChoice), __pyx_t_16, __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 656, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_5);
       __Pyx_DECREF(__pyx_t_16); __pyx_t_16 = 0;
       __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __Pyx_XDECREF_SET(__pyx_v_split, ((struct __pyx_obj_4CART_SplitChoice *)__pyx_t_5));
       __pyx_t_5 = 0;
 
-      /* "CART.pyx":627
+      /* "CART.pyx":662
  *                     threshold=threshold
  *                 )
  *                 if split.is_better_than(ret):             # <<<<<<<<<<<<<<
  *                     ret = split
  *         return ret
  */
-      __Pyx_TraceLine(627,0,__PYX_ERR(0, 627, __pyx_L1_error))
+      __Pyx_TraceLine(662,0,__PYX_ERR(0, 662, __pyx_L1_error))
       __pyx_t_14 = (__pyx_f_4CART_11SplitChoice_is_better_than(__pyx_v_split, __pyx_v_ret) != 0);
       if (__pyx_t_14) {
 
-        /* "CART.pyx":628
+        /* "CART.pyx":663
  *                 )
  *                 if split.is_better_than(ret):
  *                     ret = split             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-        __Pyx_TraceLine(628,0,__PYX_ERR(0, 628, __pyx_L1_error))
+        __Pyx_TraceLine(663,0,__PYX_ERR(0, 663, __pyx_L1_error))
         __Pyx_INCREF(((PyObject *)__pyx_v_split));
         __Pyx_DECREF_SET(__pyx_v_ret, __pyx_v_split);
 
-        /* "CART.pyx":627
+        /* "CART.pyx":662
  *                     threshold=threshold
  *                 )
  *                 if split.is_better_than(ret):             # <<<<<<<<<<<<<<
@@ -14943,32 +15549,32 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
     }
     __pyx_L5:;
 
-    /* "CART.pyx":595
+    /* "CART.pyx":631
  *         cdef SplitChoice split
  * 
  *         for threshold_idx in range(values.shape[0]-1):             # <<<<<<<<<<<<<<
  *             # extract this into a C function
  *             threshold = (values[threshold_idx] + values[threshold_idx+1]) / 2.
  */
-    __Pyx_TraceLine(595,0,__PYX_ERR(0, 595, __pyx_L1_error))
+    __Pyx_TraceLine(631,0,__PYX_ERR(0, 631, __pyx_L1_error))
     __pyx_L3_continue:;
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "CART.pyx":629
+  /* "CART.pyx":664
  *                 if split.is_better_than(ret):
  *                     ret = split
  *         return ret             # <<<<<<<<<<<<<<
  * 
  *     cdef _find_best_threshold_categorical(
  */
-  __Pyx_TraceLine(629,0,__PYX_ERR(0, 629, __pyx_L1_error))
+  __Pyx_TraceLine(664,0,__PYX_ERR(0, 664, __pyx_L1_error))
   __Pyx_XDECREF(((PyObject *)__pyx_r));
   __Pyx_INCREF(((PyObject *)__pyx_v_ret));
   __pyx_r = __pyx_v_ret;
   goto __pyx_L0;
 
-  /* "CART.pyx":574
+  /* "CART.pyx":610
  *             )
  * 
  *     cdef SplitChoice _find_best_threshold_numerical(             # <<<<<<<<<<<<<<
@@ -15004,7 +15610,7 @@ static struct __pyx_obj_4CART_SplitChoice *__pyx_f_4CART_4CART__find_best_thresh
   return __pyx_r;
 }
 
-/* "CART.pyx":631
+/* "CART.pyx":666
  *         return ret
  * 
  *     cdef _find_best_threshold_categorical(             # <<<<<<<<<<<<<<
@@ -15035,16 +15641,16 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
   PyObject *__pyx_t_2 = NULL;
   PyObject *__pyx_t_3 = NULL;
   PyObject *__pyx_t_4 = NULL;
-  PyObject *__pyx_t_5 = NULL;
-  __Pyx_memviewslice __pyx_t_6 = { 0, 0, { 0 }, { 0 }, { 0 } };
-  Py_ssize_t __pyx_t_7;
-  PyObject *(*__pyx_t_8)(PyObject *);
-  int __pyx_t_9;
-  __Pyx_memviewslice __pyx_t_10 = { 0, 0, { 0 }, { 0 }, { 0 } };
+  __Pyx_memviewslice __pyx_t_5 = { 0, 0, { 0 }, { 0 }, { 0 } };
+  Py_ssize_t __pyx_t_6;
+  PyObject *(*__pyx_t_7)(PyObject *);
+  int __pyx_t_8;
+  __Pyx_memviewslice __pyx_t_9 = { 0, 0, { 0 }, { 0 }, { 0 } };
+  size_t __pyx_t_10;
   size_t __pyx_t_11;
   size_t __pyx_t_12;
-  size_t __pyx_t_13;
-  int __pyx_t_14;
+  int __pyx_t_13;
+  PyObject *__pyx_t_14 = NULL;
   PyObject *__pyx_t_15 = NULL;
   PyObject *__pyx_t_16 = NULL;
   __pyx_t_5numpy_float64_t __pyx_t_17;
@@ -15053,24 +15659,24 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("_find_best_threshold_categorical", 0);
-  __Pyx_TraceCall("_find_best_threshold_categorical", __pyx_f[0], 631, 0, __PYX_ERR(0, 631, __pyx_L1_error));
+  __Pyx_TraceCall("_find_best_threshold_categorical", __pyx_f[0], 666, 0, __PYX_ERR(0, 666, __pyx_L1_error));
 
-  /* "CART.pyx":635
+  /* "CART.pyx":670
  *             np.float64_t current_loss, np.float64_t prop_p0):
  *         global PROBE
  *         cdef np.ndarray ordered = data.order_categorical(feature_idx).astype(np.int32)             # <<<<<<<<<<<<<<
- *         ordered = ordered[:np.unique(data.X[:, feature_idx]).size]
  *         cdef np.ndarray goes_left = np.zeros(data.get_length(), dtype=bool)
+ *         cdef threshold_idx
  */
-  __Pyx_TraceLine(635,0,__PYX_ERR(0, 635, __pyx_L1_error))
-  __pyx_t_2 = ((PyObject *)__pyx_f_4CART_7Dataset_order_categorical(__pyx_v_data, __pyx_v_feature_idx)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 635, __pyx_L1_error)
+  __Pyx_TraceLine(670,0,__PYX_ERR(0, 670, __pyx_L1_error))
+  __pyx_t_2 = ((PyObject *)__pyx_f_4CART_7Dataset_order_categorical(__pyx_v_data, __pyx_v_feature_idx)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 670, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_astype); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 635, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_astype); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 670, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 635, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 670, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_int32); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 635, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_int32); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 670, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_t_2 = NULL;
@@ -15086,297 +15692,242 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
   __pyx_t_1 = (__pyx_t_2) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_2, __pyx_t_4) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_4);
   __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 635, __pyx_L1_error)
+  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 670, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 635, __pyx_L1_error)
+  if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 670, __pyx_L1_error)
   __pyx_v_ordered = ((PyArrayObject *)__pyx_t_1);
   __pyx_t_1 = 0;
 
-  /* "CART.pyx":636
+  /* "CART.pyx":671
  *         global PROBE
  *         cdef np.ndarray ordered = data.order_categorical(feature_idx).astype(np.int32)
- *         ordered = ordered[:np.unique(data.X[:, feature_idx]).size]             # <<<<<<<<<<<<<<
- *         cdef np.ndarray goes_left = np.zeros(data.get_length(), dtype=bool)
- *         cdef threshold_idx
- */
-  __Pyx_TraceLine(636,0,__PYX_ERR(0, 636, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_unique); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_5 = PyTuple_New(2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_5);
-  __Pyx_INCREF(__pyx_slice__4);
-  __Pyx_GIVEREF(__pyx_slice__4);
-  PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_slice__4);
-  __Pyx_GIVEREF(__pyx_t_2);
-  PyTuple_SET_ITEM(__pyx_t_5, 1, __pyx_t_2);
-  __pyx_t_2 = 0;
-  __pyx_t_2 = __Pyx_PyObject_GetItem(__pyx_t_3, __pyx_t_5); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
-  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __pyx_t_5 = NULL;
-  if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
-    __pyx_t_5 = PyMethod_GET_SELF(__pyx_t_4);
-    if (likely(__pyx_t_5)) {
-      PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_4);
-      __Pyx_INCREF(__pyx_t_5);
-      __Pyx_INCREF(function);
-      __Pyx_DECREF_SET(__pyx_t_4, function);
-    }
-  }
-  __pyx_t_1 = (__pyx_t_5) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_5, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_2);
-  __Pyx_XDECREF(__pyx_t_5); __pyx_t_5 = 0;
-  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_size); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyObject_GetSlice(((PyObject *)__pyx_v_ordered), 0, 0, NULL, &__pyx_t_4, NULL, 0, 0, 1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  if (!(likely(((__pyx_t_1) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_1, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 636, __pyx_L1_error)
-  __Pyx_DECREF_SET(__pyx_v_ordered, ((PyArrayObject *)__pyx_t_1));
-  __pyx_t_1 = 0;
-
-  /* "CART.pyx":637
- *         cdef np.ndarray ordered = data.order_categorical(feature_idx).astype(np.int32)
- *         ordered = ordered[:np.unique(data.X[:, feature_idx]).size]
  *         cdef np.ndarray goes_left = np.zeros(data.get_length(), dtype=bool)             # <<<<<<<<<<<<<<
  *         cdef threshold_idx
  *         cdef np.float64_t[:] values = data.X[:, feature_idx]
  */
-  __Pyx_TraceLine(637,0,__PYX_ERR(0, 637, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 637, __pyx_L1_error)
+  __Pyx_TraceLine(671,0,__PYX_ERR(0, 671, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 671, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_zeros); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 637, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_zeros); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 671, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_3);
+  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
+  __pyx_t_1 = __Pyx_PyInt_FromSize_t(__pyx_f_4CART_7Dataset_get_length(__pyx_v_data)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 671, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_4 = PyTuple_New(1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 671, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_4);
-  __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyInt_FromSize_t(__pyx_f_4CART_7Dataset_get_length(__pyx_v_data)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 637, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = PyTuple_New(1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 637, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
   __Pyx_GIVEREF(__pyx_t_1);
-  PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_t_1);
+  PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_t_1);
   __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 637, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 671, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_dtype, ((PyObject*)&PyBool_Type)) < 0) __PYX_ERR(0, 637, __pyx_L1_error)
-  __pyx_t_5 = __Pyx_PyObject_Call(__pyx_t_4, __pyx_t_2, __pyx_t_1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 637, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_5);
+  if (PyDict_SetItem(__pyx_t_1, __pyx_n_s_dtype, ((PyObject*)&PyBool_Type)) < 0) __PYX_ERR(0, 671, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_Call(__pyx_t_3, __pyx_t_4, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 671, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_2);
+  __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 637, __pyx_L1_error)
-  __pyx_v_goes_left = ((PyArrayObject *)__pyx_t_5);
-  __pyx_t_5 = 0;
+  if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 671, __pyx_L1_error)
+  __pyx_v_goes_left = ((PyArrayObject *)__pyx_t_2);
+  __pyx_t_2 = 0;
 
-  /* "CART.pyx":639
+  /* "CART.pyx":673
  *         cdef np.ndarray goes_left = np.zeros(data.get_length(), dtype=bool)
  *         cdef threshold_idx
  *         cdef np.float64_t[:] values = data.X[:, feature_idx]             # <<<<<<<<<<<<<<
  * 
  *         cdef Dataset left_data
  */
-  __Pyx_TraceLine(639,0,__PYX_ERR(0, 639, __pyx_L1_error))
-  __pyx_t_5 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 639, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_5);
-  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 639, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = PyTuple_New(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 639, __pyx_L1_error)
+  __Pyx_TraceLine(673,0,__PYX_ERR(0, 673, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_data), __pyx_n_s_X); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 673, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_1 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 673, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_1);
+  __pyx_t_4 = PyTuple_New(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 673, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
   __Pyx_INCREF(__pyx_slice__4);
   __Pyx_GIVEREF(__pyx_slice__4);
-  PyTuple_SET_ITEM(__pyx_t_2, 0, __pyx_slice__4);
+  PyTuple_SET_ITEM(__pyx_t_4, 0, __pyx_slice__4);
   __Pyx_GIVEREF(__pyx_t_1);
-  PyTuple_SET_ITEM(__pyx_t_2, 1, __pyx_t_1);
+  PyTuple_SET_ITEM(__pyx_t_4, 1, __pyx_t_1);
   __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_PyObject_GetItem(__pyx_t_5, __pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 639, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetItem(__pyx_t_2, __pyx_t_4); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 673, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_1, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 639, __pyx_L1_error)
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+  __pyx_t_5 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_1, PyBUF_WRITABLE); if (unlikely(!__pyx_t_5.memview)) __PYX_ERR(0, 673, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_v_values = __pyx_t_6;
-  __pyx_t_6.memview = NULL;
-  __pyx_t_6.data = NULL;
+  __pyx_v_values = __pyx_t_5;
+  __pyx_t_5.memview = NULL;
+  __pyx_t_5.data = NULL;
 
-  /* "CART.pyx":651
+  /* "CART.pyx":685
  *         cdef np.float64_t loss, dloss
  * 
  *         cdef SplitChoice ret  = None             # <<<<<<<<<<<<<<
  *         cdef SplitChoice split
  *         cdef int threshold_value
  */
-  __Pyx_TraceLine(651,0,__PYX_ERR(0, 651, __pyx_L1_error))
+  __Pyx_TraceLine(685,0,__PYX_ERR(0, 685, __pyx_L1_error))
   __Pyx_INCREF(Py_None);
   __pyx_v_ret = ((struct __pyx_obj_4CART_SplitChoice *)Py_None);
 
-  /* "CART.pyx":654
+  /* "CART.pyx":688
  *         cdef SplitChoice split
  *         cdef int threshold_value
  *         for threshold_idx in range(ordered.shape[0]-1):             # <<<<<<<<<<<<<<
  *             threshold_value = ordered[threshold_idx]
  *             _mask_categorical(values, threshold_value, goes_left)
  */
-  __Pyx_TraceLine(654,0,__PYX_ERR(0, 654, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyInt_From_long(((__pyx_v_ordered->dimensions[0]) - 1)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 654, __pyx_L1_error)
+  __Pyx_TraceLine(688,0,__PYX_ERR(0, 688, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyInt_From_long(((__pyx_v_ordered->dimensions[0]) - 1)); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 688, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_CallOneArg(__pyx_builtin_range, __pyx_t_1); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 654, __pyx_L1_error)
-  __Pyx_GOTREF(__pyx_t_2);
+  __pyx_t_4 = __Pyx_PyObject_CallOneArg(__pyx_builtin_range, __pyx_t_1); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 688, __pyx_L1_error)
+  __Pyx_GOTREF(__pyx_t_4);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  if (likely(PyList_CheckExact(__pyx_t_2)) || PyTuple_CheckExact(__pyx_t_2)) {
-    __pyx_t_1 = __pyx_t_2; __Pyx_INCREF(__pyx_t_1); __pyx_t_7 = 0;
-    __pyx_t_8 = NULL;
+  if (likely(PyList_CheckExact(__pyx_t_4)) || PyTuple_CheckExact(__pyx_t_4)) {
+    __pyx_t_1 = __pyx_t_4; __Pyx_INCREF(__pyx_t_1); __pyx_t_6 = 0;
+    __pyx_t_7 = NULL;
   } else {
-    __pyx_t_7 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_t_2); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 654, __pyx_L1_error)
+    __pyx_t_6 = -1; __pyx_t_1 = PyObject_GetIter(__pyx_t_4); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 688, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_1);
-    __pyx_t_8 = Py_TYPE(__pyx_t_1)->tp_iternext; if (unlikely(!__pyx_t_8)) __PYX_ERR(0, 654, __pyx_L1_error)
+    __pyx_t_7 = Py_TYPE(__pyx_t_1)->tp_iternext; if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 688, __pyx_L1_error)
   }
-  __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+  __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
   for (;;) {
-    if (likely(!__pyx_t_8)) {
+    if (likely(!__pyx_t_7)) {
       if (likely(PyList_CheckExact(__pyx_t_1))) {
-        if (__pyx_t_7 >= PyList_GET_SIZE(__pyx_t_1)) break;
+        if (__pyx_t_6 >= PyList_GET_SIZE(__pyx_t_1)) break;
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_2 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_7); __Pyx_INCREF(__pyx_t_2); __pyx_t_7++; if (unlikely(0 < 0)) __PYX_ERR(0, 654, __pyx_L1_error)
+        __pyx_t_4 = PyList_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_4); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 688, __pyx_L1_error)
         #else
-        __pyx_t_2 = PySequence_ITEM(__pyx_t_1, __pyx_t_7); __pyx_t_7++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 654, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_2);
+        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 688, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_4);
         #endif
       } else {
-        if (__pyx_t_7 >= PyTuple_GET_SIZE(__pyx_t_1)) break;
+        if (__pyx_t_6 >= PyTuple_GET_SIZE(__pyx_t_1)) break;
         #if CYTHON_ASSUME_SAFE_MACROS && !CYTHON_AVOID_BORROWED_REFS
-        __pyx_t_2 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_7); __Pyx_INCREF(__pyx_t_2); __pyx_t_7++; if (unlikely(0 < 0)) __PYX_ERR(0, 654, __pyx_L1_error)
+        __pyx_t_4 = PyTuple_GET_ITEM(__pyx_t_1, __pyx_t_6); __Pyx_INCREF(__pyx_t_4); __pyx_t_6++; if (unlikely(0 < 0)) __PYX_ERR(0, 688, __pyx_L1_error)
         #else
-        __pyx_t_2 = PySequence_ITEM(__pyx_t_1, __pyx_t_7); __pyx_t_7++; if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 654, __pyx_L1_error)
-        __Pyx_GOTREF(__pyx_t_2);
+        __pyx_t_4 = PySequence_ITEM(__pyx_t_1, __pyx_t_6); __pyx_t_6++; if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 688, __pyx_L1_error)
+        __Pyx_GOTREF(__pyx_t_4);
         #endif
       }
     } else {
-      __pyx_t_2 = __pyx_t_8(__pyx_t_1);
-      if (unlikely(!__pyx_t_2)) {
+      __pyx_t_4 = __pyx_t_7(__pyx_t_1);
+      if (unlikely(!__pyx_t_4)) {
         PyObject* exc_type = PyErr_Occurred();
         if (exc_type) {
           if (likely(__Pyx_PyErr_GivenExceptionMatches(exc_type, PyExc_StopIteration))) PyErr_Clear();
-          else __PYX_ERR(0, 654, __pyx_L1_error)
+          else __PYX_ERR(0, 688, __pyx_L1_error)
         }
         break;
       }
-      __Pyx_GOTREF(__pyx_t_2);
+      __Pyx_GOTREF(__pyx_t_4);
     }
-    __Pyx_XDECREF_SET(__pyx_v_threshold_idx, __pyx_t_2);
-    __pyx_t_2 = 0;
+    __Pyx_XDECREF_SET(__pyx_v_threshold_idx, __pyx_t_4);
+    __pyx_t_4 = 0;
 
-    /* "CART.pyx":655
+    /* "CART.pyx":689
  *         cdef int threshold_value
  *         for threshold_idx in range(ordered.shape[0]-1):
  *             threshold_value = ordered[threshold_idx]             # <<<<<<<<<<<<<<
  *             _mask_categorical(values, threshold_value, goes_left)
  *             left_data = data[goes_left]
  */
-    __Pyx_TraceLine(655,0,__PYX_ERR(0, 655, __pyx_L1_error))
-    __pyx_t_2 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_ordered), __pyx_v_threshold_idx); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 655, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_9 = __Pyx_PyInt_As_int(__pyx_t_2); if (unlikely((__pyx_t_9 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 655, __pyx_L1_error)
-    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    __pyx_v_threshold_value = __pyx_t_9;
+    __Pyx_TraceLine(689,0,__PYX_ERR(0, 689, __pyx_L1_error))
+    __pyx_t_4 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_ordered), __pyx_v_threshold_idx); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 689, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __pyx_t_8 = __Pyx_PyInt_As_int(__pyx_t_4); if (unlikely((__pyx_t_8 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 689, __pyx_L1_error)
+    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+    __pyx_v_threshold_value = __pyx_t_8;
 
-    /* "CART.pyx":656
+    /* "CART.pyx":690
  *         for threshold_idx in range(ordered.shape[0]-1):
  *             threshold_value = ordered[threshold_idx]
  *             _mask_categorical(values, threshold_value, goes_left)             # <<<<<<<<<<<<<<
  *             left_data = data[goes_left]
  *             right_data = data[~goes_left]
  */
-    __Pyx_TraceLine(656,0,__PYX_ERR(0, 656, __pyx_L1_error))
-    __pyx_t_10 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint8_t(((PyObject *)__pyx_v_goes_left), PyBUF_WRITABLE); if (unlikely(!__pyx_t_10.memview)) __PYX_ERR(0, 656, __pyx_L1_error)
-    __pyx_f_4CART__mask_categorical(__pyx_v_values, __pyx_v_threshold_value, __pyx_t_10);
-    __PYX_XDEC_MEMVIEW(&__pyx_t_10, 1);
-    __pyx_t_10.memview = NULL;
-    __pyx_t_10.data = NULL;
+    __Pyx_TraceLine(690,0,__PYX_ERR(0, 690, __pyx_L1_error))
+    __pyx_t_9 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_uint8_t(((PyObject *)__pyx_v_goes_left), PyBUF_WRITABLE); if (unlikely(!__pyx_t_9.memview)) __PYX_ERR(0, 690, __pyx_L1_error)
+    __pyx_f_4CART__mask_categorical(__pyx_v_values, __pyx_v_threshold_value, __pyx_t_9);
+    __PYX_XDEC_MEMVIEW(&__pyx_t_9, 1);
+    __pyx_t_9.memview = NULL;
+    __pyx_t_9.data = NULL;
 
-    /* "CART.pyx":657
+    /* "CART.pyx":691
  *             threshold_value = ordered[threshold_idx]
  *             _mask_categorical(values, threshold_value, goes_left)
  *             left_data = data[goes_left]             # <<<<<<<<<<<<<<
  *             right_data = data[~goes_left]
  * 
  */
-    __Pyx_TraceLine(657,0,__PYX_ERR(0, 657, __pyx_L1_error))
-    __pyx_t_2 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_data), ((PyObject *)__pyx_v_goes_left)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 657, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_2);
-    if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 657, __pyx_L1_error)
-    __Pyx_XDECREF_SET(__pyx_v_left_data, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_2));
-    __pyx_t_2 = 0;
+    __Pyx_TraceLine(691,0,__PYX_ERR(0, 691, __pyx_L1_error))
+    __pyx_t_4 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_data), ((PyObject *)__pyx_v_goes_left)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 691, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    if (!(likely(((__pyx_t_4) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_4, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 691, __pyx_L1_error)
+    __Pyx_XDECREF_SET(__pyx_v_left_data, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_4));
+    __pyx_t_4 = 0;
 
-    /* "CART.pyx":658
+    /* "CART.pyx":692
  *             _mask_categorical(values, threshold_value, goes_left)
  *             left_data = data[goes_left]
  *             right_data = data[~goes_left]             # <<<<<<<<<<<<<<
  * 
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
  */
-    __Pyx_TraceLine(658,0,__PYX_ERR(0, 658, __pyx_L1_error))
-    __pyx_t_2 = PyNumber_Invert(((PyObject *)__pyx_v_goes_left)); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 658, __pyx_L1_error)
+    __Pyx_TraceLine(692,0,__PYX_ERR(0, 692, __pyx_L1_error))
+    __pyx_t_4 = PyNumber_Invert(((PyObject *)__pyx_v_goes_left)); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 692, __pyx_L1_error)
+    __Pyx_GOTREF(__pyx_t_4);
+    __pyx_t_2 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_data), __pyx_t_4); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 692, __pyx_L1_error)
     __Pyx_GOTREF(__pyx_t_2);
-    __pyx_t_5 = __Pyx_PyObject_GetItem(((PyObject *)__pyx_v_data), __pyx_t_2); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 658, __pyx_L1_error)
-    __Pyx_GOTREF(__pyx_t_5);
-    __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-    if (!(likely(((__pyx_t_5) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_5, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 658, __pyx_L1_error)
-    __Pyx_XDECREF_SET(__pyx_v_right_data, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_5));
-    __pyx_t_5 = 0;
+    __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+    if (!(likely(((__pyx_t_2) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_2, __pyx_ptype_4CART_Dataset))))) __PYX_ERR(0, 692, __pyx_L1_error)
+    __Pyx_XDECREF_SET(__pyx_v_right_data, ((struct __pyx_obj_4CART_Dataset *)__pyx_t_2));
+    __pyx_t_2 = 0;
 
-    /* "CART.pyx":660
+    /* "CART.pyx":694
  *             right_data = data[~goes_left]
  * 
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:             # <<<<<<<<<<<<<<
  *                 loss = dloss = 0.
  *                 prop_left_p0 = prop_right_p0 = 0
  */
-    __Pyx_TraceLine(660,0,__PYX_ERR(0, 660, __pyx_L1_error))
-    __pyx_t_11 = __pyx_f_4CART_7Dataset_get_length(__pyx_v_right_data);
-    __pyx_t_12 = __pyx_f_4CART_7Dataset_get_length(__pyx_v_left_data);
-    if (((__pyx_t_11 < __pyx_t_12) != 0)) {
-      __pyx_t_13 = __pyx_t_11;
+    __Pyx_TraceLine(694,0,__PYX_ERR(0, 694, __pyx_L1_error))
+    __pyx_t_10 = __pyx_f_4CART_7Dataset_get_length(__pyx_v_right_data);
+    __pyx_t_11 = __pyx_f_4CART_7Dataset_get_length(__pyx_v_left_data);
+    if (((__pyx_t_10 < __pyx_t_11) != 0)) {
+      __pyx_t_12 = __pyx_t_10;
     } else {
-      __pyx_t_13 = __pyx_t_12;
+      __pyx_t_12 = __pyx_t_11;
     }
-    __pyx_t_14 = ((__pyx_t_13 <= __pyx_v_self->minobs) != 0);
-    if (__pyx_t_14) {
+    __pyx_t_13 = ((__pyx_t_12 <= __pyx_v_self->minobs) != 0);
+    if (__pyx_t_13) {
 
-      /* "CART.pyx":661
+      /* "CART.pyx":695
  * 
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
  *                 loss = dloss = 0.             # <<<<<<<<<<<<<<
  *                 prop_left_p0 = prop_right_p0 = 0
  *             else:
  */
-      __Pyx_TraceLine(661,0,__PYX_ERR(0, 661, __pyx_L1_error))
+      __Pyx_TraceLine(695,0,__PYX_ERR(0, 695, __pyx_L1_error))
       __pyx_v_loss = 0.;
       __pyx_v_dloss = 0.;
 
-      /* "CART.pyx":662
+      /* "CART.pyx":696
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
  *                 loss = dloss = 0.
  *                 prop_left_p0 = prop_right_p0 = 0             # <<<<<<<<<<<<<<
  *             else:
- *                 loss_left = self._loss(left_data.y)
+ *                 loss_left = self._loss(left_data.y) * left_data.get_length()
  */
-      __Pyx_TraceLine(662,0,__PYX_ERR(0, 662, __pyx_L1_error))
+      __Pyx_TraceLine(696,0,__PYX_ERR(0, 696, __pyx_L1_error))
       __pyx_v_prop_left_p0 = 0.0;
       __pyx_v_prop_right_p0 = 0.0;
 
-      /* "CART.pyx":660
+      /* "CART.pyx":694
  *             right_data = data[~goes_left]
  * 
  *             if min(left_data.get_length(), right_data.get_length()) <= self.minobs:             # <<<<<<<<<<<<<<
@@ -15386,61 +15937,61 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
       goto __pyx_L5;
     }
 
-    /* "CART.pyx":664
+    /* "CART.pyx":698
  *                 prop_left_p0 = prop_right_p0 = 0
  *             else:
- *                 loss_left = self._loss(left_data.y)             # <<<<<<<<<<<<<<
- *                 loss_right = self._loss(right_data.y)
+ *                 loss_left = self._loss(left_data.y) * left_data.get_length()             # <<<<<<<<<<<<<<
+ *                 loss_right = self._loss(right_data.y) * right_data.get_length()
  * 
  */
-    __Pyx_TraceLine(664,0,__PYX_ERR(0, 664, __pyx_L1_error))
+    __Pyx_TraceLine(698,0,__PYX_ERR(0, 698, __pyx_L1_error))
     /*else*/ {
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_left_data), __pyx_n_s_y); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 664, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 664, __pyx_L1_error)
-      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __pyx_v_loss_left = __pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_6);
-      __PYX_XDEC_MEMVIEW(&__pyx_t_6, 1);
-      __pyx_t_6.memview = NULL;
-      __pyx_t_6.data = NULL;
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_left_data), __pyx_n_s_y); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 698, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
+      __pyx_t_5 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_2, PyBUF_WRITABLE); if (unlikely(!__pyx_t_5.memview)) __PYX_ERR(0, 698, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+      __pyx_v_loss_left = (__pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_5) * __pyx_f_4CART_7Dataset_get_length(__pyx_v_left_data));
+      __PYX_XDEC_MEMVIEW(&__pyx_t_5, 1);
+      __pyx_t_5.memview = NULL;
+      __pyx_t_5.data = NULL;
 
-      /* "CART.pyx":665
+      /* "CART.pyx":699
  *             else:
- *                 loss_left = self._loss(left_data.y)
- *                 loss_right = self._loss(right_data.y)             # <<<<<<<<<<<<<<
+ *                 loss_left = self._loss(left_data.y) * left_data.get_length()
+ *                 loss_right = self._loss(right_data.y) * right_data.get_length()             # <<<<<<<<<<<<<<
  * 
  *                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
  */
-      __Pyx_TraceLine(665,0,__PYX_ERR(0, 665, __pyx_L1_error))
-      __pyx_t_5 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_right_data), __pyx_n_s_y); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 665, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_6 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_5, PyBUF_WRITABLE); if (unlikely(!__pyx_t_6.memview)) __PYX_ERR(0, 665, __pyx_L1_error)
-      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __pyx_v_loss_right = __pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_6);
-      __PYX_XDEC_MEMVIEW(&__pyx_t_6, 1);
-      __pyx_t_6.memview = NULL;
-      __pyx_t_6.data = NULL;
+      __Pyx_TraceLine(699,0,__PYX_ERR(0, 699, __pyx_L1_error))
+      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_right_data), __pyx_n_s_y); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 699, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
+      __pyx_t_5 = __Pyx_PyObject_to_MemoryviewSlice_ds_nn___pyx_t_5numpy_float64_t(__pyx_t_2, PyBUF_WRITABLE); if (unlikely(!__pyx_t_5.memview)) __PYX_ERR(0, 699, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+      __pyx_v_loss_right = (__pyx_f_4CART_4CART__loss(__pyx_v_self, __pyx_t_5) * __pyx_f_4CART_7Dataset_get_length(__pyx_v_right_data));
+      __PYX_XDEC_MEMVIEW(&__pyx_t_5, 1);
+      __pyx_t_5.memview = NULL;
+      __pyx_t_5.data = NULL;
 
-      /* "CART.pyx":667
- *                 loss_right = self._loss(right_data.y)
+      /* "CART.pyx":701
+ *                 loss_right = self._loss(right_data.y) * right_data.get_length()
  * 
  *                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)             # <<<<<<<<<<<<<<
  *                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
  * 
  */
-      __Pyx_TraceLine(667,0,__PYX_ERR(0, 667, __pyx_L1_error))
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 667, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_mean); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 667, __pyx_L1_error)
+      __Pyx_TraceLine(701,0,__PYX_ERR(0, 701, __pyx_L1_error))
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 701, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 667, __pyx_L1_error)
+      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_mean); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 701, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_asarray); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 667, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_GetModuleGlobalName(__pyx_t_14, __pyx_n_s_np); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 701, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_14);
+      __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_14, __pyx_n_s_asarray); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 701, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_15);
-      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_left_data), __pyx_n_s_p); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 667, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_3);
+      __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+      __pyx_t_14 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_left_data), __pyx_n_s_p); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 701, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_14);
       __pyx_t_16 = NULL;
       if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_15))) {
         __pyx_t_16 = PyMethod_GET_SELF(__pyx_t_15);
@@ -15451,172 +16002,162 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
           __Pyx_DECREF_SET(__pyx_t_15, function);
         }
       }
-      __pyx_t_2 = (__pyx_t_16) ? __Pyx_PyObject_Call2Args(__pyx_t_15, __pyx_t_16, __pyx_t_3) : __Pyx_PyObject_CallOneArg(__pyx_t_15, __pyx_t_3);
+      __pyx_t_4 = (__pyx_t_16) ? __Pyx_PyObject_Call2Args(__pyx_t_15, __pyx_t_16, __pyx_t_14) : __Pyx_PyObject_CallOneArg(__pyx_t_15, __pyx_t_14);
       __Pyx_XDECREF(__pyx_t_16); __pyx_t_16 = 0;
-      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 667, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
-      __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-      __pyx_t_15 = __Pyx_PyInt_EqObjC(__pyx_t_2, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 667, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_15);
-      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __pyx_t_2 = NULL;
-      if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_4))) {
-        __pyx_t_2 = PyMethod_GET_SELF(__pyx_t_4);
-        if (likely(__pyx_t_2)) {
-          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_4);
-          __Pyx_INCREF(__pyx_t_2);
-          __Pyx_INCREF(function);
-          __Pyx_DECREF_SET(__pyx_t_4, function);
-        }
-      }
-      __pyx_t_5 = (__pyx_t_2) ? __Pyx_PyObject_Call2Args(__pyx_t_4, __pyx_t_2, __pyx_t_15) : __Pyx_PyObject_CallOneArg(__pyx_t_4, __pyx_t_15);
-      __Pyx_XDECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-      if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 667, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_5);
-      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_17 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_17 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 667, __pyx_L1_error)
-      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
-      __pyx_v_prop_left_p0 = __pyx_t_17;
-
-      /* "CART.pyx":668
- * 
- *                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
- *                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)             # <<<<<<<<<<<<<<
- * 
- *                 loss = loss_left * left_data.get_length()
- */
-      __Pyx_TraceLine(668,0,__PYX_ERR(0, 668, __pyx_L1_error))
-      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 668, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 701, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_mean); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 668, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
+      __pyx_t_15 = __Pyx_PyInt_EqObjC(__pyx_t_4, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 701, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_15);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 668, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_3 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_asarray); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 668, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_3);
-      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __pyx_t_2 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_right_data), __pyx_n_s_p); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 668, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
-      __pyx_t_16 = NULL;
+      __pyx_t_4 = NULL;
       if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_3))) {
-        __pyx_t_16 = PyMethod_GET_SELF(__pyx_t_3);
-        if (likely(__pyx_t_16)) {
+        __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_3);
+        if (likely(__pyx_t_4)) {
           PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_3);
-          __Pyx_INCREF(__pyx_t_16);
+          __Pyx_INCREF(__pyx_t_4);
           __Pyx_INCREF(function);
           __Pyx_DECREF_SET(__pyx_t_3, function);
         }
       }
-      __pyx_t_4 = (__pyx_t_16) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_16, __pyx_t_2) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_2);
-      __Pyx_XDECREF(__pyx_t_16); __pyx_t_16 = 0;
-      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 668, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_4);
+      __pyx_t_2 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_3, __pyx_t_4, __pyx_t_15) : __Pyx_PyObject_CallOneArg(__pyx_t_3, __pyx_t_15);
+      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 701, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      __pyx_t_3 = __Pyx_PyInt_EqObjC(__pyx_t_4, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 668, __pyx_L1_error)
+      __pyx_t_17 = __pyx_PyFloat_AsDouble(__pyx_t_2); if (unlikely((__pyx_t_17 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 701, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
+      __pyx_v_prop_left_p0 = __pyx_t_17;
+
+      /* "CART.pyx":702
+ * 
+ *                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
+ *                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)             # <<<<<<<<<<<<<<
+ * 
+ *                 loss = loss_left + loss_right
+ */
+      __Pyx_TraceLine(702,0,__PYX_ERR(0, 702, __pyx_L1_error))
+      __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 702, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
+      __pyx_t_15 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_mean); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 702, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_15);
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_GetModuleGlobalName(__pyx_t_4, __pyx_n_s_np); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 702, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __pyx_t_14 = __Pyx_PyObject_GetAttrStr(__pyx_t_4, __pyx_n_s_asarray); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 702, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_14);
       __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __pyx_t_4 = NULL;
+      __pyx_t_4 = __Pyx_PyObject_GetAttrStr(((PyObject *)__pyx_v_right_data), __pyx_n_s_p); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 702, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      __pyx_t_16 = NULL;
+      if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_14))) {
+        __pyx_t_16 = PyMethod_GET_SELF(__pyx_t_14);
+        if (likely(__pyx_t_16)) {
+          PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_14);
+          __Pyx_INCREF(__pyx_t_16);
+          __Pyx_INCREF(function);
+          __Pyx_DECREF_SET(__pyx_t_14, function);
+        }
+      }
+      __pyx_t_3 = (__pyx_t_16) ? __Pyx_PyObject_Call2Args(__pyx_t_14, __pyx_t_16, __pyx_t_4) : __Pyx_PyObject_CallOneArg(__pyx_t_14, __pyx_t_4);
+      __Pyx_XDECREF(__pyx_t_16); __pyx_t_16 = 0;
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 702, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
+      __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+      __pyx_t_14 = __Pyx_PyInt_EqObjC(__pyx_t_3, __pyx_int_0, 0, 0); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 702, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_14);
+      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __pyx_t_3 = NULL;
       if (CYTHON_UNPACK_METHODS && unlikely(PyMethod_Check(__pyx_t_15))) {
-        __pyx_t_4 = PyMethod_GET_SELF(__pyx_t_15);
-        if (likely(__pyx_t_4)) {
+        __pyx_t_3 = PyMethod_GET_SELF(__pyx_t_15);
+        if (likely(__pyx_t_3)) {
           PyObject* function = PyMethod_GET_FUNCTION(__pyx_t_15);
-          __Pyx_INCREF(__pyx_t_4);
+          __Pyx_INCREF(__pyx_t_3);
           __Pyx_INCREF(function);
           __Pyx_DECREF_SET(__pyx_t_15, function);
         }
       }
-      __pyx_t_5 = (__pyx_t_4) ? __Pyx_PyObject_Call2Args(__pyx_t_15, __pyx_t_4, __pyx_t_3) : __Pyx_PyObject_CallOneArg(__pyx_t_15, __pyx_t_3);
-      __Pyx_XDECREF(__pyx_t_4); __pyx_t_4 = 0;
-      __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-      if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 668, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_5);
+      __pyx_t_2 = (__pyx_t_3) ? __Pyx_PyObject_Call2Args(__pyx_t_15, __pyx_t_3, __pyx_t_14) : __Pyx_PyObject_CallOneArg(__pyx_t_15, __pyx_t_14);
+      __Pyx_XDECREF(__pyx_t_3); __pyx_t_3 = 0;
+      __Pyx_DECREF(__pyx_t_14); __pyx_t_14 = 0;
+      if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 702, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
       __Pyx_DECREF(__pyx_t_15); __pyx_t_15 = 0;
-      __pyx_t_17 = __pyx_PyFloat_AsDouble(__pyx_t_5); if (unlikely((__pyx_t_17 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 668, __pyx_L1_error)
-      __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
+      __pyx_t_17 = __pyx_PyFloat_AsDouble(__pyx_t_2); if (unlikely((__pyx_t_17 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 702, __pyx_L1_error)
+      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
       __pyx_v_prop_right_p0 = __pyx_t_17;
 
-      /* "CART.pyx":670
+      /* "CART.pyx":704
  *                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
  * 
- *                 loss = loss_left * left_data.get_length()             # <<<<<<<<<<<<<<
- *                 loss += loss_right * right_data.get_length()
- *                 dloss = current_loss - loss #/ data.get_length()
- */
-      __Pyx_TraceLine(670,0,__PYX_ERR(0, 670, __pyx_L1_error))
-      __pyx_v_loss = (__pyx_v_loss_left * __pyx_f_4CART_7Dataset_get_length(__pyx_v_left_data));
-
-      /* "CART.pyx":671
- * 
- *                 loss = loss_left * left_data.get_length()
- *                 loss += loss_right * right_data.get_length()             # <<<<<<<<<<<<<<
+ *                 loss = loss_left + loss_right             # <<<<<<<<<<<<<<
  *                 dloss = current_loss - loss #/ data.get_length()
  * 
  */
-      __Pyx_TraceLine(671,0,__PYX_ERR(0, 671, __pyx_L1_error))
-      __pyx_v_loss = (__pyx_v_loss + (__pyx_v_loss_right * __pyx_f_4CART_7Dataset_get_length(__pyx_v_right_data)));
+      __Pyx_TraceLine(704,0,__PYX_ERR(0, 704, __pyx_L1_error))
+      __pyx_v_loss = (__pyx_v_loss_left + __pyx_v_loss_right);
 
-      /* "CART.pyx":672
- *                 loss = loss_left * left_data.get_length()
- *                 loss += loss_right * right_data.get_length()
+      /* "CART.pyx":705
+ * 
+ *                 loss = loss_left + loss_right
  *                 dloss = current_loss - loss #/ data.get_length()             # <<<<<<<<<<<<<<
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
  */
-      __Pyx_TraceLine(672,0,__PYX_ERR(0, 672, __pyx_L1_error))
+      __Pyx_TraceLine(705,0,__PYX_ERR(0, 705, __pyx_L1_error))
       __pyx_v_dloss = (__pyx_v_current_loss - __pyx_v_loss);
 
-      /* "CART.pyx":674
+      /* "CART.pyx":707
  *                 dloss = current_loss - loss #/ data.get_length()
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \             # <<<<<<<<<<<<<<
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue
  */
-      __Pyx_TraceLine(674,0,__PYX_ERR(0, 674, __pyx_L1_error))
+      __Pyx_TraceLine(707,0,__PYX_ERR(0, 707, __pyx_L1_error))
       __pyx_t_18 = ((fabs((__pyx_v_prop_left_p0 - __pyx_v_prop_p0)) > (__pyx_v_self->epsilon * __pyx_v_prop_p0)) != 0);
       if (!__pyx_t_18) {
       } else {
-        __pyx_t_14 = __pyx_t_18;
+        __pyx_t_13 = __pyx_t_18;
         goto __pyx_L7_bool_binop_done;
       }
 
-      /* "CART.pyx":675
+      /* "CART.pyx":708
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:             # <<<<<<<<<<<<<<
  *                     continue
  *                 split = SplitChoice(
  */
-      __Pyx_TraceLine(675,0,__PYX_ERR(0, 675, __pyx_L1_error))
+      __Pyx_TraceLine(708,0,__PYX_ERR(0, 708, __pyx_L1_error))
       __pyx_t_18 = ((fabs((__pyx_v_prop_right_p0 - __pyx_v_prop_p0)) > (__pyx_v_self->epsilon * __pyx_v_prop_p0)) != 0);
-      __pyx_t_14 = __pyx_t_18;
+      __pyx_t_13 = __pyx_t_18;
       __pyx_L7_bool_binop_done:;
 
-      /* "CART.pyx":674
+      /* "CART.pyx":707
  *                 dloss = current_loss - loss #/ data.get_length()
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \             # <<<<<<<<<<<<<<
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue
  */
-      __Pyx_TraceLine(674,0,__PYX_ERR(0, 674, __pyx_L1_error))
-      if (__pyx_t_14) {
+      __Pyx_TraceLine(707,0,__PYX_ERR(0, 707, __pyx_L1_error))
+      if (__pyx_t_13) {
 
-        /* "CART.pyx":676
+        /* "CART.pyx":709
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue             # <<<<<<<<<<<<<<
  *                 split = SplitChoice(
  *                     feature_idx, True, current_loss,
  */
-        __Pyx_TraceLine(676,0,__PYX_ERR(0, 676, __pyx_L1_error))
+        __Pyx_TraceLine(709,0,__PYX_ERR(0, 709, __pyx_L1_error))
         goto __pyx_L3_continue;
 
-        /* "CART.pyx":674
+        /* "CART.pyx":707
  *                 dloss = current_loss - loss #/ data.get_length()
  * 
  *                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \             # <<<<<<<<<<<<<<
@@ -15625,129 +16166,129 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
  */
       }
 
-      /* "CART.pyx":678
+      /* "CART.pyx":711
  *                     continue
  *                 split = SplitChoice(
  *                     feature_idx, True, current_loss,             # <<<<<<<<<<<<<<
  *                     dloss, loss_left, loss_right,
  *                     left_data, right_data,
  */
-      __Pyx_TraceLine(678,0,__PYX_ERR(0, 678, __pyx_L1_error))
-      __pyx_t_5 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 678, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_5);
-      __pyx_t_15 = PyFloat_FromDouble(__pyx_v_current_loss); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 678, __pyx_L1_error)
+      __Pyx_TraceLine(711,0,__PYX_ERR(0, 711, __pyx_L1_error))
+      __pyx_t_2 = __Pyx_PyInt_From_int(__pyx_v_feature_idx); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 711, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_2);
+      __pyx_t_15 = PyFloat_FromDouble(__pyx_v_current_loss); if (unlikely(!__pyx_t_15)) __PYX_ERR(0, 711, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_15);
 
-      /* "CART.pyx":679
+      /* "CART.pyx":712
  *                 split = SplitChoice(
  *                     feature_idx, True, current_loss,
  *                     dloss, loss_left, loss_right,             # <<<<<<<<<<<<<<
  *                     left_data, right_data,
  *                     threshold_idx=threshold_idx,
  */
-      __Pyx_TraceLine(679,0,__PYX_ERR(0, 679, __pyx_L1_error))
-      __pyx_t_3 = PyFloat_FromDouble(__pyx_v_dloss); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 679, __pyx_L1_error)
+      __Pyx_TraceLine(712,0,__PYX_ERR(0, 712, __pyx_L1_error))
+      __pyx_t_14 = PyFloat_FromDouble(__pyx_v_dloss); if (unlikely(!__pyx_t_14)) __PYX_ERR(0, 712, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_14);
+      __pyx_t_3 = PyFloat_FromDouble(__pyx_v_loss_left); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 712, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_3);
-      __pyx_t_4 = PyFloat_FromDouble(__pyx_v_loss_left); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 679, __pyx_L1_error)
+      __pyx_t_4 = PyFloat_FromDouble(__pyx_v_loss_right); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 712, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_4);
-      __pyx_t_2 = PyFloat_FromDouble(__pyx_v_loss_right); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 679, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
 
-      /* "CART.pyx":677
+      /* "CART.pyx":710
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue
  *                 split = SplitChoice(             # <<<<<<<<<<<<<<
  *                     feature_idx, True, current_loss,
  *                     dloss, loss_left, loss_right,
  */
-      __Pyx_TraceLine(677,0,__PYX_ERR(0, 677, __pyx_L1_error))
-      __pyx_t_16 = PyTuple_New(8); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 677, __pyx_L1_error)
+      __Pyx_TraceLine(710,0,__PYX_ERR(0, 710, __pyx_L1_error))
+      __pyx_t_16 = PyTuple_New(8); if (unlikely(!__pyx_t_16)) __PYX_ERR(0, 710, __pyx_L1_error)
       __Pyx_GOTREF(__pyx_t_16);
-      __Pyx_GIVEREF(__pyx_t_5);
-      PyTuple_SET_ITEM(__pyx_t_16, 0, __pyx_t_5);
+      __Pyx_GIVEREF(__pyx_t_2);
+      PyTuple_SET_ITEM(__pyx_t_16, 0, __pyx_t_2);
       __Pyx_INCREF(Py_True);
       __Pyx_GIVEREF(Py_True);
       PyTuple_SET_ITEM(__pyx_t_16, 1, Py_True);
       __Pyx_GIVEREF(__pyx_t_15);
       PyTuple_SET_ITEM(__pyx_t_16, 2, __pyx_t_15);
+      __Pyx_GIVEREF(__pyx_t_14);
+      PyTuple_SET_ITEM(__pyx_t_16, 3, __pyx_t_14);
       __Pyx_GIVEREF(__pyx_t_3);
-      PyTuple_SET_ITEM(__pyx_t_16, 3, __pyx_t_3);
+      PyTuple_SET_ITEM(__pyx_t_16, 4, __pyx_t_3);
       __Pyx_GIVEREF(__pyx_t_4);
-      PyTuple_SET_ITEM(__pyx_t_16, 4, __pyx_t_4);
-      __Pyx_GIVEREF(__pyx_t_2);
-      PyTuple_SET_ITEM(__pyx_t_16, 5, __pyx_t_2);
+      PyTuple_SET_ITEM(__pyx_t_16, 5, __pyx_t_4);
       __Pyx_INCREF(((PyObject *)__pyx_v_left_data));
       __Pyx_GIVEREF(((PyObject *)__pyx_v_left_data));
       PyTuple_SET_ITEM(__pyx_t_16, 6, ((PyObject *)__pyx_v_left_data));
       __Pyx_INCREF(((PyObject *)__pyx_v_right_data));
       __Pyx_GIVEREF(((PyObject *)__pyx_v_right_data));
       PyTuple_SET_ITEM(__pyx_t_16, 7, ((PyObject *)__pyx_v_right_data));
-      __pyx_t_5 = 0;
+      __pyx_t_2 = 0;
       __pyx_t_15 = 0;
+      __pyx_t_14 = 0;
       __pyx_t_3 = 0;
       __pyx_t_4 = 0;
-      __pyx_t_2 = 0;
 
-      /* "CART.pyx":681
+      /* "CART.pyx":714
  *                     dloss, loss_left, loss_right,
  *                     left_data, right_data,
  *                     threshold_idx=threshold_idx,             # <<<<<<<<<<<<<<
  *                     ordered_labels=ordered
  *                 )
  */
-      __Pyx_TraceLine(681,0,__PYX_ERR(0, 681, __pyx_L1_error))
-      __pyx_t_2 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 681, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_2);
-      if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_threshold_idx, __pyx_v_threshold_idx) < 0) __PYX_ERR(0, 681, __pyx_L1_error)
+      __Pyx_TraceLine(714,0,__PYX_ERR(0, 714, __pyx_L1_error))
+      __pyx_t_4 = __Pyx_PyDict_NewPresized(2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 714, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_4);
+      if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_threshold_idx, __pyx_v_threshold_idx) < 0) __PYX_ERR(0, 714, __pyx_L1_error)
 
-      /* "CART.pyx":682
+      /* "CART.pyx":715
  *                     left_data, right_data,
  *                     threshold_idx=threshold_idx,
  *                     ordered_labels=ordered             # <<<<<<<<<<<<<<
  *                 )
  *                 if split.is_better_than(ret):
  */
-      __Pyx_TraceLine(682,0,__PYX_ERR(0, 682, __pyx_L1_error))
-      if (PyDict_SetItem(__pyx_t_2, __pyx_n_s_ordered_labels, ((PyObject *)__pyx_v_ordered)) < 0) __PYX_ERR(0, 681, __pyx_L1_error)
+      __Pyx_TraceLine(715,0,__PYX_ERR(0, 715, __pyx_L1_error))
+      if (PyDict_SetItem(__pyx_t_4, __pyx_n_s_ordered_labels, ((PyObject *)__pyx_v_ordered)) < 0) __PYX_ERR(0, 714, __pyx_L1_error)
 
-      /* "CART.pyx":677
+      /* "CART.pyx":710
  *                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
  *                     continue
  *                 split = SplitChoice(             # <<<<<<<<<<<<<<
  *                     feature_idx, True, current_loss,
  *                     dloss, loss_left, loss_right,
  */
-      __Pyx_TraceLine(677,0,__PYX_ERR(0, 677, __pyx_L1_error))
-      __pyx_t_4 = __Pyx_PyObject_Call(((PyObject *)__pyx_ptype_4CART_SplitChoice), __pyx_t_16, __pyx_t_2); if (unlikely(!__pyx_t_4)) __PYX_ERR(0, 677, __pyx_L1_error)
-      __Pyx_GOTREF(__pyx_t_4);
+      __Pyx_TraceLine(710,0,__PYX_ERR(0, 710, __pyx_L1_error))
+      __pyx_t_3 = __Pyx_PyObject_Call(((PyObject *)__pyx_ptype_4CART_SplitChoice), __pyx_t_16, __pyx_t_4); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 710, __pyx_L1_error)
+      __Pyx_GOTREF(__pyx_t_3);
       __Pyx_DECREF(__pyx_t_16); __pyx_t_16 = 0;
-      __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-      __Pyx_XDECREF_SET(__pyx_v_split, ((struct __pyx_obj_4CART_SplitChoice *)__pyx_t_4));
-      __pyx_t_4 = 0;
+      __Pyx_DECREF(__pyx_t_4); __pyx_t_4 = 0;
+      __Pyx_XDECREF_SET(__pyx_v_split, ((struct __pyx_obj_4CART_SplitChoice *)__pyx_t_3));
+      __pyx_t_3 = 0;
 
-      /* "CART.pyx":684
+      /* "CART.pyx":717
  *                     ordered_labels=ordered
  *                 )
  *                 if split.is_better_than(ret):             # <<<<<<<<<<<<<<
  *                     ret = split
  *         return ret
  */
-      __Pyx_TraceLine(684,0,__PYX_ERR(0, 684, __pyx_L1_error))
-      __pyx_t_14 = (__pyx_f_4CART_11SplitChoice_is_better_than(__pyx_v_split, __pyx_v_ret) != 0);
-      if (__pyx_t_14) {
+      __Pyx_TraceLine(717,0,__PYX_ERR(0, 717, __pyx_L1_error))
+      __pyx_t_13 = (__pyx_f_4CART_11SplitChoice_is_better_than(__pyx_v_split, __pyx_v_ret) != 0);
+      if (__pyx_t_13) {
 
-        /* "CART.pyx":685
+        /* "CART.pyx":718
  *                 )
  *                 if split.is_better_than(ret):
  *                     ret = split             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-        __Pyx_TraceLine(685,0,__PYX_ERR(0, 685, __pyx_L1_error))
+        __Pyx_TraceLine(718,0,__PYX_ERR(0, 718, __pyx_L1_error))
         __Pyx_INCREF(((PyObject *)__pyx_v_split));
         __Pyx_DECREF_SET(__pyx_v_ret, __pyx_v_split);
 
-        /* "CART.pyx":684
+        /* "CART.pyx":717
  *                     ordered_labels=ordered
  *                 )
  *                 if split.is_better_than(ret):             # <<<<<<<<<<<<<<
@@ -15758,32 +16299,32 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
     }
     __pyx_L5:;
 
-    /* "CART.pyx":654
+    /* "CART.pyx":688
  *         cdef SplitChoice split
  *         cdef int threshold_value
  *         for threshold_idx in range(ordered.shape[0]-1):             # <<<<<<<<<<<<<<
  *             threshold_value = ordered[threshold_idx]
  *             _mask_categorical(values, threshold_value, goes_left)
  */
-    __Pyx_TraceLine(654,0,__PYX_ERR(0, 654, __pyx_L1_error))
+    __Pyx_TraceLine(688,0,__PYX_ERR(0, 688, __pyx_L1_error))
     __pyx_L3_continue:;
   }
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "CART.pyx":686
+  /* "CART.pyx":719
  *                 if split.is_better_than(ret):
  *                     ret = split
  *         return ret             # <<<<<<<<<<<<<<
  * 
  * 
  */
-  __Pyx_TraceLine(686,0,__PYX_ERR(0, 686, __pyx_L1_error))
+  __Pyx_TraceLine(719,0,__PYX_ERR(0, 719, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
   __Pyx_INCREF(((PyObject *)__pyx_v_ret));
   __pyx_r = ((PyObject *)__pyx_v_ret);
   goto __pyx_L0;
 
-  /* "CART.pyx":631
+  /* "CART.pyx":666
  *         return ret
  * 
  *     cdef _find_best_threshold_categorical(             # <<<<<<<<<<<<<<
@@ -15797,9 +16338,9 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
   __Pyx_XDECREF(__pyx_t_2);
   __Pyx_XDECREF(__pyx_t_3);
   __Pyx_XDECREF(__pyx_t_4);
-  __Pyx_XDECREF(__pyx_t_5);
-  __PYX_XDEC_MEMVIEW(&__pyx_t_6, 1);
-  __PYX_XDEC_MEMVIEW(&__pyx_t_10, 1);
+  __PYX_XDEC_MEMVIEW(&__pyx_t_5, 1);
+  __PYX_XDEC_MEMVIEW(&__pyx_t_9, 1);
+  __Pyx_XDECREF(__pyx_t_14);
   __Pyx_XDECREF(__pyx_t_15);
   __Pyx_XDECREF(__pyx_t_16);
   __Pyx_AddTraceback("CART.CART._find_best_threshold_categorical", __pyx_clineno, __pyx_lineno, __pyx_filename);
@@ -15819,7 +16360,7 @@ static PyObject *__pyx_f_4CART_4CART__find_best_threshold_categorical(struct __p
   return __pyx_r;
 }
 
-/* "CART.pyx":689
+/* "CART.pyx":722
  * 
  * 
  *     def predict(self, X):             # <<<<<<<<<<<<<<
@@ -15866,87 +16407,87 @@ static PyObject *__pyx_pf_4CART_4CART_6predict(struct __pyx_obj_4CART_CART *__py
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
   __Pyx_RefNannySetupContext("predict", 0);
-  __Pyx_TraceCall("predict", __pyx_f[0], 689, 0, __PYX_ERR(0, 689, __pyx_L1_error));
+  __Pyx_TraceCall("predict", __pyx_f[0], 722, 0, __PYX_ERR(0, 722, __pyx_L1_error));
   __pyx_pybuffer_ret.pybuffer.buf = NULL;
   __pyx_pybuffer_ret.refcount = 0;
   __pyx_pybuffernd_ret.data = NULL;
   __pyx_pybuffernd_ret.rcbuffer = &__pyx_pybuffer_ret;
 
-  /* "CART.pyx":690
+  /* "CART.pyx":723
  * 
  *     def predict(self, X):
  *         cdef np.float64_t[:, :] data = self.data.transform(X)             # <<<<<<<<<<<<<<
  *         cdef int n = X.shape[0]
  *         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
  */
-  __Pyx_TraceLine(690,0,__PYX_ERR(0, 690, __pyx_L1_error))
-  if (!(likely(((__pyx_v_X) == Py_None) || likely(__Pyx_TypeTest(__pyx_v_X, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 690, __pyx_L1_error)
-  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_7Dataset_transform(__pyx_v_self->data, ((PyArrayObject *)__pyx_v_X))); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 690, __pyx_L1_error)
+  __Pyx_TraceLine(723,0,__PYX_ERR(0, 723, __pyx_L1_error))
+  if (!(likely(((__pyx_v_X) == Py_None) || likely(__Pyx_TypeTest(__pyx_v_X, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 723, __pyx_L1_error)
+  __pyx_t_1 = ((PyObject *)__pyx_f_4CART_7Dataset_transform(__pyx_v_self->data, ((PyArrayObject *)__pyx_v_X))); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 723, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_float64_t(__pyx_t_1, PyBUF_WRITABLE); if (unlikely(!__pyx_t_2.memview)) __PYX_ERR(0, 690, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_to_MemoryviewSlice_dsds_nn___pyx_t_5numpy_float64_t(__pyx_t_1, PyBUF_WRITABLE); if (unlikely(!__pyx_t_2.memview)) __PYX_ERR(0, 723, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_v_data = __pyx_t_2;
   __pyx_t_2.memview = NULL;
   __pyx_t_2.data = NULL;
 
-  /* "CART.pyx":691
+  /* "CART.pyx":724
  *     def predict(self, X):
  *         cdef np.float64_t[:, :] data = self.data.transform(X)
  *         cdef int n = X.shape[0]             # <<<<<<<<<<<<<<
  *         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
  *         cdef int i
  */
-  __Pyx_TraceLine(691,0,__PYX_ERR(0, 691, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_X, __pyx_n_s_shape); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 691, __pyx_L1_error)
+  __Pyx_TraceLine(724,0,__PYX_ERR(0, 724, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_v_X, __pyx_n_s_shape); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 724, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_GetItemInt(__pyx_t_1, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 691, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_GetItemInt(__pyx_t_1, 0, long, 1, __Pyx_PyInt_From_long, 0, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 724, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_t_3); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 691, __pyx_L1_error)
+  __pyx_t_4 = __Pyx_PyInt_As_int(__pyx_t_3); if (unlikely((__pyx_t_4 == (int)-1) && PyErr_Occurred())) __PYX_ERR(0, 724, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __pyx_v_n = __pyx_t_4;
 
-  /* "CART.pyx":692
+  /* "CART.pyx":725
  *         cdef np.float64_t[:, :] data = self.data.transform(X)
  *         cdef int n = X.shape[0]
  *         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)             # <<<<<<<<<<<<<<
  *         cdef int i
  *         for i in prange(n, nogil=True, schedule='runtime'):
  */
-  __Pyx_TraceLine(692,0,__PYX_ERR(0, 692, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 692, __pyx_L1_error)
+  __Pyx_TraceLine(725,0,__PYX_ERR(0, 725, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_3, __pyx_n_s_np); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_empty); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 692, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_3, __pyx_n_s_empty); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_n); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 692, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyInt_From_int(__pyx_v_n); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __pyx_t_5 = PyTuple_New(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 692, __pyx_L1_error)
+  __pyx_t_5 = PyTuple_New(1); if (unlikely(!__pyx_t_5)) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_5);
   __Pyx_GIVEREF(__pyx_t_3);
   PyTuple_SET_ITEM(__pyx_t_5, 0, __pyx_t_3);
   __pyx_t_3 = 0;
-  __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 692, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_PyDict_NewPresized(1); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 692, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_6, __pyx_n_s_np); if (unlikely(!__pyx_t_6)) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_6);
-  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_float64); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 692, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_GetAttrStr(__pyx_t_6, __pyx_n_s_float64); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_DECREF(__pyx_t_6); __pyx_t_6 = 0;
-  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_dtype, __pyx_t_7) < 0) __PYX_ERR(0, 692, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_t_3, __pyx_n_s_dtype, __pyx_t_7) < 0) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_7); __pyx_t_7 = 0;
-  __pyx_t_7 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_5, __pyx_t_3); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 692, __pyx_L1_error)
+  __pyx_t_7 = __Pyx_PyObject_Call(__pyx_t_1, __pyx_t_5, __pyx_t_3); if (unlikely(!__pyx_t_7)) __PYX_ERR(0, 725, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_7);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_5); __pyx_t_5 = 0;
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
-  if (!(likely(((__pyx_t_7) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_7, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 692, __pyx_L1_error)
+  if (!(likely(((__pyx_t_7) == Py_None) || likely(__Pyx_TypeTest(__pyx_t_7, __pyx_ptype_5numpy_ndarray))))) __PYX_ERR(0, 725, __pyx_L1_error)
   __pyx_t_8 = ((PyArrayObject *)__pyx_t_7);
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
     if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_ret.rcbuffer->pybuffer, (PyObject*)__pyx_t_8, &__Pyx_TypeInfo_nn___pyx_t_5numpy_float64_t, PyBUF_FORMAT| PyBUF_STRIDES| PyBUF_WRITABLE, 1, 0, __pyx_stack) == -1)) {
       __pyx_v_ret = ((PyArrayObject *)Py_None); __Pyx_INCREF(Py_None); __pyx_pybuffernd_ret.rcbuffer->pybuffer.buf = NULL;
-      __PYX_ERR(0, 692, __pyx_L1_error)
+      __PYX_ERR(0, 725, __pyx_L1_error)
     } else {__pyx_pybuffernd_ret.diminfo[0].strides = __pyx_pybuffernd_ret.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_ret.diminfo[0].shape = __pyx_pybuffernd_ret.rcbuffer->pybuffer.shape[0];
     }
   }
@@ -15954,14 +16495,14 @@ static PyObject *__pyx_pf_4CART_4CART_6predict(struct __pyx_obj_4CART_CART *__py
   __pyx_v_ret = ((PyArrayObject *)__pyx_t_7);
   __pyx_t_7 = 0;
 
-  /* "CART.pyx":694
+  /* "CART.pyx":727
  *         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
  *         cdef int i
  *         for i in prange(n, nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *             ret[i] = self._predict_instance(data[i, :])
  *         return ret
  */
-  __Pyx_TraceLine(694,0,__PYX_ERR(0, 694, __pyx_L1_error))
+  __Pyx_TraceLine(727,0,__PYX_ERR(0, 727, __pyx_L1_error))
   {
       #ifdef WITH_THREAD
       PyThreadState *_save;
@@ -16004,14 +16545,14 @@ static PyObject *__pyx_pf_4CART_4CART_6predict(struct __pyx_obj_4CART_CART *__py
                         {
                             __pyx_v_i = (int)(0 + 1 * __pyx_t_9);
 
-                            /* "CART.pyx":695
+                            /* "CART.pyx":728
  *         cdef int i
  *         for i in prange(n, nogil=True, schedule='runtime'):
  *             ret[i] = self._predict_instance(data[i, :])             # <<<<<<<<<<<<<<
  *         return ret
  * 
  */
-                            __Pyx_TraceLine(695,1,__PYX_ERR(0, 695, __pyx_L8_error))
+                            __Pyx_TraceLine(728,1,__PYX_ERR(0, 728, __pyx_L8_error))
                             __pyx_t_11.data = __pyx_v_data.data;
                             __pyx_t_11.memview = __pyx_v_data.memview;
                             __PYX_INC_MEMVIEW(&__pyx_t_11, 0);
@@ -16116,14 +16657,14 @@ __pyx_t_12 = __pyx_v_i;
         #endif
       }
 
-      /* "CART.pyx":694
+      /* "CART.pyx":727
  *         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
  *         cdef int i
  *         for i in prange(n, nogil=True, schedule='runtime'):             # <<<<<<<<<<<<<<
  *             ret[i] = self._predict_instance(data[i, :])
  *         return ret
  */
-      __Pyx_TraceLine(694,1,__PYX_ERR(0, 694, __pyx_L4_error))
+      __Pyx_TraceLine(727,1,__PYX_ERR(0, 727, __pyx_L4_error))
       /*finally:*/ {
         /*normal exit:*/{
           #ifdef WITH_THREAD
@@ -16143,20 +16684,20 @@ __pyx_t_12 = __pyx_v_i;
       }
   }
 
-  /* "CART.pyx":696
+  /* "CART.pyx":729
  *         for i in prange(n, nogil=True, schedule='runtime'):
  *             ret[i] = self._predict_instance(data[i, :])
  *         return ret             # <<<<<<<<<<<<<<
  * 
  *     cdef np.float64_t _predict_instance(self, np.float64_t[:] x) noexcept nogil:
  */
-  __Pyx_TraceLine(696,0,__PYX_ERR(0, 696, __pyx_L1_error))
+  __Pyx_TraceLine(729,0,__PYX_ERR(0, 729, __pyx_L1_error))
   __Pyx_XDECREF(__pyx_r);
   __Pyx_INCREF(((PyObject *)__pyx_v_ret));
   __pyx_r = ((PyObject *)__pyx_v_ret);
   goto __pyx_L0;
 
-  /* "CART.pyx":689
+  /* "CART.pyx":722
  * 
  * 
  *     def predict(self, X):             # <<<<<<<<<<<<<<
@@ -16193,7 +16734,7 @@ __pyx_t_12 = __pyx_v_i;
   return __pyx_r;
 }
 
-/* "CART.pyx":698
+/* "CART.pyx":731
  *         return ret
  * 
  *     cdef np.float64_t _predict_instance(self, np.float64_t[:] x) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -16213,77 +16754,77 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__predict_instance(struct __p
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
-  __Pyx_TraceCall("_predict_instance", __pyx_f[0], 698, 1, __PYX_ERR(0, 698, __pyx_L1_error));
+  __Pyx_TraceCall("_predict_instance", __pyx_f[0], 731, 1, __PYX_ERR(0, 731, __pyx_L1_error));
 
-  /* "CART.pyx":699
+  /* "CART.pyx":732
  * 
  *     cdef np.float64_t _predict_instance(self, np.float64_t[:] x) noexcept nogil:
  *         cdef _Node* node = self.root             # <<<<<<<<<<<<<<
  *         cdef np.float64_t val
  *         cdef int categorical_label
  */
-  __Pyx_TraceLine(699,1,__PYX_ERR(0, 699, __pyx_L1_error))
+  __Pyx_TraceLine(732,1,__PYX_ERR(0, 732, __pyx_L1_error))
   __pyx_t_1 = __pyx_v_self->root;
   __pyx_v_node = __pyx_t_1;
 
-  /* "CART.pyx":702
+  /* "CART.pyx":735
  *         cdef np.float64_t val
  *         cdef int categorical_label
  *         while _is_root(node):             # <<<<<<<<<<<<<<
  *             if node.is_categorical:
  *                 categorical_label = <int>(x[node.feature_idx])
  */
-  __Pyx_TraceLine(702,1,__PYX_ERR(0, 702, __pyx_L1_error))
+  __Pyx_TraceLine(735,1,__PYX_ERR(0, 735, __pyx_L1_error))
   while (1) {
     __pyx_t_2 = (_is_root(__pyx_v_node) != 0);
     if (!__pyx_t_2) break;
 
-    /* "CART.pyx":703
+    /* "CART.pyx":736
  *         cdef int categorical_label
  *         while _is_root(node):
  *             if node.is_categorical:             # <<<<<<<<<<<<<<
  *                 categorical_label = <int>(x[node.feature_idx])
  *                 if vector_contains_int32(&node.categorical_values_left, categorical_label):
  */
-    __Pyx_TraceLine(703,1,__PYX_ERR(0, 703, __pyx_L1_error))
+    __Pyx_TraceLine(736,1,__PYX_ERR(0, 736, __pyx_L1_error))
     __pyx_t_2 = (__pyx_v_node->is_categorical != 0);
     if (__pyx_t_2) {
 
-      /* "CART.pyx":704
+      /* "CART.pyx":737
  *         while _is_root(node):
  *             if node.is_categorical:
  *                 categorical_label = <int>(x[node.feature_idx])             # <<<<<<<<<<<<<<
  *                 if vector_contains_int32(&node.categorical_values_left, categorical_label):
  *                     node = node.left_child
  */
-      __Pyx_TraceLine(704,1,__PYX_ERR(0, 704, __pyx_L1_error))
+      __Pyx_TraceLine(737,1,__PYX_ERR(0, 737, __pyx_L1_error))
       __pyx_t_3 = __pyx_v_node->feature_idx;
       if (__pyx_t_3 < 0) __pyx_t_3 += __pyx_v_x.shape[0];
       __pyx_v_categorical_label = ((int)(*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_x.data + __pyx_t_3 * __pyx_v_x.strides[0]) ))));
 
-      /* "CART.pyx":705
+      /* "CART.pyx":738
  *             if node.is_categorical:
  *                 categorical_label = <int>(x[node.feature_idx])
  *                 if vector_contains_int32(&node.categorical_values_left, categorical_label):             # <<<<<<<<<<<<<<
  *                     node = node.left_child
  *                 elif vector_contains_int32(&node.categorical_values_right, categorical_label):
  */
-      __Pyx_TraceLine(705,1,__PYX_ERR(0, 705, __pyx_L1_error))
+      __Pyx_TraceLine(738,1,__PYX_ERR(0, 738, __pyx_L1_error))
       __pyx_t_2 = (vector_contains_int32((&__pyx_v_node->categorical_values_left), __pyx_v_categorical_label) != 0);
       if (__pyx_t_2) {
 
-        /* "CART.pyx":706
+        /* "CART.pyx":739
  *                 categorical_label = <int>(x[node.feature_idx])
  *                 if vector_contains_int32(&node.categorical_values_left, categorical_label):
  *                     node = node.left_child             # <<<<<<<<<<<<<<
  *                 elif vector_contains_int32(&node.categorical_values_right, categorical_label):
  *                     node = node.right_child
  */
-        __Pyx_TraceLine(706,1,__PYX_ERR(0, 706, __pyx_L1_error))
+        __Pyx_TraceLine(739,1,__PYX_ERR(0, 739, __pyx_L1_error))
         __pyx_t_1 = __pyx_v_node->left_child;
         __pyx_v_node = __pyx_t_1;
 
-        /* "CART.pyx":705
+        /* "CART.pyx":738
  *             if node.is_categorical:
  *                 categorical_label = <int>(x[node.feature_idx])
  *                 if vector_contains_int32(&node.categorical_values_left, categorical_label):             # <<<<<<<<<<<<<<
@@ -16293,29 +16834,29 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__predict_instance(struct __p
         goto __pyx_L6;
       }
 
-      /* "CART.pyx":707
+      /* "CART.pyx":740
  *                 if vector_contains_int32(&node.categorical_values_left, categorical_label):
  *                     node = node.left_child
  *                 elif vector_contains_int32(&node.categorical_values_right, categorical_label):             # <<<<<<<<<<<<<<
  *                     node = node.right_child
  *                 else:
  */
-      __Pyx_TraceLine(707,1,__PYX_ERR(0, 707, __pyx_L1_error))
+      __Pyx_TraceLine(740,1,__PYX_ERR(0, 740, __pyx_L1_error))
       __pyx_t_2 = (vector_contains_int32((&__pyx_v_node->categorical_values_right), __pyx_v_categorical_label) != 0);
       if (__pyx_t_2) {
 
-        /* "CART.pyx":708
+        /* "CART.pyx":741
  *                     node = node.left_child
  *                 elif vector_contains_int32(&node.categorical_values_right, categorical_label):
  *                     node = node.right_child             # <<<<<<<<<<<<<<
  *                 else:
  *                     # Stop search if modality of categorical value has never been
  */
-        __Pyx_TraceLine(708,1,__PYX_ERR(0, 708, __pyx_L1_error))
+        __Pyx_TraceLine(741,1,__PYX_ERR(0, 741, __pyx_L1_error))
         __pyx_t_1 = __pyx_v_node->right_child;
         __pyx_v_node = __pyx_t_1;
 
-        /* "CART.pyx":707
+        /* "CART.pyx":740
  *                 if vector_contains_int32(&node.categorical_values_left, categorical_label):
  *                     node = node.left_child
  *                 elif vector_contains_int32(&node.categorical_values_right, categorical_label):             # <<<<<<<<<<<<<<
@@ -16325,20 +16866,20 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__predict_instance(struct __p
         goto __pyx_L6;
       }
 
-      /* "CART.pyx":712
+      /* "CART.pyx":745
  *                     # Stop search if modality of categorical value has never been
  *                     # seen at this point
  *                     break             # <<<<<<<<<<<<<<
  *             else:
  *                 val = x[node.feature_idx]
  */
-      __Pyx_TraceLine(712,1,__PYX_ERR(0, 712, __pyx_L1_error))
+      __Pyx_TraceLine(745,1,__PYX_ERR(0, 745, __pyx_L1_error))
       /*else*/ {
         goto __pyx_L4_break;
       }
       __pyx_L6:;
 
-      /* "CART.pyx":703
+      /* "CART.pyx":736
  *         cdef int categorical_label
  *         while _is_root(node):
  *             if node.is_categorical:             # <<<<<<<<<<<<<<
@@ -16348,42 +16889,42 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__predict_instance(struct __p
       goto __pyx_L5;
     }
 
-    /* "CART.pyx":714
+    /* "CART.pyx":747
  *                     break
  *             else:
  *                 val = x[node.feature_idx]             # <<<<<<<<<<<<<<
  *                 if val <= node.threshold:
  *                     node = node.left_child
  */
-    __Pyx_TraceLine(714,1,__PYX_ERR(0, 714, __pyx_L1_error))
+    __Pyx_TraceLine(747,1,__PYX_ERR(0, 747, __pyx_L1_error))
     /*else*/ {
       __pyx_t_3 = __pyx_v_node->feature_idx;
       if (__pyx_t_3 < 0) __pyx_t_3 += __pyx_v_x.shape[0];
       __pyx_v_val = (*((__pyx_t_5numpy_float64_t *) ( /* dim=0 */ (__pyx_v_x.data + __pyx_t_3 * __pyx_v_x.strides[0]) )));
 
-      /* "CART.pyx":715
+      /* "CART.pyx":748
  *             else:
  *                 val = x[node.feature_idx]
  *                 if val <= node.threshold:             # <<<<<<<<<<<<<<
  *                     node = node.left_child
  *                 else:
  */
-      __Pyx_TraceLine(715,1,__PYX_ERR(0, 715, __pyx_L1_error))
+      __Pyx_TraceLine(748,1,__PYX_ERR(0, 748, __pyx_L1_error))
       __pyx_t_2 = ((__pyx_v_val <= __pyx_v_node->threshold) != 0);
       if (__pyx_t_2) {
 
-        /* "CART.pyx":716
+        /* "CART.pyx":749
  *                 val = x[node.feature_idx]
  *                 if val <= node.threshold:
  *                     node = node.left_child             # <<<<<<<<<<<<<<
  *                 else:
  *                     node = node.right_child
  */
-        __Pyx_TraceLine(716,1,__PYX_ERR(0, 716, __pyx_L1_error))
+        __Pyx_TraceLine(749,1,__PYX_ERR(0, 749, __pyx_L1_error))
         __pyx_t_1 = __pyx_v_node->left_child;
         __pyx_v_node = __pyx_t_1;
 
-        /* "CART.pyx":715
+        /* "CART.pyx":748
  *             else:
  *                 val = x[node.feature_idx]
  *                 if val <= node.threshold:             # <<<<<<<<<<<<<<
@@ -16393,14 +16934,14 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__predict_instance(struct __p
         goto __pyx_L7;
       }
 
-      /* "CART.pyx":718
+      /* "CART.pyx":751
  *                     node = node.left_child
  *                 else:
  *                     node = node.right_child             # <<<<<<<<<<<<<<
  *         return node.avg_value
  * 
  */
-      __Pyx_TraceLine(718,1,__PYX_ERR(0, 718, __pyx_L1_error))
+      __Pyx_TraceLine(751,1,__PYX_ERR(0, 751, __pyx_L1_error))
       /*else*/ {
         __pyx_t_1 = __pyx_v_node->right_child;
         __pyx_v_node = __pyx_t_1;
@@ -16411,17 +16952,17 @@ static __pyx_t_5numpy_float64_t __pyx_f_4CART_4CART__predict_instance(struct __p
   }
   __pyx_L4_break:;
 
-  /* "CART.pyx":719
+  /* "CART.pyx":752
  *                 else:
  *                     node = node.right_child
  *         return node.avg_value             # <<<<<<<<<<<<<<
  * 
  */
-  __Pyx_TraceLine(719,1,__PYX_ERR(0, 719, __pyx_L1_error))
+  __Pyx_TraceLine(752,1,__PYX_ERR(0, 752, __pyx_L1_error))
   __pyx_r = __pyx_v_node->avg_value;
   goto __pyx_L0;
 
-  /* "CART.pyx":698
+  /* "CART.pyx":731
  *         return ret
  * 
  *     cdef np.float64_t _predict_instance(self, np.float64_t[:] x) noexcept nogil:             # <<<<<<<<<<<<<<
@@ -32394,10 +32935,15 @@ static PyObject *__pyx_getprop_4CART_4Node_is_categorical(PyObject *o, CYTHON_UN
   return __pyx_pw_4CART_4Node_14is_categorical_1__get__(o);
 }
 
+static PyObject *__pyx_getprop_4CART_4Node_index(PyObject *o, CYTHON_UNUSED void *x) {
+  return __pyx_pw_4CART_4Node_5index_1__get__(o);
+}
+
 static PyMethodDef __pyx_methods_4CART_Node[] = {
   {"get_left_modalities", (PyCFunction)__pyx_pw_4CART_4Node_3get_left_modalities, METH_O, 0},
-  {"__reduce_cython__", (PyCFunction)__pyx_pw_4CART_4Node_5__reduce_cython__, METH_NOARGS, 0},
-  {"__setstate_cython__", (PyCFunction)__pyx_pw_4CART_4Node_7__setstate_cython__, METH_O, 0},
+  {"get_right_modalities", (PyCFunction)__pyx_pw_4CART_4Node_5get_right_modalities, METH_O, 0},
+  {"__reduce_cython__", (PyCFunction)__pyx_pw_4CART_4Node_7__reduce_cython__, METH_NOARGS, 0},
+  {"__setstate_cython__", (PyCFunction)__pyx_pw_4CART_4Node_9__setstate_cython__, METH_O, 0},
   {0, 0, 0, 0}
 };
 
@@ -32413,6 +32959,7 @@ static struct PyGetSetDef __pyx_getsets_4CART_Node[] = {
   {(char *)"kind", __pyx_getprop_4CART_4Node_kind, 0, (char *)0, 0},
   {(char *)"nb_samples", __pyx_getprop_4CART_4Node_nb_samples, 0, (char *)0, 0},
   {(char *)"is_categorical", __pyx_getprop_4CART_4Node_is_categorical, 0, (char *)0, 0},
+  {(char *)"index", __pyx_getprop_4CART_4Node_index, 0, (char *)0, 0},
   {0, 0, 0, 0, 0}
 };
 
@@ -32953,6 +33500,20 @@ static int __pyx_setprop_4CART_4CART_nb_cov(PyObject *o, PyObject *v, CYTHON_UNU
   }
 }
 
+static PyObject *__pyx_getprop_4CART_4CART_idx_nodes(PyObject *o, CYTHON_UNUSED void *x) {
+  return __pyx_pw_4CART_4CART_9idx_nodes_1__get__(o);
+}
+
+static int __pyx_setprop_4CART_4CART_idx_nodes(PyObject *o, PyObject *v, CYTHON_UNUSED void *x) {
+  if (v) {
+    return __pyx_pw_4CART_4CART_9idx_nodes_3__set__(o, v);
+  }
+  else {
+    PyErr_SetString(PyExc_NotImplementedError, "__del__");
+    return -1;
+  }
+}
+
 static PyMethodDef __pyx_methods_4CART_CART[] = {
   {"fit", (PyCFunction)__pyx_pw_4CART_4CART_5fit, METH_O, 0},
   {"predict", (PyCFunction)__pyx_pw_4CART_4CART_7predict, METH_O, 0},
@@ -32970,6 +33531,7 @@ static struct PyGetSetDef __pyx_getsets_4CART_CART[] = {
   {(char *)"delta_loss", __pyx_getprop_4CART_4CART_delta_loss, __pyx_setprop_4CART_4CART_delta_loss, (char *)0, 0},
   {(char *)"loss", __pyx_getprop_4CART_4CART_loss, __pyx_setprop_4CART_4CART_loss, (char *)0, 0},
   {(char *)"nb_cov", __pyx_getprop_4CART_4CART_nb_cov, __pyx_setprop_4CART_4CART_nb_cov, (char *)0, 0},
+  {(char *)"idx_nodes", __pyx_getprop_4CART_4CART_idx_nodes, __pyx_setprop_4CART_4CART_idx_nodes, (char *)0, 0},
   {0, 0, 0, 0, 0}
 };
 
@@ -33828,6 +34390,7 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_s_Cannot_create_writable_memory_vi, __pyx_k_Cannot_create_writable_memory_vi, sizeof(__pyx_k_Cannot_create_writable_memory_vi), 0, 0, 1, 0},
   {&__pyx_kp_s_Cannot_index_with_type_s, __pyx_k_Cannot_index_with_type_s, sizeof(__pyx_k_Cannot_index_with_type_s), 0, 0, 1, 0},
   {&__pyx_n_s_CategoricalDtype, __pyx_k_CategoricalDtype, sizeof(__pyx_k_CategoricalDtype), 0, 0, 1, 1},
+  {&__pyx_kp_u_DLoss, __pyx_k_DLoss, sizeof(__pyx_k_DLoss), 0, 1, 0, 0},
   {&__pyx_n_s_Dataset, __pyx_k_Dataset, sizeof(__pyx_k_Dataset), 0, 0, 1, 1},
   {&__pyx_kp_u_Depth, __pyx_k_Depth, sizeof(__pyx_k_Depth), 0, 1, 0, 0},
   {&__pyx_n_s_Ellipsis, __pyx_k_Ellipsis, sizeof(__pyx_k_Ellipsis), 0, 0, 1, 1},
@@ -33841,7 +34404,6 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_kp_s_Invalid_mode_expected_c_or_fortr, __pyx_k_Invalid_mode_expected_c_or_fortr, sizeof(__pyx_k_Invalid_mode_expected_c_or_fortr), 0, 0, 1, 0},
   {&__pyx_kp_s_Invalid_shape_in_axis_d_d, __pyx_k_Invalid_shape_in_axis_d_d, sizeof(__pyx_k_Invalid_shape_in_axis_d_d), 0, 0, 1, 0},
   {&__pyx_n_u_Leaf, __pyx_k_Leaf, sizeof(__pyx_k_Leaf), 0, 1, 0, 1},
-  {&__pyx_kp_u_Loss, __pyx_k_Loss, sizeof(__pyx_k_Loss), 0, 1, 0, 0},
   {&__pyx_n_u_MSE, __pyx_k_MSE, sizeof(__pyx_k_MSE), 0, 1, 0, 1},
   {&__pyx_kp_u_Mean_value, __pyx_k_Mean_value, sizeof(__pyx_k_Mean_value), 0, 1, 0, 0},
   {&__pyx_n_s_MemoryError, __pyx_k_MemoryError, sizeof(__pyx_k_MemoryError), 0, 0, 1, 1},
@@ -33917,9 +34479,11 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {&__pyx_n_u_fortran, __pyx_k_fortran, sizeof(__pyx_k_fortran), 0, 1, 0, 1},
   {&__pyx_n_s_frac_valid, __pyx_k_frac_valid, sizeof(__pyx_k_frac_valid), 0, 0, 1, 1},
   {&__pyx_n_s_get_left_modalities, __pyx_k_get_left_modalities, sizeof(__pyx_k_get_left_modalities), 0, 0, 1, 1},
+  {&__pyx_n_s_get_right_modalities, __pyx_k_get_right_modalities, sizeof(__pyx_k_get_right_modalities), 0, 0, 1, 1},
   {&__pyx_n_s_getstate, __pyx_k_getstate, sizeof(__pyx_k_getstate), 0, 0, 1, 1},
   {&__pyx_kp_s_got_differing_extents_in_dimensi, __pyx_k_got_differing_extents_in_dimensi, sizeof(__pyx_k_got_differing_extents_in_dimensi), 0, 0, 1, 0},
   {&__pyx_n_s_id, __pyx_k_id, sizeof(__pyx_k_id), 0, 0, 1, 1},
+  {&__pyx_n_s_idx, __pyx_k_idx, sizeof(__pyx_k_idx), 0, 0, 1, 1},
   {&__pyx_n_s_import, __pyx_k_import, sizeof(__pyx_k_import), 0, 0, 1, 1},
   {&__pyx_n_s_inf, __pyx_k_inf, sizeof(__pyx_k_inf), 0, 0, 1, 1},
   {&__pyx_n_s_int32, __pyx_k_int32, sizeof(__pyx_k_int32), 0, 0, 1, 1},
@@ -34018,10 +34582,10 @@ static __Pyx_StringTabEntry __pyx_string_tab[] = {
   {0, 0, 0, 0, 0, 0, 0}
 };
 static CYTHON_SMALL_CODE int __Pyx_InitCachedBuiltins(void) {
-  __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_n_s_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(0, 136, __pyx_L1_error)
-  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 125, __pyx_L1_error)
+  __pyx_builtin_ValueError = __Pyx_GetBuiltinName(__pyx_n_s_ValueError); if (!__pyx_builtin_ValueError) __PYX_ERR(0, 153, __pyx_L1_error)
+  __pyx_builtin_range = __Pyx_GetBuiltinName(__pyx_n_s_range); if (!__pyx_builtin_range) __PYX_ERR(0, 132, __pyx_L1_error)
   __pyx_builtin_TypeError = __Pyx_GetBuiltinName(__pyx_n_s_TypeError); if (!__pyx_builtin_TypeError) __PYX_ERR(1, 2, __pyx_L1_error)
-  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 457, __pyx_L1_error)
+  __pyx_builtin_print = __Pyx_GetBuiltinName(__pyx_n_s_print); if (!__pyx_builtin_print) __PYX_ERR(0, 487, __pyx_L1_error)
   __pyx_builtin_ImportError = __Pyx_GetBuiltinName(__pyx_n_s_ImportError); if (!__pyx_builtin_ImportError) __PYX_ERR(2, 945, __pyx_L1_error)
   __pyx_builtin_MemoryError = __Pyx_GetBuiltinName(__pyx_n_s_MemoryError); if (!__pyx_builtin_MemoryError) __PYX_ERR(1, 149, __pyx_L1_error)
   __pyx_builtin_enumerate = __Pyx_GetBuiltinName(__pyx_n_s_enumerate); if (!__pyx_builtin_enumerate) __PYX_ERR(1, 152, __pyx_L1_error)
@@ -34037,14 +34601,14 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_RefNannyDeclarations
   __Pyx_RefNannySetupContext("__Pyx_InitCachedConstants", 0);
 
-  /* "CART.pyx":121
+  /* "CART.pyx":128
  *     cpdef list get_left_modalities(self, Dataset data):
  *         if not self.node.is_categorical:
  *             raise ValueError('Not a categorical split')             # <<<<<<<<<<<<<<
  *         cdef list ret = []
  *         cdef size_t i
  */
-  __pyx_tuple_ = PyTuple_Pack(1, __pyx_kp_u_Not_a_categorical_split); if (unlikely(!__pyx_tuple_)) __PYX_ERR(0, 121, __pyx_L1_error)
+  __pyx_tuple_ = PyTuple_Pack(1, __pyx_kp_u_Not_a_categorical_split); if (unlikely(!__pyx_tuple_)) __PYX_ERR(0, 128, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple_);
   __Pyx_GIVEREF(__pyx_tuple_);
 
@@ -34067,14 +34631,14 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
 
-  /* "CART.pyx":237
+  /* "CART.pyx":254
  *                 assert isinstance(dtype, np.dtype) and dtype.kind in 'fiu'
  *                 self._is_categorical[col_idx] = False
  *                 np.asarray(self._X)[:, col_idx] = X[:, col_idx]             # <<<<<<<<<<<<<<
  * 
  *     def __getitem__(self, indices):
  */
-  __pyx_slice__4 = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice__4)) __PYX_ERR(0, 237, __pyx_L1_error)
+  __pyx_slice__4 = PySlice_New(Py_None, Py_None, Py_None); if (unlikely(!__pyx_slice__4)) __PYX_ERR(0, 254, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_slice__4);
   __Pyx_GIVEREF(__pyx_slice__4);
 
@@ -34097,36 +34661,36 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__8);
   __Pyx_GIVEREF(__pyx_tuple__8);
 
-  /* "CART.pyx":457
+  /* "CART.pyx":487
  *         self.data = dataset
  *         if self.bootstrap:
  *             print('Bootstrapping...')             # <<<<<<<<<<<<<<
  *             self.data = self.data.sample(self.prop_sample, self.replacement)
  *         # split train vs test ?!
  */
-  __pyx_tuple__9 = PyTuple_Pack(1, __pyx_kp_u_Bootstrapping); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(0, 457, __pyx_L1_error)
+  __pyx_tuple__9 = PyTuple_Pack(1, __pyx_kp_u_Bootstrapping); if (unlikely(!__pyx_tuple__9)) __PYX_ERR(0, 487, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__9);
   __Pyx_GIVEREF(__pyx_tuple__9);
 
-  /* "CART.pyx":465
+  /* "CART.pyx":495
  *             raise TODOError()
  *         time_elapsed = time() - start
  *         print("\n")             # <<<<<<<<<<<<<<
  *         print('*******************************')
  *         print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
  */
-  __pyx_tuple__11 = PyTuple_Pack(1, __pyx_kp_u__10); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(0, 465, __pyx_L1_error)
+  __pyx_tuple__11 = PyTuple_Pack(1, __pyx_kp_u__10); if (unlikely(!__pyx_tuple__11)) __PYX_ERR(0, 495, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__11);
   __Pyx_GIVEREF(__pyx_tuple__11);
 
-  /* "CART.pyx":466
+  /* "CART.pyx":496
  *         time_elapsed = time() - start
  *         print("\n")
  *         print('*******************************')             # <<<<<<<<<<<<<<
  *         print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
  *         print(f"Time elapsed: {time_elapsed}")
  */
-  __pyx_tuple__13 = PyTuple_Pack(1, __pyx_kp_u__12); if (unlikely(!__pyx_tuple__13)) __PYX_ERR(0, 466, __pyx_L1_error)
+  __pyx_tuple__13 = PyTuple_Pack(1, __pyx_kp_u__12); if (unlikely(!__pyx_tuple__13)) __PYX_ERR(0, 496, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__13);
   __Pyx_GIVEREF(__pyx_tuple__13);
 
@@ -34358,14 +34922,14 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__45);
   __Pyx_GIVEREF(__pyx_tuple__45);
 
-  /* "CART.pyx":136
+  /* "CART.pyx":153
  * PROBE = 0
  * 
  * class TODOError(ValueError):             # <<<<<<<<<<<<<<
  *     pass
  * 
  */
-  __pyx_tuple__46 = PyTuple_Pack(1, __pyx_builtin_ValueError); if (unlikely(!__pyx_tuple__46)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __pyx_tuple__46 = PyTuple_Pack(1, __pyx_builtin_ValueError); if (unlikely(!__pyx_tuple__46)) __PYX_ERR(0, 153, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__46);
   __Pyx_GIVEREF(__pyx_tuple__46);
 
@@ -34532,16 +35096,17 @@ static int __Pyx_modinit_type_init_code(void) {
   __pyx_vtabptr_4CART_Node = &__pyx_vtable_4CART_Node;
   __pyx_vtable_4CART_Node.from_ptr = (struct __pyx_obj_4CART_Node *(*)(struct _Node *))__pyx_f_4CART_4Node_from_ptr;
   __pyx_vtable_4CART_Node.get_left_modalities = (PyObject *(*)(struct __pyx_obj_4CART_Node *, struct __pyx_obj_4CART_Dataset *, int __pyx_skip_dispatch))__pyx_f_4CART_4Node_get_left_modalities;
-  if (PyType_Ready(&__pyx_type_4CART_Node) < 0) __PYX_ERR(0, 47, __pyx_L1_error)
+  __pyx_vtable_4CART_Node.get_right_modalities = (PyObject *(*)(struct __pyx_obj_4CART_Node *, struct __pyx_obj_4CART_Dataset *, int __pyx_skip_dispatch))__pyx_f_4CART_4Node_get_right_modalities;
+  if (PyType_Ready(&__pyx_type_4CART_Node) < 0) __PYX_ERR(0, 50, __pyx_L1_error)
   #if PY_VERSION_HEX < 0x030800B1
   __pyx_type_4CART_Node.tp_print = 0;
   #endif
   if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_type_4CART_Node.tp_dictoffset && __pyx_type_4CART_Node.tp_getattro == PyObject_GenericGetAttr)) {
     __pyx_type_4CART_Node.tp_getattro = __Pyx_PyObject_GenericGetAttr;
   }
-  if (__Pyx_SetVtable(__pyx_type_4CART_Node.tp_dict, __pyx_vtabptr_4CART_Node) < 0) __PYX_ERR(0, 47, __pyx_L1_error)
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_Node, (PyObject *)&__pyx_type_4CART_Node) < 0) __PYX_ERR(0, 47, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_4CART_Node) < 0) __PYX_ERR(0, 47, __pyx_L1_error)
+  if (__Pyx_SetVtable(__pyx_type_4CART_Node.tp_dict, __pyx_vtabptr_4CART_Node) < 0) __PYX_ERR(0, 50, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_Node, (PyObject *)&__pyx_type_4CART_Node) < 0) __PYX_ERR(0, 50, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_4CART_Node) < 0) __PYX_ERR(0, 50, __pyx_L1_error)
   __pyx_ptype_4CART_Node = &__pyx_type_4CART_Node;
   __pyx_vtabptr_4CART_Dataset = &__pyx_vtable_4CART_Dataset;
   __pyx_vtable_4CART_Dataset.is_categorical = (int (*)(struct __pyx_obj_4CART_Dataset *, int, int __pyx_skip_dispatch))__pyx_f_4CART_7Dataset_is_categorical;
@@ -34551,29 +35116,29 @@ static int __Pyx_modinit_type_init_code(void) {
   __pyx_vtable_4CART_Dataset.get_length = (size_t (*)(struct __pyx_obj_4CART_Dataset *))__pyx_f_4CART_7Dataset_get_length;
   __pyx_vtable_4CART_Dataset.transform = (PyArrayObject *(*)(struct __pyx_obj_4CART_Dataset *, PyArrayObject *))__pyx_f_4CART_7Dataset_transform;
   __pyx_vtable_4CART_Dataset.order_categorical = (PyArrayObject *(*)(struct __pyx_obj_4CART_Dataset *, int))__pyx_f_4CART_7Dataset_order_categorical;
-  if (PyType_Ready(&__pyx_type_4CART_Dataset) < 0) __PYX_ERR(0, 203, __pyx_L1_error)
+  if (PyType_Ready(&__pyx_type_4CART_Dataset) < 0) __PYX_ERR(0, 220, __pyx_L1_error)
   #if PY_VERSION_HEX < 0x030800B1
   __pyx_type_4CART_Dataset.tp_print = 0;
   #endif
   if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_type_4CART_Dataset.tp_dictoffset && __pyx_type_4CART_Dataset.tp_getattro == PyObject_GenericGetAttr)) {
     __pyx_type_4CART_Dataset.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
   }
-  if (__Pyx_SetVtable(__pyx_type_4CART_Dataset.tp_dict, __pyx_vtabptr_4CART_Dataset) < 0) __PYX_ERR(0, 203, __pyx_L1_error)
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_Dataset, (PyObject *)&__pyx_type_4CART_Dataset) < 0) __PYX_ERR(0, 203, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_4CART_Dataset) < 0) __PYX_ERR(0, 203, __pyx_L1_error)
+  if (__Pyx_SetVtable(__pyx_type_4CART_Dataset.tp_dict, __pyx_vtabptr_4CART_Dataset) < 0) __PYX_ERR(0, 220, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_Dataset, (PyObject *)&__pyx_type_4CART_Dataset) < 0) __PYX_ERR(0, 220, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_4CART_Dataset) < 0) __PYX_ERR(0, 220, __pyx_L1_error)
   __pyx_ptype_4CART_Dataset = &__pyx_type_4CART_Dataset;
   __pyx_vtabptr_4CART_SplitChoice = &__pyx_vtable_4CART_SplitChoice;
   __pyx_vtable_4CART_SplitChoice.is_better_than = (int (*)(struct __pyx_obj_4CART_SplitChoice *, struct __pyx_obj_4CART_SplitChoice *))__pyx_f_4CART_11SplitChoice_is_better_than;
-  if (PyType_Ready(&__pyx_type_4CART_SplitChoice) < 0) __PYX_ERR(0, 315, __pyx_L1_error)
+  if (PyType_Ready(&__pyx_type_4CART_SplitChoice) < 0) __PYX_ERR(0, 335, __pyx_L1_error)
   #if PY_VERSION_HEX < 0x030800B1
   __pyx_type_4CART_SplitChoice.tp_print = 0;
   #endif
   if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_type_4CART_SplitChoice.tp_dictoffset && __pyx_type_4CART_SplitChoice.tp_getattro == PyObject_GenericGetAttr)) {
     __pyx_type_4CART_SplitChoice.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
   }
-  if (__Pyx_SetVtable(__pyx_type_4CART_SplitChoice.tp_dict, __pyx_vtabptr_4CART_SplitChoice) < 0) __PYX_ERR(0, 315, __pyx_L1_error)
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_SplitChoice, (PyObject *)&__pyx_type_4CART_SplitChoice) < 0) __PYX_ERR(0, 315, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_4CART_SplitChoice) < 0) __PYX_ERR(0, 315, __pyx_L1_error)
+  if (__Pyx_SetVtable(__pyx_type_4CART_SplitChoice.tp_dict, __pyx_vtabptr_4CART_SplitChoice) < 0) __PYX_ERR(0, 335, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_SplitChoice, (PyObject *)&__pyx_type_4CART_SplitChoice) < 0) __PYX_ERR(0, 335, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_4CART_SplitChoice) < 0) __PYX_ERR(0, 335, __pyx_L1_error)
   __pyx_ptype_4CART_SplitChoice = &__pyx_type_4CART_SplitChoice;
   __pyx_vtabptr_4CART_CART = &__pyx_vtable_4CART_CART;
   __pyx_vtable_4CART_CART._loss = (__pyx_t_5numpy_float64_t (*)(struct __pyx_obj_4CART_CART *, __Pyx_memviewslice))__pyx_f_4CART_4CART__loss;
@@ -34585,16 +35150,16 @@ static int __Pyx_modinit_type_init_code(void) {
   __pyx_vtable_4CART_CART._find_best_threshold_numerical = (struct __pyx_obj_4CART_SplitChoice *(*)(struct __pyx_obj_4CART_CART *, struct __pyx_obj_4CART_Dataset *, int, __pyx_t_5numpy_float64_t, __pyx_t_5numpy_float64_t))__pyx_f_4CART_4CART__find_best_threshold_numerical;
   __pyx_vtable_4CART_CART._find_best_threshold_categorical = (PyObject *(*)(struct __pyx_obj_4CART_CART *, struct __pyx_obj_4CART_Dataset *, int, __pyx_t_5numpy_float64_t, __pyx_t_5numpy_float64_t))__pyx_f_4CART_4CART__find_best_threshold_categorical;
   __pyx_vtable_4CART_CART._predict_instance = (__pyx_t_5numpy_float64_t (*)(struct __pyx_obj_4CART_CART *, __Pyx_memviewslice))__pyx_f_4CART_4CART__predict_instance;
-  if (PyType_Ready(&__pyx_type_4CART_CART) < 0) __PYX_ERR(0, 350, __pyx_L1_error)
+  if (PyType_Ready(&__pyx_type_4CART_CART) < 0) __PYX_ERR(0, 369, __pyx_L1_error)
   #if PY_VERSION_HEX < 0x030800B1
   __pyx_type_4CART_CART.tp_print = 0;
   #endif
   if ((CYTHON_USE_TYPE_SLOTS && CYTHON_USE_PYTYPE_LOOKUP) && likely(!__pyx_type_4CART_CART.tp_dictoffset && __pyx_type_4CART_CART.tp_getattro == PyObject_GenericGetAttr)) {
     __pyx_type_4CART_CART.tp_getattro = __Pyx_PyObject_GenericGetAttrNoDict;
   }
-  if (__Pyx_SetVtable(__pyx_type_4CART_CART.tp_dict, __pyx_vtabptr_4CART_CART) < 0) __PYX_ERR(0, 350, __pyx_L1_error)
-  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CART, (PyObject *)&__pyx_type_4CART_CART) < 0) __PYX_ERR(0, 350, __pyx_L1_error)
-  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_4CART_CART) < 0) __PYX_ERR(0, 350, __pyx_L1_error)
+  if (__Pyx_SetVtable(__pyx_type_4CART_CART.tp_dict, __pyx_vtabptr_4CART_CART) < 0) __PYX_ERR(0, 369, __pyx_L1_error)
+  if (PyObject_SetAttr(__pyx_m, __pyx_n_s_CART, (PyObject *)&__pyx_type_4CART_CART) < 0) __PYX_ERR(0, 369, __pyx_L1_error)
+  if (__Pyx_setup_reduce((PyObject*)&__pyx_type_4CART_CART) < 0) __PYX_ERR(0, 369, __pyx_L1_error)
   __pyx_ptype_4CART_CART = &__pyx_type_4CART_CART;
   __pyx_vtabptr_array = &__pyx_vtable_array;
   __pyx_vtable_array.get_memview = (PyObject *(*)(struct __pyx_array_obj *))__pyx_array_get_memview;
@@ -34921,377 +35486,387 @@ if (!__Pyx_RefNanny) {
   #endif
   __Pyx_TraceCall("__Pyx_PyMODINIT_FUNC PyInit_CART(void)", __pyx_f[0], 1, 0, __PYX_ERR(0, 1, __pyx_L1_error));
 
-  /* "CART.pyx":51
+  /* "CART.pyx":54
  * 
  *     @staticmethod
  *     cdef Node from_ptr(_Node* ptr):             # <<<<<<<<<<<<<<
  *         cdef Node ret = Node.__new__(Node)
  *         ret.node = ptr
  */
-  __Pyx_TraceLine(51,0,__PYX_ERR(0, 51, __pyx_L1_error))
+  __Pyx_TraceLine(54,0,__PYX_ERR(0, 54, __pyx_L1_error))
 
 
-  /* "CART.pyx":119
- *             return self.node.is_categorical
+  /* "CART.pyx":126
+ *             return self.idx
  * 
  *     cpdef list get_left_modalities(self, Dataset data):             # <<<<<<<<<<<<<<
  *         if not self.node.is_categorical:
  *             raise ValueError('Not a categorical split')
  */
-  __Pyx_TraceLine(119,0,__PYX_ERR(0, 119, __pyx_L1_error))
+  __Pyx_TraceLine(126,0,__PYX_ERR(0, 126, __pyx_L1_error))
 
 
-  /* "CART.pyx":129
+  /* "CART.pyx":136
+ *         return ret
+ * 
+ *     cpdef list get_right_modalities(self, Dataset data):             # <<<<<<<<<<<<<<
+ *         if not self.node.is_categorical:
+ *             raise ValueError('Not a categorical split')
+ */
+  __Pyx_TraceLine(136,0,__PYX_ERR(0, 136, __pyx_L1_error))
+
+
+  /* "CART.pyx":146
  *         return ret
  * 
  * import numpy as np             # <<<<<<<<<<<<<<
  * import pandas as pd
  * 
  */
-  __Pyx_TraceLine(129,0,__PYX_ERR(0, 129, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_Import(__pyx_n_s_numpy, 0, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 129, __pyx_L1_error)
+  __Pyx_TraceLine(146,0,__PYX_ERR(0, 146, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_Import(__pyx_n_s_numpy, 0, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 146, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_np, __pyx_t_1) < 0) __PYX_ERR(0, 129, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_np, __pyx_t_1) < 0) __PYX_ERR(0, 146, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "CART.pyx":130
+  /* "CART.pyx":147
  * 
  * import numpy as np
  * import pandas as pd             # <<<<<<<<<<<<<<
  * 
  * from time import time
  */
-  __Pyx_TraceLine(130,0,__PYX_ERR(0, 130, __pyx_L1_error))
-  __pyx_t_1 = __Pyx_Import(__pyx_n_s_pandas, 0, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 130, __pyx_L1_error)
+  __Pyx_TraceLine(147,0,__PYX_ERR(0, 147, __pyx_L1_error))
+  __pyx_t_1 = __Pyx_Import(__pyx_n_s_pandas, 0, 0); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 147, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_pd, __pyx_t_1) < 0) __PYX_ERR(0, 130, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_pd, __pyx_t_1) < 0) __PYX_ERR(0, 147, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
 
-  /* "CART.pyx":132
+  /* "CART.pyx":149
  * import pandas as pd
  * 
  * from time import time             # <<<<<<<<<<<<<<
  * 
  * PROBE = 0
  */
-  __Pyx_TraceLine(132,0,__PYX_ERR(0, 132, __pyx_L1_error))
-  __pyx_t_1 = PyList_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 132, __pyx_L1_error)
+  __Pyx_TraceLine(149,0,__PYX_ERR(0, 149, __pyx_L1_error))
+  __pyx_t_1 = PyList_New(1); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 149, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_INCREF(__pyx_n_s_time);
   __Pyx_GIVEREF(__pyx_n_s_time);
   PyList_SET_ITEM(__pyx_t_1, 0, __pyx_n_s_time);
-  __pyx_t_2 = __Pyx_Import(__pyx_n_s_time, __pyx_t_1, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 132, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_Import(__pyx_n_s_time, __pyx_t_1, 0); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 149, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_1 = __Pyx_ImportFrom(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 132, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_ImportFrom(__pyx_t_2, __pyx_n_s_time); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 149, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_time, __pyx_t_1) < 0) __PYX_ERR(0, 132, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_time, __pyx_t_1) < 0) __PYX_ERR(0, 149, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":134
+  /* "CART.pyx":151
  * from time import time
  * 
  * PROBE = 0             # <<<<<<<<<<<<<<
  * 
  * class TODOError(ValueError):
  */
-  __Pyx_TraceLine(134,0,__PYX_ERR(0, 134, __pyx_L1_error))
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_PROBE, __pyx_int_0) < 0) __PYX_ERR(0, 134, __pyx_L1_error)
+  __Pyx_TraceLine(151,0,__PYX_ERR(0, 151, __pyx_L1_error))
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_PROBE, __pyx_int_0) < 0) __PYX_ERR(0, 151, __pyx_L1_error)
 
-  /* "CART.pyx":136
+  /* "CART.pyx":153
  * PROBE = 0
  * 
  * class TODOError(ValueError):             # <<<<<<<<<<<<<<
  *     pass
  * 
  */
-  __Pyx_TraceLine(136,0,__PYX_ERR(0, 136, __pyx_L1_error))
-  __pyx_t_2 = __Pyx_CalculateMetaclass(NULL, __pyx_tuple__46); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __Pyx_TraceLine(153,0,__PYX_ERR(0, 153, __pyx_L1_error))
+  __pyx_t_2 = __Pyx_CalculateMetaclass(NULL, __pyx_tuple__46); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 153, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_Py3MetaclassPrepare(__pyx_t_2, __pyx_tuple__46, __pyx_n_s_TODOError, __pyx_n_s_TODOError, (PyObject *) NULL, __pyx_n_s_CART, (PyObject *) NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_Py3MetaclassPrepare(__pyx_t_2, __pyx_tuple__46, __pyx_n_s_TODOError, __pyx_n_s_TODOError, (PyObject *) NULL, __pyx_n_s_CART, (PyObject *) NULL); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 153, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_3 = __Pyx_Py3ClassCreate(__pyx_t_2, __pyx_n_s_TODOError, __pyx_tuple__46, __pyx_t_1, NULL, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 136, __pyx_L1_error)
+  __pyx_t_3 = __Pyx_Py3ClassCreate(__pyx_t_2, __pyx_n_s_TODOError, __pyx_tuple__46, __pyx_t_1, NULL, 0, 0); if (unlikely(!__pyx_t_3)) __PYX_ERR(0, 153, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_3);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_TODOError, __pyx_t_3) < 0) __PYX_ERR(0, 136, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_TODOError, __pyx_t_3) < 0) __PYX_ERR(0, 153, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_3); __pyx_t_3 = 0;
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
-  /* "CART.pyx":143
+  /* "CART.pyx":160
  *     POISSON
  * 
  * cdef int indirect_binary_search(             # <<<<<<<<<<<<<<
  *         np.float64_t[:] values, np.float64_t threshold, int beg, int end,
  *         np.int64_t[:] sorted_indices) noexcept nogil:
  */
-  __Pyx_TraceLine(143,0,__PYX_ERR(0, 143, __pyx_L1_error))
+  __Pyx_TraceLine(160,0,__PYX_ERR(0, 160, __pyx_L1_error))
 
 
-  /* "CART.pyx":155
+  /* "CART.pyx":172
  *     return beg
  * 
  * cdef int _masks(np.float64_t[:] values, np.float64_t threshold,             # <<<<<<<<<<<<<<
  *                 int base_idx, np.int64_t[:] sorted_indices) noexcept nogil:
  *     return indirect_binary_search(
  */
-  __Pyx_TraceLine(155,0,__PYX_ERR(0, 155, __pyx_L1_error))
+  __Pyx_TraceLine(172,0,__PYX_ERR(0, 172, __pyx_L1_error))
 
 
-  /* "CART.pyx":161
+  /* "CART.pyx":178
  *     )
  * 
  * cdef void _mask_categorical(             # <<<<<<<<<<<<<<
  *         np.float64_t[:] values, int value, np.uint8_t[:] out) noexcept nogil:
  *     cdef int i
  */
-  __Pyx_TraceLine(161,0,__PYX_ERR(0, 161, __pyx_L1_error))
+  __Pyx_TraceLine(178,0,__PYX_ERR(0, 178, __pyx_L1_error))
 
 
-  /* "CART.pyx":168
+  /* "CART.pyx":185
  *             out[i] = True
  * 
  * cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:             # <<<<<<<<<<<<<<
  *     cdef np.float64_t mu = 0.
  *     cdef np.float64_t sum_square = 0.
  */
-  __Pyx_TraceLine(168,0,__PYX_ERR(0, 168, __pyx_L1_error))
+  __Pyx_TraceLine(185,0,__PYX_ERR(0, 185, __pyx_L1_error))
 
 
-  /* "CART.pyx":179
+  /* "CART.pyx":196
  *     return sum_square / n + mu * mu
  * 
  * cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:             # <<<<<<<<<<<<<<
  *     cdef np.float64_t epsilon = 1e-18
  *     cdef np.float64_t mu = 0.
  */
-  __Pyx_TraceLine(179,0,__PYX_ERR(0, 179, __pyx_L1_error))
+  __Pyx_TraceLine(196,0,__PYX_ERR(0, 196, __pyx_L1_error))
 
 
-  /* "CART.pyx":193
+  /* "CART.pyx":210
  *     return 2 * ret / n
  * 
  * cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,             # <<<<<<<<<<<<<<
  *                       np.float64_t[:] sums, np.int32_t[:] sizes) noexcept nogil:
  *     cdef int i
  */
-  __Pyx_TraceLine(193,0,__PYX_ERR(0, 193, __pyx_L1_error))
+  __Pyx_TraceLine(210,0,__PYX_ERR(0, 210, __pyx_L1_error))
 
 
-  /* "CART.pyx":251
+  /* "CART.pyx":268
  *         return ret
  * 
  *     cpdef bint is_categorical(self, int feature_idx):             # <<<<<<<<<<<<<<
  *         return self._is_categorical[feature_idx]
  * 
  */
-  __Pyx_TraceLine(251,0,__PYX_ERR(0, 251, __pyx_L1_error))
+  __Pyx_TraceLine(268,0,__PYX_ERR(0, 268, __pyx_L1_error))
 
 
-  /* "CART.pyx":254
+  /* "CART.pyx":271
  *         return self._is_categorical[feature_idx]
  * 
  *     cdef void _labelize(             # <<<<<<<<<<<<<<
  *             self, np.ndarray[object, ndim=2] X, np.float64_t[:, :] out,
  *             int col_idx, bint compute_mapping=True):
  */
-  __Pyx_TraceLine(254,0,__PYX_ERR(0, 254, __pyx_L1_error))
+  __Pyx_TraceLine(271,0,__PYX_ERR(0, 271, __pyx_L1_error))
 
 
-  /* "CART.pyx":266
+  /* "CART.pyx":283
  *             counter += 1
  * 
  *     cdef Dataset sample(self, float prop_sample, bint replacement):             # <<<<<<<<<<<<<<
  *         cdef np.ndarray sampled_indices = np.random.choice(
  *             self._size, size=int(self._size * prop_sample), replace=replacement
  */
-  __Pyx_TraceLine(266,0,__PYX_ERR(0, 266, __pyx_L1_error))
+  __Pyx_TraceLine(283,0,__PYX_ERR(0, 283, __pyx_L1_error))
 
 
-  /* "CART.pyx":272
+  /* "CART.pyx":289
  *         return self[sampled_indices]
  * 
  *     cdef bint not_all_equal(self, int col_idx) nogil:             # <<<<<<<<<<<<<<
  *         cdef size_t i = 0
  *         cdef np.float64_t val = self._X[self._indices[i], col_idx]
  */
-  __Pyx_TraceLine(272,0,__PYX_ERR(0, 272, __pyx_L1_error))
+  __Pyx_TraceLine(289,0,__PYX_ERR(0, 289, __pyx_L1_error))
 
 
-  /* "CART.pyx":281
+  /* "CART.pyx":298
  *         return False
  * 
  *     cdef size_t get_length(self) noexcept nogil:             # <<<<<<<<<<<<<<
  *         return self._size
  * 
  */
-  __Pyx_TraceLine(281,0,__PYX_ERR(0, 281, __pyx_L1_error))
+  __Pyx_TraceLine(298,0,__PYX_ERR(0, 298, __pyx_L1_error))
 
 
-  /* "CART.pyx":296
+  /* "CART.pyx":313
  *         return np.asarray(self._p)[np.asarray(self._indices)]
  * 
  *     cdef np.ndarray transform(self, np.ndarray X):             # <<<<<<<<<<<<<<
  *         cdef np.ndarray ret = np.empty_like(X, dtype=np.float64)
  *         cdef int idx
  */
-  __Pyx_TraceLine(296,0,__PYX_ERR(0, 296, __pyx_L1_error))
+  __Pyx_TraceLine(313,0,__PYX_ERR(0, 313, __pyx_L1_error))
 
 
-  /* "CART.pyx":306
+  /* "CART.pyx":323
  *         return ret
  * 
  *     cdef np.ndarray order_categorical(self, int feature_idx):             # <<<<<<<<<<<<<<
  *         cdef int size = len(self._reverse_mapping[feature_idx])
  *         cdef np.ndarray ysums = np.zeros(size, dtype=np.float64)
  */
-  __Pyx_TraceLine(306,0,__PYX_ERR(0, 306, __pyx_L1_error))
+  __Pyx_TraceLine(323,0,__PYX_ERR(0, 323, __pyx_L1_error))
 
 
-  /* "CART.pyx":330
+  /* "CART.pyx":349
  *                   np.float64_t left_loss, np.float64_t right_loss,
  *                   Dataset left_data, Dataset right_data,
  *                   np.float64_t threshold=np.inf,             # <<<<<<<<<<<<<<
  *                   int threshold_idx=0, np.int32_t[::1] ordered_labels=None):
  *         self.feature_idx = feature_idx
  */
-  __Pyx_TraceLine(330,0,__PYX_ERR(0, 330, __pyx_L1_error))
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 330, __pyx_L1_error)
+  __Pyx_TraceLine(349,0,__PYX_ERR(0, 349, __pyx_L1_error))
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 349, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_inf); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 330, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_inf); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 349, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_4 = __pyx_PyFloat_AsDouble(__pyx_t_1); if (unlikely((__pyx_t_4 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 330, __pyx_L1_error)
+  __pyx_t_4 = __pyx_PyFloat_AsDouble(__pyx_t_1); if (unlikely((__pyx_t_4 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 349, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_k__5 = __pyx_t_4;
 
-  /* "CART.pyx":331
+  /* "CART.pyx":350
  *                   Dataset left_data, Dataset right_data,
  *                   np.float64_t threshold=np.inf,
  *                   int threshold_idx=0, np.int32_t[::1] ordered_labels=None):             # <<<<<<<<<<<<<<
  *         self.feature_idx = feature_idx
  *         self.loss = loss
  */
-  __Pyx_TraceLine(331,0,__PYX_ERR(0, 331, __pyx_L1_error))
-  __pyx_t_5 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_int32_t(Py_None, PyBUF_WRITABLE); if (unlikely(!__pyx_t_5.memview)) __PYX_ERR(0, 331, __pyx_L1_error)
+  __Pyx_TraceLine(350,0,__PYX_ERR(0, 350, __pyx_L1_error))
+  __pyx_t_5 = __Pyx_PyObject_to_MemoryviewSlice_dc_nn___pyx_t_5numpy_int32_t(Py_None, PyBUF_WRITABLE); if (unlikely(!__pyx_t_5.memview)) __PYX_ERR(0, 350, __pyx_L1_error)
   __pyx_k__6 = __pyx_t_5;
   __pyx_t_5.memview = NULL;
   __pyx_t_5.data = NULL;
 
-  /* "CART.pyx":346
+  /* "CART.pyx":365
  *             self.threshold = threshold
  * 
  *     cdef bint is_better_than(self, SplitChoice other):             # <<<<<<<<<<<<<<
- *         return other is None or other.dloss <= self.dloss
+ *         return other is None or other.dloss < self.dloss
  * 
  */
-  __Pyx_TraceLine(346,0,__PYX_ERR(0, 346, __pyx_L1_error))
+  __Pyx_TraceLine(365,0,__PYX_ERR(0, 365, __pyx_L1_error))
 
 
-  /* "CART.pyx":443
+  /* "CART.pyx":473
  *         clear_node(self.root)
  * 
  *     cdef np.float64_t _loss(self, np.float64_t[:] ys) nogil:             # <<<<<<<<<<<<<<
  *         cdef np.float64_t ret
  *         if self.loss_fct == MSE:
  */
-  __Pyx_TraceLine(443,0,__PYX_ERR(0, 443, __pyx_L1_error))
+  __Pyx_TraceLine(473,0,__PYX_ERR(0, 473, __pyx_L1_error))
 
 
-  /* "CART.pyx":475
+  /* "CART.pyx":505
  *         return self.nodes
  * 
  *     cdef void _retrieve_all_nodes(self):             # <<<<<<<<<<<<<<
  *         self.all_nodes = list()
  *         cdef Node node
  */
-  __Pyx_TraceLine(475,0,__PYX_ERR(0, 475, __pyx_L1_error))
+  __Pyx_TraceLine(505,0,__PYX_ERR(0, 505, __pyx_L1_error))
 
 
-  /* "CART.pyx":488
+  /* "CART.pyx":518
  *                 stack.append(Node.from_ptr(dereference(node.node).right_child))
  * 
  *     cdef _Node* _build_tree(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):             # <<<<<<<<<<<<<<
  *         # Should use a PQ to expand the nodes in decreasing order of H/Gini
  *         cdef SplitChoice split = self._find_best_split(data, loss)
  */
-  __Pyx_TraceLine(488,0,__PYX_ERR(0, 488, __pyx_L1_error))
+  __Pyx_TraceLine(518,0,__PYX_ERR(0, 518, __pyx_L1_error))
 
-  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 488, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_1, __pyx_n_s_np); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 518, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
-  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_inf); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 488, __pyx_L1_error)
+  __pyx_t_2 = __Pyx_PyObject_GetAttrStr(__pyx_t_1, __pyx_n_s_inf); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 518, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
-  __pyx_t_4 = __pyx_PyFloat_AsDouble(__pyx_t_2); if (unlikely((__pyx_t_4 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 488, __pyx_L1_error)
+  __pyx_t_4 = __pyx_PyFloat_AsDouble(__pyx_t_2); if (unlikely((__pyx_t_4 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 518, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
   __pyx_k__17 = __pyx_t_4;
 
-  /* "CART.pyx":525
+  /* "CART.pyx":559
  *         return ret
  * 
  *     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):             # <<<<<<<<<<<<<<
  *         self.max_depth = max(depth, self.max_depth)
  *         cdef _Node* node = new_node(depth)
  */
-  __Pyx_TraceLine(525,0,__PYX_ERR(0, 525, __pyx_L1_error))
+  __Pyx_TraceLine(559,0,__PYX_ERR(0, 559, __pyx_L1_error))
 
 
-  /* "CART.pyx":531
+  /* "CART.pyx":565
  *         return node
  * 
  *     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):             # <<<<<<<<<<<<<<
  *         cdef np.uint8_t[:] usable = np.ones(data.X.shape[1], dtype=np.uint8)
  *         cdef int j
  */
-  __Pyx_TraceLine(531,0,__PYX_ERR(0, 531, __pyx_L1_error))
+  __Pyx_TraceLine(565,0,__PYX_ERR(0, 565, __pyx_L1_error))
 
-  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 531, __pyx_L1_error)
+  __Pyx_GetModuleGlobalName(__pyx_t_2, __pyx_n_s_np); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 565, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_inf); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 531, __pyx_L1_error)
+  __pyx_t_1 = __Pyx_PyObject_GetAttrStr(__pyx_t_2, __pyx_n_s_inf); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 565, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_1);
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
-  __pyx_t_4 = __pyx_PyFloat_AsDouble(__pyx_t_1); if (unlikely((__pyx_t_4 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 531, __pyx_L1_error)
+  __pyx_t_4 = __pyx_PyFloat_AsDouble(__pyx_t_1); if (unlikely((__pyx_t_4 == ((npy_float64)-1)) && PyErr_Occurred())) __PYX_ERR(0, 565, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_1); __pyx_t_1 = 0;
   __pyx_k__20 = __pyx_t_4;
 
-  /* "CART.pyx":562
+  /* "CART.pyx":598
  *         return ret
  * 
  *     cdef SplitChoice _find_best_threshold(             # <<<<<<<<<<<<<<
  *             self, Dataset data, int feature_idx,
  *             np.float64_t current_loss, np.float64_t prop_p0):
  */
-  __Pyx_TraceLine(562,0,__PYX_ERR(0, 562, __pyx_L1_error))
+  __Pyx_TraceLine(598,0,__PYX_ERR(0, 598, __pyx_L1_error))
 
 
-  /* "CART.pyx":574
+  /* "CART.pyx":610
  *             )
  * 
  *     cdef SplitChoice _find_best_threshold_numerical(             # <<<<<<<<<<<<<<
  *             self, Dataset data, int feature_idx,
  *             np.float64_t current_loss, np.float64_t prop_p0):
  */
-  __Pyx_TraceLine(574,0,__PYX_ERR(0, 574, __pyx_L1_error))
+  __Pyx_TraceLine(610,0,__PYX_ERR(0, 610, __pyx_L1_error))
 
 
-  /* "CART.pyx":631
+  /* "CART.pyx":666
  *         return ret
  * 
  *     cdef _find_best_threshold_categorical(             # <<<<<<<<<<<<<<
  *             self, Dataset data, int feature_idx,
  *             np.float64_t current_loss, np.float64_t prop_p0):
  */
-  __Pyx_TraceLine(631,0,__PYX_ERR(0, 631, __pyx_L1_error))
+  __Pyx_TraceLine(666,0,__PYX_ERR(0, 666, __pyx_L1_error))
 
 
-  /* "CART.pyx":698
+  /* "CART.pyx":731
  *         return ret
  * 
  *     cdef np.float64_t _predict_instance(self, np.float64_t[:] x) noexcept nogil:             # <<<<<<<<<<<<<<
  *         cdef _Node* node = self.root
  *         cdef np.float64_t val
  */
-  __Pyx_TraceLine(698,0,__PYX_ERR(0, 698, __pyx_L1_error))
+  __Pyx_TraceLine(731,0,__PYX_ERR(0, 731, __pyx_L1_error))
 
 
   /* "(tree fragment)":1
@@ -37961,6 +38536,103 @@ static CYTHON_INLINE PyObject* __Pyx_PyInt_FromDouble(double value) {
 }
 #endif
 
+/* SliceObject */
+  static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(PyObject* obj,
+        Py_ssize_t cstart, Py_ssize_t cstop,
+        PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
+        int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
+#if CYTHON_USE_TYPE_SLOTS
+    PyMappingMethods* mp;
+#if PY_MAJOR_VERSION < 3
+    PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
+    if (likely(ms && ms->sq_slice)) {
+        if (!has_cstart) {
+            if (_py_start && (*_py_start != Py_None)) {
+                cstart = __Pyx_PyIndex_AsSsize_t(*_py_start);
+                if ((cstart == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
+            } else
+                cstart = 0;
+        }
+        if (!has_cstop) {
+            if (_py_stop && (*_py_stop != Py_None)) {
+                cstop = __Pyx_PyIndex_AsSsize_t(*_py_stop);
+                if ((cstop == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
+            } else
+                cstop = PY_SSIZE_T_MAX;
+        }
+        if (wraparound && unlikely((cstart < 0) | (cstop < 0)) && likely(ms->sq_length)) {
+            Py_ssize_t l = ms->sq_length(obj);
+            if (likely(l >= 0)) {
+                if (cstop < 0) {
+                    cstop += l;
+                    if (cstop < 0) cstop = 0;
+                }
+                if (cstart < 0) {
+                    cstart += l;
+                    if (cstart < 0) cstart = 0;
+                }
+            } else {
+                if (!PyErr_ExceptionMatches(PyExc_OverflowError))
+                    goto bad;
+                PyErr_Clear();
+            }
+        }
+        return ms->sq_slice(obj, cstart, cstop);
+    }
+#endif
+    mp = Py_TYPE(obj)->tp_as_mapping;
+    if (likely(mp && mp->mp_subscript))
+#endif
+    {
+        PyObject* result;
+        PyObject *py_slice, *py_start, *py_stop;
+        if (_py_slice) {
+            py_slice = *_py_slice;
+        } else {
+            PyObject* owned_start = NULL;
+            PyObject* owned_stop = NULL;
+            if (_py_start) {
+                py_start = *_py_start;
+            } else {
+                if (has_cstart) {
+                    owned_start = py_start = PyInt_FromSsize_t(cstart);
+                    if (unlikely(!py_start)) goto bad;
+                } else
+                    py_start = Py_None;
+            }
+            if (_py_stop) {
+                py_stop = *_py_stop;
+            } else {
+                if (has_cstop) {
+                    owned_stop = py_stop = PyInt_FromSsize_t(cstop);
+                    if (unlikely(!py_stop)) {
+                        Py_XDECREF(owned_start);
+                        goto bad;
+                    }
+                } else
+                    py_stop = Py_None;
+            }
+            py_slice = PySlice_New(py_start, py_stop, Py_None);
+            Py_XDECREF(owned_start);
+            Py_XDECREF(owned_stop);
+            if (unlikely(!py_slice)) goto bad;
+        }
+#if CYTHON_USE_TYPE_SLOTS
+        result = mp->mp_subscript(obj, py_slice);
+#else
+        result = PyObject_GetItem(obj, py_slice);
+#endif
+        if (!_py_slice) {
+            Py_DECREF(py_slice);
+        }
+        return result;
+    }
+    PyErr_Format(PyExc_TypeError,
+        "'%.200s' object is unsliceable", Py_TYPE(obj)->tp_name);
+bad:
+    return NULL;
+}
+
 /* PyErrExceptionMatches */
   #if CYTHON_FAST_THREAD_STATE
 static int __Pyx_PyErr_ExceptionMatchesTuple(PyObject *exc_type, PyObject *tuple) {
@@ -38949,103 +39621,6 @@ static PyObject* __Pyx_PyInt_AddObjC(PyObject *op1, PyObject *op2, CYTHON_UNUSED
     return (inplace ? PyNumber_InPlaceAdd : PyNumber_Add)(op1, op2);
 }
 #endif
-
-/* SliceObject */
-    static CYTHON_INLINE PyObject* __Pyx_PyObject_GetSlice(PyObject* obj,
-        Py_ssize_t cstart, Py_ssize_t cstop,
-        PyObject** _py_start, PyObject** _py_stop, PyObject** _py_slice,
-        int has_cstart, int has_cstop, CYTHON_UNUSED int wraparound) {
-#if CYTHON_USE_TYPE_SLOTS
-    PyMappingMethods* mp;
-#if PY_MAJOR_VERSION < 3
-    PySequenceMethods* ms = Py_TYPE(obj)->tp_as_sequence;
-    if (likely(ms && ms->sq_slice)) {
-        if (!has_cstart) {
-            if (_py_start && (*_py_start != Py_None)) {
-                cstart = __Pyx_PyIndex_AsSsize_t(*_py_start);
-                if ((cstart == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
-            } else
-                cstart = 0;
-        }
-        if (!has_cstop) {
-            if (_py_stop && (*_py_stop != Py_None)) {
-                cstop = __Pyx_PyIndex_AsSsize_t(*_py_stop);
-                if ((cstop == (Py_ssize_t)-1) && PyErr_Occurred()) goto bad;
-            } else
-                cstop = PY_SSIZE_T_MAX;
-        }
-        if (wraparound && unlikely((cstart < 0) | (cstop < 0)) && likely(ms->sq_length)) {
-            Py_ssize_t l = ms->sq_length(obj);
-            if (likely(l >= 0)) {
-                if (cstop < 0) {
-                    cstop += l;
-                    if (cstop < 0) cstop = 0;
-                }
-                if (cstart < 0) {
-                    cstart += l;
-                    if (cstart < 0) cstart = 0;
-                }
-            } else {
-                if (!PyErr_ExceptionMatches(PyExc_OverflowError))
-                    goto bad;
-                PyErr_Clear();
-            }
-        }
-        return ms->sq_slice(obj, cstart, cstop);
-    }
-#endif
-    mp = Py_TYPE(obj)->tp_as_mapping;
-    if (likely(mp && mp->mp_subscript))
-#endif
-    {
-        PyObject* result;
-        PyObject *py_slice, *py_start, *py_stop;
-        if (_py_slice) {
-            py_slice = *_py_slice;
-        } else {
-            PyObject* owned_start = NULL;
-            PyObject* owned_stop = NULL;
-            if (_py_start) {
-                py_start = *_py_start;
-            } else {
-                if (has_cstart) {
-                    owned_start = py_start = PyInt_FromSsize_t(cstart);
-                    if (unlikely(!py_start)) goto bad;
-                } else
-                    py_start = Py_None;
-            }
-            if (_py_stop) {
-                py_stop = *_py_stop;
-            } else {
-                if (has_cstop) {
-                    owned_stop = py_stop = PyInt_FromSsize_t(cstop);
-                    if (unlikely(!py_stop)) {
-                        Py_XDECREF(owned_start);
-                        goto bad;
-                    }
-                } else
-                    py_stop = Py_None;
-            }
-            py_slice = PySlice_New(py_start, py_stop, Py_None);
-            Py_XDECREF(owned_start);
-            Py_XDECREF(owned_stop);
-            if (unlikely(!py_slice)) goto bad;
-        }
-#if CYTHON_USE_TYPE_SLOTS
-        result = mp->mp_subscript(obj, py_slice);
-#else
-        result = PyObject_GetItem(obj, py_slice);
-#endif
-        if (!_py_slice) {
-            Py_DECREF(py_slice);
-        }
-        return result;
-    }
-    PyErr_Format(PyExc_TypeError,
-        "'%.200s' object is unsliceable", Py_TYPE(obj)->tp_name);
-bad:
-    return NULL;
-}
 
 /* Import */
     static PyObject *__Pyx_Import(PyObject *name, PyObject *from_list, int level) {

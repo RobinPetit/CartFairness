@@ -34,9 +34,11 @@ cdef extern from "_CART.h" nogil:
         bint is_categorical
         Vector categorical_values_left
         Vector categorical_values_right
+        int idx
+
     _Node* new_node(size_t)
     void clear_node(_Node*)
-    void _set_ys(_Node*, double, double, size_t)
+    void _set_ys(_Node*, size_t, double, double, size_t)
     void _set_categorical_node_left_right_values(_Node*, np.int32_t*, size_t, size_t)
     void _set_left_child(_Node*, _Node*)
     void _set_right_child(_Node*, _Node*)
@@ -116,6 +118,10 @@ cdef class Node:
     property is_categorical:
         def __get__(self):
             return self.node.is_categorical
+
+    property index:
+        def __get__(self):
+            return self.idx
 
     cpdef list get_left_modalities(self, Dataset data):
         if not self.node.is_categorical:
@@ -336,7 +342,6 @@ cdef class SplitChoice:
     cdef size_t threshold_idx
     cdef np.int32_t[::1] labels  # Needs to be contiguous in memory!
 
-
     def __cinit__(self, size_t feature_idx, bint is_categorical,
                   np.float64_t loss, np.float64_t dloss,
                   np.float64_t left_loss, np.float64_t right_loss,
@@ -381,6 +386,8 @@ cdef class CART:
 
     cdef list all_nodes
 
+    cdef int idx_nodes
+
     def __cinit__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
                   replacement=False, prop_sample=1.0, frac_valid=0.2,
                   max_interaction_depth=0, max_depth=0, margin="absolute",
@@ -398,6 +405,7 @@ cdef class CART:
         self.max_depth = 0
         self.nb_nodes = 0
         self.nb_splitting_nodes = 0
+        self.idx_nodes = 0
         self.max_interaction_depth = max_interaction_depth
         loss = loss.lower()
         LOSS_MAPPING = {
@@ -452,6 +460,12 @@ cdef class CART:
             return self.nb_cov
         def __set__(self, value):
             self.nb_cov = value
+
+    property idx_nodes:
+        def __get__(self):
+            return self.idx_nodes
+        def __set__(self, value):
+            self.idx_nodes = value
 
     def __dealloc__(self):
         clear_node(self.root)
@@ -508,6 +522,7 @@ cdef class CART:
         if split is None:
             return ret
         self.nb_nodes += 1
+        self.idx_nodes +=1
         ret.feature_idx = split.feature_idx
         if split.left_data.get_length() <= self.minobs or \
                 split.right_data.get_length() <= self.minobs or \
@@ -544,7 +559,7 @@ cdef class CART:
     cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):
         self.max_depth = max(depth, self.max_depth)
         cdef _Node* node = new_node(depth)
-        _set_ys(node, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])
+        _set_ys(node, self.idx_nodes, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])
         return node
 
     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):
