@@ -62,20 +62,14 @@ cdef class Node:
     property feature_idx:
         def __get__(self):
             return dereference(self.node).feature_idx
-        def __set__(self, int value):
-            dereference(self.node).feature_idx = value
 
     property threshold:
         def __get__(self):
             return dereference(self.node).threshold
-        def __set__(self, float value):
-            dereference(self.node).threshold = value
 
     property loss:
         def __get__(self):
             return dereference(self.node).loss
-        def __set__(self, float value):
-            dereference(self.node).loss = value
 
     property dloss:
         def __get__(self):
@@ -84,20 +78,14 @@ cdef class Node:
     property avg_value:
         def __get__(self):
             return dereference(self.node).avg_value
-        def __set__(self, float value):
-            dereference(self.node).avg_value = value
 
     property depth:
         def __get__(self):
             return dereference(self.node).depth
-        def __set__(self, int value):
-            dereference(self.node).depth = value
 
     property parent:
         def __get__(self):
             return Node.from_ptr(dereference(self.node).parent)
-        def __set__(self, Node value):
-            dereference(self.node).parent = value.node
 
     property left_child:
         def __get__(self):
@@ -453,50 +441,34 @@ cdef class CART:
     property max_interaction_depth:
         def __get__(self):
             return self.max_interaction_depth
-        def __set__(self, value):
-            self.max_interaction_depth = value
 
     property minobs:
         def __get__(self):
             return self.minobs
-        def __set__(self, value):
-            self.minobs = value
 
     property margin:
         def __get__(self):
             return self.margin
-        def __set__(self, value):
-            self.margin = value
 
     property epsilon:
         def __get__(self):
             return self.epsilon
-        def __set__(self, value):
-            self.epsilon = value
 
     property delta_loss:
         def __get__(self):
             return self.delta_loss
-        def __set__(self, value):
-            self.delta_loss = value
 
     property loss:
         def __get__(self):
             return self.loss
-        def __set__(self, value):
-            self.loss = value
 
     property nb_cov:
         def __get__(self):
             return self.nb_cov
-        def __set__(self, value):
-            self.nb_cov = value
 
     property idx_nodes:
         def __get__(self):
             return self.idx_nodes
-        def __set__(self, value):
-            self.idx_nodes = value
 
     def __dealloc__(self):
         clear_node(self.root)
@@ -557,17 +529,19 @@ cdef class CART:
         # Should use a PQ to expand the nodes in decreasing order of H/Gini
         cdef SplitChoice split = self._find_best_split(data, loss)
         cdef _Node* ret = self._create_node(data.y, depth)
-        ret.threshold = ret.feature_idx = -1
+        ret.threshold = -1
+        ret.feature_idx = -1
         if split is None:
             return ret
         self.nb_nodes += 1
         self.idx_nodes +=1
-        ret.feature_idx = split.feature_idx
+        ret.dloss = 0.
         if split.left_data.get_length() <= self.minobs or \
                 split.right_data.get_length() <= self.minobs or \
                 split.dloss < self.delta_loss or split.loss <= 0 or \
                 self.nb_splitting_nodes > self.max_interaction_depth:
             return ret
+        ret.feature_idx = split.feature_idx
         self.nb_splitting_nodes += 1
         ret.dloss = split.dloss
         if split.is_categorical:
@@ -792,4 +766,8 @@ cdef class CART:
                 else:
                     node = node.right_child
         return node.avg_value
+
+    def compute_importance(self):
+        # TODO
+        pass
 
