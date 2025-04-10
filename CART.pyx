@@ -544,6 +544,7 @@ cdef class CART:
         # Should use a PQ to expand the nodes in decreasing order of H/Gini
         cdef SplitChoice split = self._find_best_split(data, loss)
         cdef _Node* ret = self._create_node(data.y, depth)
+        ret.threshold = ret.feature_idx = -1
         if split is None:
             return ret
         self.nb_nodes += 1
