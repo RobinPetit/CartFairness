@@ -536,12 +536,10 @@ cdef class CART:
         cdef _Node* ret = self._create_node(data.y, depth)
         ret.threshold = -1
         ret.feature_idx = -1
-        if split is None:
-            return ret
         self.nb_nodes += 1
         self.idx_nodes +=1
         ret.dloss = 0.
-        if split.left_data.get_length() <= self.minobs or \
+        if split is None or split.left_data.get_length() <= self.minobs or \
                 split.right_data.get_length() <= self.minobs or \
                 split.dloss < self.delta_loss or split.loss <= 0 or \
                 self.nb_splitting_nodes > self.max_interaction_depth:
