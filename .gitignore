@@ -1,2 +1,11 @@
 *.c
 *.html
+*.so
+*.html
+*.log
+*.feather
+*.zip
+*.txt
+
+build/
+__pycache__/

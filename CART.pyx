@@ -121,7 +121,7 @@ cdef class Node:
 
     property index:
         def __get__(self):
-            return self.idx
+            return self.node.idx
 
     cpdef list get_left_modalities(self, Dataset data):
         if not self.node.is_categorical:
@@ -732,7 +732,7 @@ cdef class CART:
         cdef _Node* node = self.root
         cdef np.float64_t val
         cdef int categorical_label
-        while _is_root(node):
+        while not _is_leaf(node):
             if node.is_categorical:
                 categorical_label = <int>(x[node.feature_idx])
                 if vector_contains_int32(&node.categorical_values_left, categorical_label):

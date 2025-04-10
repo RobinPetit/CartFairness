@@ -142,7 +142,7 @@ static inline void clear_node(struct _Node* root) {
 }
 
 static inline void _set_ys(struct _Node* node, size_t idx, double avg, double loss, size_t size) {
-    node->index = idx;
+    node->idx = idx;
     node->avg_value = avg;
     node->loss = loss;
     node->nb_samples = size;
