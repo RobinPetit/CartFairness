@@ -149,6 +149,11 @@ cdef class Node:
             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
         return ret
 
+    def __str__(self):
+        return f'Node(idx={self.node.idx}, ptr={<long>(self.node):x})'
+    def __repr__(self):
+        return str(self)
+
 import numpy as np
 import pandas as pd
 
