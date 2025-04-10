@@ -77,6 +77,10 @@ cdef class Node:
         def __set__(self, float value):
             dereference(self.node).loss = value
 
+    property dloss:
+        def __get__(self):
+            return self.node.dloss
+
     property avg_value:
         def __get__(self):
             return dereference(self.node).avg_value
@@ -127,6 +131,15 @@ cdef class Node:
     property index:
         def __get__(self):
             return self.node.idx
+
+    property position:
+        def __get__(self):
+            if _is_root(self.node):
+                return None
+            elif self.node == self.node.parent.left_child:
+                return 'left'
+            else:
+                return 'right'
 
     cpdef list get_left_modalities(self, Dataset data):
         if not self.node.is_categorical:
