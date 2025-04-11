@@ -286,6 +286,10 @@ cdef class Dataset:
         ret._indexed_p = None
         return ret
 
+    property nb_features:
+        def __get__(self):
+            return self._X.shape[1]
+
     cpdef bint is_categorical(self, int feature_idx):
         return self._is_categorical[feature_idx]
 
@@ -755,7 +759,6 @@ cdef class CART:
                     ret = split
         PROBE += time() - start
         return ret
-
 
     def predict(self, X):
         cdef np.float64_t[:, :] data = self.data.transform(X)

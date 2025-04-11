@@ -250,7 +250,10 @@ class CARTRegressor_python:
 
         # Select randomly covariates (nb_cov) at each node
         # We consider only covariates with more than one unique value
-        covariates = [self.name_cov[i] for i in range(X.shape[1]) if len(np.unique(X[:, i]))>1]
+        covariate_indices = [i for i in range(X.shape[1]) if len(np.unique(X[:, i]))>1]
+        covariates = [self.name_cov[i] for i in covariate_indices]
+        # if len(covariates) != X.shape[1]:
+        #     print(f'On node {self.idx}: missing covariates {sorted(set(range(X.shape[1])) - set(covariate_indices))}')
         #print(self.nb_cov, len(covariates), covariates)
         if self.nb_cov >= len(covariates):
             retained_cov = covariates
@@ -258,8 +261,9 @@ class CARTRegressor_python:
             retained_cov = np.random.choice(covariates, self.nb_cov, replace=False)
 
         #retained_cov = covariates
-        #print(f"Retained cov: {retained_cov}")
-        retained_cov_idx = [covariates.index(c) for c in retained_cov]
+        # print(f"Retained cov: {retained_cov}")
+        retained_cov_idx = [self.name_cov.index(c) for c in retained_cov]
+        # print(f"Retained cov_idx: {retained_cov_idx}")
 
         for feature_index in retained_cov_idx:
             # for each variable in the retained variable sampled
@@ -275,6 +279,7 @@ class CARTRegressor_python:
             unique_val = np.array(list(sorted(np.unique(X[:, feature_index]))))
             thresholds = (unique_val[1:] + unique_val[:-1]) / 2
 
+            best_dloss_for_j = 0
             if len(thresholds)>0:
                 # If threshold list not empty
                 for threshold in thresholds:
@@ -311,6 +316,10 @@ class CARTRegressor_python:
 
                     prop_root_p0 = np.sum((np.array(self.p) == 0) * 1) / self.n
 
+                    if dloss > best_dloss_for_j and \
+                            (np.abs(prop_left_p0 - prop_root_p0) <= self.epsilon * prop_root_p0) and \
+                            (np.abs(prop_right_p0 - prop_root_p0) <= self.epsilon * prop_root_p0):
+                        best_dloss_for_j = dloss
                     # print(dloss, best_dloss, prop_left_p0, prop_root_p0, prop_root_p0, end=''); input()
                     if dloss > best_dloss and \
                             (np.abs(prop_left_p0 - prop_root_p0) <= self.epsilon * prop_root_p0) and \

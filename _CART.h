@@ -17,7 +17,8 @@ typedef struct Vector {
 
 typedef struct PQ {
     Vector priorities;
-    Vector data;
+    // Vector data;
+    Vector pq;
     size_t n;
 } PQ;
 
@@ -39,6 +40,8 @@ static inline size_t __max(size_t a, size_t b) {
     return (a > b) ? a : b;
 }
 #endif
+
+/********** Vector **********/
 
 #define __ARRAY_ELEM_SIZE __max(sizeof(void*), sizeof(double))
 
@@ -78,7 +81,9 @@ static inline bool vector_contains_double(const Vector* vector, double x) {
 static inline void _ensure_sufficient_size(Vector* vector) {
     if(vector->n == vector->allocated) {
         vector->allocated <<= 1;
-        vector->_base = realloc(vector->_base, __ARRAY_ELEM_SIZE*vector->allocated);
+        vector->_base = realloc(
+            vector->_base, __ARRAY_ELEM_SIZE*vector->allocated
+        );
     }
 }
 
@@ -109,18 +114,46 @@ static inline void init_vector_from_int_ptr(
         insert_int32_in_vector(vector, data[i]);
 }
 
+static inline double Vector_double_at(const Vector* vec, size_t i) {
+    return ((double*)(vec->_base))[i];
+}
+
+static inline int32_t Vector_int32_at(const Vector* vec, size_t i) {
+    return ((int32_t*)(vec->_base))[i];
+}
+
+/********** PQ **********/
 
 static inline void init_PQ(PQ* pq, size_t n) {
     pq->n = n;
-    init_vector(&pq->data, n);
+    init_vector(&pq->pq, n);
     init_vector(&pq->priorities, n);
 }
 
 static inline void free_PQ(PQ* pq) {
     free_vector(&pq->priorities);
-    free_vector(&pq->data);
+    free_vector(&pq->pq);
     pq->n = 0;
 }
+
+static inline bool PQ_less(PQ* pq, size_t i, size_t j) {
+    double pi = Vector_double_at(&pq->priorities, Vector_int32_at(&pq->pq, i));
+    double pj = Vector_double_at(&pq->priorities, Vector_int32_at(&pq->pq, j));
+    return pi < pj;
+}
+
+static inline void PQ_swap(PQ* pq, size_t i, size_t j) {
+    // pq->
+}
+
+static inline void PQ_swim(PQ* pq, size_t i) {
+    while(i > 0 && PQ_less(pq, i, (i-1)/2)) {
+        PQ_swap(pq, i, (i-1)/2);
+        i = (i-1) / 2;
+    }
+}
+
+/********** Node **********/
 
 static inline struct _Node* new_node(size_t depth) {
     struct _Node* ret = (struct _Node*)malloc(sizeof(struct _Node));
@@ -152,8 +185,14 @@ static inline void _set_ys(struct _Node* node, size_t idx, double avg, double lo
 static inline void _set_categorical_node_left_right_values(
         struct _Node* node, const int32_t* const labels, size_t n, size_t threshold_idx) {
     node->is_categorical = true;
-    init_vector_from_int_ptr(&node->categorical_values_left, labels, threshold_idx+1);
-    init_vector_from_int_ptr(&node->categorical_values_right, labels+threshold_idx+1, n-threshold_idx-1);
+    init_vector_from_int_ptr(
+        &node->categorical_values_left,
+        labels, threshold_idx+1
+    );
+    init_vector_from_int_ptr(
+        &node->categorical_values_right,
+        labels+threshold_idx+1, n-threshold_idx-1
+    );
 }
 
 static inline void _set_left_child(struct _Node* root, struct _Node* child) {
