@@ -213,9 +213,11 @@ cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:
     for i in prange(n, nogil=True, schedule='runtime'):
         mu += ys[i]
     mu /= n
-    for i in prange(n, nogil=True, schedule='runtime'):
+    for i in range(n):
         if ys[i] > epsilon and mu > epsilon:
             ret += ys[i] * log((ys[i] + epsilon) / (mu + epsilon)) + (mu - ys[i])
+        else:
+            ret += mu - ys[i]
     return 2 * ret / n
 
 cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,
@@ -305,7 +307,7 @@ cdef class Dataset:
             np.asarray(out)[indices, col_idx] = counter
             counter += 1
 
-    cdef Dataset sample(self, float prop_sample, bint replacement):
+    cdef Dataset sample(self, double prop_sample, bint replacement):
         cdef np.ndarray sampled_indices = np.random.choice(
             self._size, size=int(self._size * prop_sample), replace=replacement
         )

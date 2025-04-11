@@ -152,7 +152,7 @@ class CARTRegressor_python:
                     dev += 2 * (y[i] * np.log((y[i] + epsilon) / (y_pred[i] + epsilon)) + (y_pred[i] - y[i]))
                 else:
                     # Handle the case where either y[i] or y_pred[i] is 0 or too small
-                    dev += 0.0  # Optionally: handle as zero contribution, or use a default small value
+                    dev += 2 * (y_pred[i] - y[i])  # Optionally: handle as zero contribution, or use a default small value
 
             # Return the deviance divided by the number of elements
             return dev / n
