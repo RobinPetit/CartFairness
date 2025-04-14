@@ -7,6 +7,7 @@
 
 cimport numpy as np
 from libc.math cimport log, fabs
+from libc.stdlib cimport calloc
 
 import cython
 from cython.operator cimport dereference
@@ -202,11 +203,15 @@ cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:
     cdef np.float64_t sum_square = 0.
     cdef size_t n = ys.shape[0]
     cdef size_t i = 0
-    for i in prange(n, nogil=True, schedule='runtime'):
+    for i in prange(n):
         mu += ys[i]
         sum_square += ys[i]*ys[i]
     mu /= n
     return sum_square / n + mu * mu
+
+# TODO: handle more than 8!
+cdef int* __poisson_counter_array = <int*>calloc(8, sizeof(int))
+cdef size_t __poisson_counter_array_size = 8
 
 cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:
     cdef np.float64_t epsilon = 1e-18
@@ -214,14 +219,20 @@ cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:
     cdef np.float64_t ret = 0
     cdef size_t i = 0
     cdef size_t n = ys.shape[0]
+    for i in range(__poisson_counter_array_size):
+        __poisson_counter_array[i] = 0
     for i in prange(n, nogil=True, schedule='runtime'):
         mu += ys[i]
+        __poisson_counter_array[<int>(ys[i])] += 1
     mu /= n
-    for i in range(n):
-        if ys[i] > epsilon and mu > epsilon:
-            ret += ys[i] * log((ys[i] + epsilon) / (mu + epsilon)) + (mu - ys[i])
+    cdef double value_at_yi
+    for i in range(__poisson_counter_array_size):
+        # "here i means y[i]"
+        if i > 0 and mu > epsilon:
+            value_at_yi = i * log((i + epsilon) / (mu + epsilon)) + (mu - i)
         else:
-            ret += mu - ys[i]
+            value_at_yi = (mu - i)
+        ret += __poisson_counter_array[i] * value_at_yi
     return 2 * ret / n
 
 cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,
@@ -588,9 +599,9 @@ cdef class CART:
         cdef np.float64_t _loss = dereference(ret).loss
         cdef np.float64_t _avg = dereference(ret).avg_value
         cdef str kind = 'Node' if _kind else 'Leaf'
-        print(f"{'  ' * _depth} {kind}, Depth: {_depth}, "
+        print(f"{'  ' * _depth} {kind} ({Node.from_ptr(ret).index}), Depth: {_depth}, "
               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
-              f", Mean_value: {_avg}")
+              f", Mean_value: {_avg},  N={Node.from_ptr(ret).nb_samples}")
         _set_left_child(
             ret, self._build_tree_depth_first(split.left_data, depth+1, split.loss_left)
         )
@@ -637,8 +648,6 @@ cdef class CART:
             best_split = self._find_best_threshold(
                 data, feature_idx, current_loss, prop_p0
             )
-            if self.idx_nodes == 113:
-                print(f'Best split for feature: {feature_idx}:  DLoss: {best_split.dloss}')
             if best_split.is_better_than(ret):
                 ret = best_split
         return ret

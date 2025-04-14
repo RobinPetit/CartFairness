@@ -136,7 +136,7 @@ class CARTRegressor_python:
             mse = np.mean((y - mean) ** 2, dtype=np.float64)
             return mse
 
-        def _poisson_deviance_simp2(y, y_pred):
+        def __poisson_deviance_simp2(y, y_pred):
             epsilon = 10 ** -18
             dev = 0.0
             n = y.shape[0]
@@ -156,6 +156,25 @@ class CARTRegressor_python:
 
             # Return the deviance divided by the number of elements
             return dev / n
+
+        def _poisson_deviance_simp2(y, y_pred):
+            epsilon = 10 ** -18
+            dev = 0.0
+            n = y.shape[0]
+
+            # Check if the array is empty
+            if n == 0:
+                raise ValueError("Input arrays cannot be empty.")
+            mu = y_pred[0]
+            y_values, y_counts = np.unique(y, return_counts=True)
+            for value, count in zip(y_values, y_counts):
+                if value > epsilon and mu > epsilon:
+                    dev += count * (value * np.log((value + epsilon) / (mu + epsilon)) + (mu - value))
+                else:
+                    # Handle the case where either y[i] or y_pred[i] is 0 or too small
+                    dev += count * (mu - value)
+            # Return the deviance divided by the number of elements
+            return 2 * dev / n
 
         if self.loss == "MSE":
             return _mse(y)
@@ -334,8 +353,6 @@ class CARTRegressor_python:
 
                         #print(f"New best split found: idx: {best_feature_index}, threshold: {best_threshold}, dloss:{best_dloss}")
 
-                if self.idx == 113:
-                    print(f'Best split for feature {feature_index}:  DLoss: {best_dloss_for_j}')
         return best_feature_index, best_threshold, best_dloss, best_feature_mapping, best_feature_mapping_inv
 
     def _create_leaf_node(self, y, parent_node, position):
@@ -444,9 +461,9 @@ class CARTRegressor_python:
 
                 self.nodes.append(node)
 
-                print(f"{'  ' * node.depth} {node.kind}, Depth: {node.depth}, "
+                print(f"{'  ' * node.depth} {node.kind} ({node.index}), Depth: {node.depth}, "
                       f"Feature: {node.feature_index}, Threshold: {node.threshold}, DLoss: {node.loss_decrease}"
-                      f", Mean_value: {node.average_value}")
+                      f", Mean_value: {node.average_value},  N={node.nb_samples}")
 
                 # Reiterate procedure for child nodes
                 left_child = self._build_tree(X_left, y_left, p_left, node, "left")
