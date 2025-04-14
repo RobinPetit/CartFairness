@@ -18,7 +18,7 @@ from CART import Dataset, CART as NewCART
 VERBOSE = False
 
 # load dataset and make sure that all numerical variable are in float64
-nb_observation = 1_000_000
+nb_observation = 10_000
 df_fictif, col_features, col_response, col_protected = load_dataset(nb_obs=nb_observation, verbose=VERBOSE)
 df_fictif.dropna(inplace=True)
 if VERBOSE:
@@ -58,7 +58,7 @@ p_testing = p_testing.astype(np.float64).reshape(-1)
 y_testing = y_testing.astype(np.float64).reshape(-1)
 
 dtypes = df_fictif[col_features].dtypes.values
-dic_cov = {col: str(df_fictif[col].dtype) for col in df_fictif.columns}
+dic_cov = {col: str(df_fictif[col].dtype) for col in col_features}
 
 X_train = preprocess_data(X_train, dic_cov)
 X_test = preprocess_data(X_test, dic_cov)
@@ -110,12 +110,15 @@ models.pop(1)
 timers = [list() for _ in range(len(models))]
 
 dataset = Dataset(X_train, y_train, p_train, dtypes)
+print(dataset.nb_features, 'features')
 print('Categorical:')
 print(np.where(np.array([dataset.is_categorical(j) for j in range(len(dtypes))]))[0])
 
 def mse(y, y_pred):
     return np.mean((y-y_pred)**2)
 
+importances = []
+mses = []
 for i, (model, model_name) in enumerate(zip(models, model_names)):
     for _ in range_nb_obs[:1]:
         print(f'Fitting {model_name} model')
@@ -132,9 +135,16 @@ for i, (model, model_name) in enumerate(zip(models, model_names)):
         else:
             cart.fit(X_train, y_train, p_train, dic_cov=dic_cov)
         timers[i].append(time.time() - start_time)
-        print('MSE:', mse(y_test, cart.predict(X_test)))
+        current_mse = mse(y_train, cart.predict(X_train))
+        mses.append(current_mse)
+        print('MSE:', current_mse)
+        importances.append(cart.compute_importance2())
 
+print(np.asarray(mses))
+print(mses[0] - mses[1])
 means = np.mean(timers, axis=1)
+print('Feature importances (Cython, Python):')
+print(np.asarray(importances).T)
 
 timers = [
     [timers[-1][j] / timers[i][j] for j in range(len(timers[i]))]

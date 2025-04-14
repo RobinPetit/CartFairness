@@ -334,6 +334,8 @@ class CARTRegressor_python:
 
                         #print(f"New best split found: idx: {best_feature_index}, threshold: {best_threshold}, dloss:{best_dloss}")
 
+                if self.idx == 113:
+                    print(f'Best split for feature {feature_index}:  DLoss: {best_dloss_for_j}')
         return best_feature_index, best_threshold, best_dloss, best_feature_mapping, best_feature_mapping_inv
 
     def _create_leaf_node(self, y, parent_node, position):
@@ -753,9 +755,13 @@ class CARTRegressor_python:
             for node in self.nodes:
                 # print(f"Node Index {node.index}, Feature_index: {feature_index}")
                 if node.feature_index == idx:
-                    importance = node.loss * node.nb_samples - (
-                                node.left_child.loss * node.left_child.nb_samples + node.right_child.loss * node.right_child.nb_samples)
-                    loss_reduction_feature += importance / self.n
+                    importance = node.loss_decrease
+                    loss_reduction_feature += importance
+                    # importance = node.loss * node.nb_samples - (
+                    #     node.left_child.loss * node.left_child.nb_samples +
+                    #     node.right_child.loss * node.right_child.nb_samples
+                    # )
+                    # loss_reduction_feature += importance / self.n
             list_imp.append(loss_reduction_feature)
 
         list_imp = np.array(list_imp) * 100 / np.sum(list_imp)

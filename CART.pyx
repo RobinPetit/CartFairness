@@ -99,6 +99,10 @@ cdef class Node:
         def __set__(self, Node value):
             dereference(self.node).right_child = value.node
 
+    property is_leaf:
+        def __get__(self):
+            return _is_leaf(self.node)
+
     property kind:
         def __get__(self):
             if _is_leaf(self.node):
@@ -633,6 +637,8 @@ cdef class CART:
             best_split = self._find_best_threshold(
                 data, feature_idx, current_loss, prop_p0
             )
+            if self.idx_nodes == 113:
+                print(f'Best split for feature: {feature_idx}:  DLoss: {best_split.dloss}')
             if best_split.is_better_than(ret):
                 ret = best_split
         return ret
@@ -794,7 +800,19 @@ cdef class CART:
                     node = node.right_child
         return node.avg_value
 
-    def compute_importance(self):
-        # TODO
-        pass
+    def compute_importance2(self):
+        return self.get_node_importances()
+
+    cpdef np.ndarray get_node_importances(self):
+        # Attention si on subsample les covariables!
+        cdef np.ndarray importances = np.zeros(self.data.nb_features, dtype=float)
+        cdef int feature_idx
+        cdef Node node
+        for node in self.all_nodes:
+            if node.is_leaf:
+                continue
+            feature_idx = node.feature_idx
+            importances[feature_idx] += node.dloss
+        importances *= 100. / importances.sum()
+        return importances
 
