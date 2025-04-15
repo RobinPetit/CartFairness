@@ -1,6 +1,7 @@
 *.c
-*.html
 *.so
+*.pyd
+
 *.html
 *.log
 *.feather

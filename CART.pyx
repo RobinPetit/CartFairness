@@ -13,6 +13,7 @@ import cython
 from cython.operator cimport dereference
 from cython.parallel import prange
 
+from loss cimport Loss, LossFunction
 
 ctypedef size_t Pyssize_t
 
@@ -169,27 +170,18 @@ PROBE = 0
 class TODOError(ValueError):
     pass
 
-ctypedef enum LossFunction:
-    MSE,
-    POISSON
-
-cdef int indirect_binary_search(
-        np.float64_t[:] values, np.float64_t threshold, int beg, int end,
-        np.int64_t[:] sorted_indices) noexcept nogil:
+cdef int _masks(np.float64_t[:] values, np.float64_t threshold,
+                   int base_idx) noexcept nogil:
+    cdef int beg = base_idx
     cdef int mid
+    cdef int end = values.shape[0]
     while beg < end:
         mid = (beg + end) // 2
-        if values[sorted_indices[mid]] <= threshold:
+        if values[mid] <= threshold:
             beg = mid+1
         else:
             end = mid
     return beg
-
-cdef int _masks(np.float64_t[:] values, np.float64_t threshold,
-                int base_idx, np.int64_t[:] sorted_indices) noexcept nogil:
-    return indirect_binary_search(
-        values, threshold, base_idx, values.shape[0], sorted_indices
-    )
 
 cdef void _mask_categorical(
         np.float64_t[:] values, int value, np.uint8_t[:] out) noexcept nogil:
@@ -197,43 +189,6 @@ cdef void _mask_categorical(
     for i in prange(values.shape[0], nogil=True, schedule='runtime'):
         if <int>(values[i]) == value:
             out[i] = True
-
-cdef np.float64_t mse(np.float64_t[:] ys) noexcept nogil:
-    cdef np.float64_t mu = 0.
-    cdef np.float64_t sum_square = 0.
-    cdef size_t n = ys.shape[0]
-    cdef size_t i = 0
-    for i in prange(n):
-        mu += ys[i]
-        sum_square += ys[i]*ys[i]
-    mu /= n
-    return sum_square / n + mu * mu
-
-# TODO: handle more than 8!
-cdef int* __poisson_counter_array = <int*>calloc(8, sizeof(int))
-cdef size_t __poisson_counter_array_size = 8
-
-cdef np.float64_t poisson(np.float64_t[:] ys) noexcept nogil:
-    cdef np.float64_t epsilon = 1e-18
-    cdef np.float64_t mu = 0.
-    cdef np.float64_t ret = 0
-    cdef size_t i = 0
-    cdef size_t n = ys.shape[0]
-    for i in range(__poisson_counter_array_size):
-        __poisson_counter_array[i] = 0
-    for i in prange(n, nogil=True, schedule='runtime'):
-        mu += ys[i]
-        __poisson_counter_array[<int>(ys[i])] += 1
-    mu /= n
-    cdef double value_at_yi
-    for i in range(__poisson_counter_array_size):
-        # "here i means y[i]"
-        if i > 0 and mu > epsilon:
-            value_at_yi = i * log((i + epsilon) / (mu + epsilon)) + (mu - i)
-        else:
-            value_at_yi = (mu - i)
-        ret += __poisson_counter_array[i] * value_at_yi
-    return 2 * ret / n
 
 cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,
                       np.float64_t[:] sums, np.int32_t[:] sizes) noexcept nogil:
@@ -243,6 +198,17 @@ cdef void _extract_mean_ys(np.float64_t[:] X, np.float64_t[:] y,
         value = <int>(X[i])
         sums[value] += y[i]
         sizes[value] += 1
+
+cdef void augment_p0_counts(double[::1] p, double* sum_left, double* sum_right) noexcept nogil:
+    cdef double _sum_left = sum_left[0]
+    cdef double _sum_right = sum_right[0]
+    cdef int i
+    for i in range(p.shape[0]):
+        if p[i] == 0:
+            _sum_left += 1
+            _sum_right -= 1
+    sum_left[0] = _sum_left
+    sum_right[0] = _sum_right
 
 @cython.final
 cdef class Dataset:
@@ -437,6 +403,7 @@ cdef class CART:
     cdef Dataset data
     cdef _Node* root
     cdef _SplitType split_type
+    cdef int min_nb_new_instances
 
     cdef list all_nodes
 
@@ -447,7 +414,7 @@ cdef class CART:
                   max_interaction_depth=0, max_depth=0, margin="absolute",
                   minobs=1, delta_loss=0, loss="MSE", name=None,
                   parallel="Yes", pruning="No", bootstrap="No",
-                  split='depth'):
+                  split='depth', min_nb_new_instances=1):
         self.bootstrap = (bootstrap == 'Yes')
         self.pruning = (pruning == 'Yes')
         self.replacement = replacement
@@ -464,8 +431,8 @@ cdef class CART:
         self.max_interaction_depth = max_interaction_depth
         loss = loss.lower()
         LOSS_MAPPING = {
-            'mse': MSE,
-            'poisson': POISSON
+            'mse': LossFunction.MSE,
+            'poisson': LossFunction.POISSON
         }
         assert loss in LOSS_MAPPING.keys()
         self.loss_fct = LOSS_MAPPING[loss]
@@ -476,6 +443,7 @@ cdef class CART:
             self.split_type = _SplitType.DEPTH
         else:
             raise ValueError('Unknown split type: ' + str(split))
+        self.min_nb_new_instances = min_nb_new_instances
 
     property nodes:
         def __get__(self):
@@ -516,13 +484,10 @@ cdef class CART:
     def __dealloc__(self):
         clear_node(self.root)
 
-    cdef np.float64_t _loss(self, np.float64_t[:] ys) nogil:
-        cdef np.float64_t ret
-        if self.loss_fct == MSE:
-            ret = mse(ys)
-        else:
-            ret = poisson(ys)
-        return ret
+    cdef np.float64_t _loss(self, np.float64_t[::1] ys):
+        cdef Loss loss = Loss(self.loss_fct)
+        loss.augment(ys)
+        return loss.get()
 
     def fit(self, dataset: Dataset):
         global PROBE
@@ -569,7 +534,6 @@ cdef class CART:
             return self._build_tree_best_first(data)
 
     cdef _Node* _build_tree_depth_first(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
-        # Should use a PQ to expand the nodes in decreasing order of H/Gini
         cdef SplitChoice split = self._find_best_split(data, loss)
         cdef _Node* ret = self._create_node(data.y, depth)
         ret.threshold = -1
@@ -613,7 +577,7 @@ cdef class CART:
     cdef _Node* _build_tree_best_first(self, Dataset data):
         pass
 
-    cdef _Node* _create_node(self, np.float64_t[:] ys, size_t depth):
+    cdef _Node* _create_node(self, np.float64_t[::1] ys, size_t depth):
         self.max_depth = max(depth, self.max_depth)
         cdef _Node* node = new_node(depth)
         _set_ys(node, self.idx_nodes, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])
@@ -655,70 +619,99 @@ cdef class CART:
     cdef SplitChoice _find_best_threshold(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
+        global PROBE
+        cdef SplitChoice ret
         if data.is_categorical(feature_idx):
-            return self._find_best_threshold_categorical(
+            ret = self._find_best_threshold_categorical(
                 data, feature_idx, current_loss, prop_p0
             )
         else:
-            return self._find_best_threshold_numerical(
+            start = time()
+            ret = self._find_best_threshold_numerical(
                 data, feature_idx, current_loss, prop_p0
             )
+            PROBE += time() - start
+        return ret
 
     cdef SplitChoice _find_best_threshold_numerical(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
         global PROBE
-        cdef np.ndarray values = np.unique(data.X[:, feature_idx])
+        cdef np.float64_t[:] values = np.unique(data.X[:, feature_idx])
+        cdef int i
         cdef int base_idx = 0
+        cdef int prev_base_idx = 0
+        cdef int threshold_idx
+        cdef size_t nb_samples = data.get_length()
         cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])
+        cdef np.float64_t[::1] sorted_p = np.asarray(data.p)[sorted_indices]
+        cdef np.float64_t[::1] sorted_y = np.asarray(data.y)[sorted_indices]
+        cdef np.float64_t[:, ::1] sorted_X = np.ascontiguousarray(
+            np.asarray(data.X)[sorted_indices, :]
+        )
 
         cdef Dataset left_data
         cdef Dataset right_data
 
-        cdef np.float64_t loss_left
-        cdef np.float64_t loss_right
         cdef np.float64_t threshold
         cdef np.float64_t prop_left_p0
         cdef np.float64_t prop_right_p0
         cdef np.float64_t loss, dloss
+        cdef Loss loss_left = Loss(self.loss_fct)
+        cdef Loss loss_right = Loss(self.loss_fct)
+        loss_right.augment(data.y)
+
+        cdef np.float64_t sum_p0_left = 0
+        cdef np.float64_t sum_p0_right = nb_samples - np.sum(data.p)
 
         cdef SplitChoice ret  = None
         cdef SplitChoice split
 
-        start = time()
-        for threshold_idx in range(values.shape[0]-1):
-            # extract this into a C function
-            threshold = (values[threshold_idx] + values[threshold_idx+1]) / 2.
-            base_idx = _masks(data.X[:, feature_idx], threshold, base_idx, sorted_indices)
-            left_data = data[sorted_indices[:base_idx]]
-            right_data = data[sorted_indices[base_idx:]]
+        cdef double best_loss_left = 0
+        cdef double best_loss_right = 0
+        cdef double best_dloss = 0
+        cdef size_t best_base_idx = 0
+        cdef double best_threshold = 0
 
-            if min(left_data.get_length(), right_data.get_length()) <= self.minobs:
-                loss = dloss = 0.
-                prop_left_p0 = prop_right_p0 = 0
-            else:
-                loss_left = self._loss(left_data.y) * left_data.get_length()
-                loss_right = self._loss(right_data.y) * right_data.get_length()
+        with nogil:  # Yeepee! It is all nogil!
+            for threshold_idx in range(values.shape[0]-1):
+                threshold = (values[threshold_idx] + values[threshold_idx+1])/2
+                base_idx = _masks(sorted_X[:, feature_idx], threshold, base_idx)
+                if min(base_idx, nb_samples-base_idx) <= self.minobs:
+                    continue
+                if base_idx - prev_base_idx < self.min_nb_new_instances:
+                    continue
+                augment_p0_counts(
+                    sorted_p[prev_base_idx:base_idx],
+                    &sum_p0_left, &sum_p0_right
+                )
 
-                prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
-                prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)
+                prop_left_p0 = sum_p0_left / base_idx
+                prop_right_p0 = sum_p0_right / (nb_samples - base_idx)
+                loss_left.augment(sorted_y[prev_base_idx:base_idx])
+                loss_right.diminish(sorted_y[prev_base_idx:base_idx])
+                prev_base_idx = base_idx
 
-                loss = loss_left + loss_right
-                dloss = current_loss - loss #/ data.get_length()
+                loss = loss_left.get()*base_idx + \
+                        loss_right.get()*(nb_samples - base_idx)
+                dloss = current_loss - loss
 
                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
                         fabs(prop_right_p0 - prop_p0) > self.epsilon*prop_p0:
                     continue
-                split = SplitChoice(
-                    feature_idx, False, current_loss,
-                    dloss, loss_left, loss_right,
-                    left_data, right_data,
-                    threshold=threshold
-                )
-                if split.is_better_than(ret):
-                    ret = split
-        PROBE += time() - start
-        return ret
+                if dloss > best_dloss:
+                    best_dloss = dloss
+                    best_loss_left = loss_left.get()*base_idx
+                    best_loss_right = loss_right.get() * (nb_samples-base_idx)
+                    best_base_idx = base_idx
+                    best_threshold = threshold
+        return SplitChoice(
+            feature_idx, False, current_loss,
+            best_dloss, best_loss_left, best_loss_right,
+            data[sorted_indices[:best_base_idx]],
+            data[sorted_indices[best_base_idx:]],
+            threshold=best_threshold
+        )
 
     cdef _find_best_threshold_categorical(
             self, Dataset data, int feature_idx,
@@ -774,7 +767,7 @@ cdef class CART:
                 )
                 if split.is_better_than(ret):
                     ret = split
-        PROBE += time() - start
+        # PROBE += time() - start
         return ret
 
     def predict(self, X):

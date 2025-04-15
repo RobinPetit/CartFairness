@@ -65,7 +65,7 @@ def load_dataset(nb_obs, verbose: bool=True):
         df_fictif['veh_value'] = df_fictif['veh_value'].apply(lambda x: np.round(x / 1000) * 1000)
         return df_fictif
 
-    df_fictif = reduce_nb_split(df_fictif)
+    # df_fictif = reduce_nb_split(df_fictif)
 
     if verbose:
         print(f"After rounding: {print(df_fictif[['veh_value', 'veh_power', 'veh_weight']].nunique())}")

@@ -18,7 +18,7 @@ from CART import Dataset, CART as NewCART
 VERBOSE = False
 
 # load dataset and make sure that all numerical variable are in float64
-nb_observation = 100_000
+nb_observation = 50_000
 df_fictif, col_features, col_response, col_protected = load_dataset(nb_obs=nb_observation, verbose=VERBOSE)
 df_fictif.dropna(inplace=True)
 if VERBOSE:
@@ -77,8 +77,8 @@ if VERBOSE:
 margin = 1.0
 nb_cov = len(col_features)
 it = 1
-depth = 10
-minobs = 10
+depth = 100
+minobs = 100
 range_nb_obs = [1000*k for k in range(1, 6)]
 # bootstrap = "Yes"  # "No" # For model replication (dataset is not boostraped so we must end up with same trees) => for benchmarking computation time is better to let it True
 bootstrap = 'No'

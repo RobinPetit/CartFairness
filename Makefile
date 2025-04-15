@@ -4,7 +4,7 @@ CC=gcc
 INCLUDE=$(shell ./python_include.py)
 FLAGS=-shared -pthread -fPIC -fwrapv -O3 -Wall -Wextra -std=c17 ${INCLUDE}
 
-all: ${BASE_EXTENSION}.so ${NEW_EXTENSION}.so
+all: ${BASE_EXTENSION}.so ${NEW_EXTENSION}.so loss.so
 
 %.so: %.c
 	${CC} ${FLAGS} -o $@ $<
@@ -12,9 +12,15 @@ all: ${BASE_EXTENSION}.so ${NEW_EXTENSION}.so
 %.c: %.pyx
 	cythonize $<
 
+CART.so: _CART.h
+
+loss.so: _loss.h
+
+loss.c: loss.pxd
+
 clean:
 	rm -f *.so *.c
 
 .PHONY: clean
 
-.SECONDARY: ${NEW_EXTENSION}.c
+.SECONDARY: CART.c loss.c
