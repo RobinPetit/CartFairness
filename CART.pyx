@@ -215,6 +215,7 @@ cdef class Dataset:
     cdef np.float64_t[:, :] _X
     cdef np.float64_t[:] _y
     cdef np.float64_t[:] _p
+    cdef np.float64_t[:] _w
     cdef np.uint8_t[:] _is_categorical
     cdef np.int_t[:] _indices
     cdef size_t _size
@@ -223,18 +224,24 @@ cdef class Dataset:
     cdef np.float64_t[:, :] _indexed_X
     cdef np.float64_t[:] _indexed_y
     cdef np.float64_t[:] _indexed_p
+    cdef np.float64_t[:] _indexed_w
 
     def __init__(self, np.ndarray[object, ndim=2] X,
                   np.ndarray[np.float64_t, ndim=1] y,
                   np.ndarray[np.float64_t, ndim=1] p,
-                  np.ndarray[object, ndim=1] dtypes):
+                  np.ndarray[object, ndim=1] dtypes,
+                  np.ndarray[np.float64_t, ndim=1] w=None):
         self._y = y
         self._p = p
+        self._w = w
+        if self._w is None:
+            self._w = np.ones(y.shape[0], dtype=np.float64)
         self._is_categorical = np.zeros(X.shape[1], dtype=np.uint8)
         self._X = np.empty_like(X, dtype=np.float64)
         self._indexed_X = None
         self._indexed_y = None
         self._indexed_p = None
+        self._indexed_w = None
         self._size = X.shape[0]
         self._indices = np.arange(self._size, dtype=int)
         self._reverse_mapping = [[] for _ in range(X.shape[1])]
@@ -260,6 +267,7 @@ cdef class Dataset:
         ret._X = self._X
         ret._y = self._y
         ret._p = self._p
+        ret._w = self._w
         ret._is_categorical = self._is_categorical
         ret._indices = np.asarray(self._indices)[indices]
         ret._size = ret._indices.shape[0]
@@ -267,6 +275,7 @@ cdef class Dataset:
         ret._indexed_X = None
         ret._indexed_y = None
         ret._indexed_p = None
+        ret._indexed_w = None
         return ret
 
     property nb_features:
@@ -323,6 +332,12 @@ cdef class Dataset:
         if self._indexed_p is None:
             self._indexed_p = np.asarray(self._p)[np.asarray(self._indices)]
         return self._indexed_p
+
+    @property
+    def w(self):
+        if self._indexed_w is None:
+            self._indexed_w = np.asarray(self._w)[np.asarray(self._indices)]
+        return self._indexed_w
 
     cdef np.ndarray transform(self, np.ndarray X):
         cdef np.ndarray ret = np.empty_like(X, dtype=np.float64)
@@ -399,6 +414,7 @@ cdef class CART:
     cdef int max_interaction_depth
     cdef int nb_nodes
     cdef int nb_splitting_nodes
+    cdef bint normalized_loss
     cdef bint pruning
     cdef Dataset data
     cdef _Node* root
@@ -414,9 +430,11 @@ cdef class CART:
                   max_interaction_depth=0, max_depth=0, margin="absolute",
                   minobs=1, delta_loss=0, loss="MSE", name=None,
                   parallel="Yes", pruning="No", bootstrap="No",
-                  split='depth', min_nb_new_instances=1):
+                  split='depth', min_nb_new_instances=1,
+                  normalized_loss=False):
         self.bootstrap = (bootstrap == 'Yes')
         self.pruning = (pruning == 'Yes')
+        self.normalized_loss = normalized_loss
         self.replacement = replacement
         self.epsilon = epsilon
         self.nb_cov = nb_cov
@@ -482,14 +500,16 @@ cdef class CART:
             return self.idx_nodes
 
     def __dealloc__(self):
-        clear_node(self.root)
+        if self.root != NULL:
+            clear_node(self.root)
 
-    cdef np.float64_t _loss(self, np.float64_t[::1] ys):
-        cdef Loss loss = Loss(self.loss_fct)
-        loss.augment(ys)
+    cdef np.float64_t _loss(self, np.float64_t[::1] ys, np.float64_t[::1] ws):
+        cdef Loss loss = Loss(self.loss_fct, self.normalized_loss)
+        loss.augment(ys, ws)
         return loss.get()
 
-    def fit(self, dataset: Dataset):
+    def fit(self, dataset: Dataset,
+            np.ndarray[np.float64_t, ndim=1] samples_weights=None):
         global PROBE
         PROBE = 0
         start = time()
@@ -535,7 +555,7 @@ cdef class CART:
 
     cdef _Node* _build_tree_depth_first(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
         cdef SplitChoice split = self._find_best_split(data, loss)
-        cdef _Node* ret = self._create_node(data.y, depth)
+        cdef _Node* ret = self._create_node(data.y, data.w, depth)
         ret.threshold = -1
         ret.feature_idx = -1
         self.nb_nodes += 1
@@ -567,20 +587,28 @@ cdef class CART:
               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
               f", Mean_value: {_avg},  N={Node.from_ptr(ret).nb_samples}")
         _set_left_child(
-            ret, self._build_tree_depth_first(split.left_data, depth+1, split.loss_left)
+            ret, self._build_tree_depth_first(
+                split.left_data, depth+1, split.loss_left
+            )
         )
         _set_right_child(
-            ret, self._build_tree_depth_first(split.right_data, depth+1, split.loss_right)
+            ret, self._build_tree_depth_first(
+                split.right_data, depth+1, split.loss_right
+            )
         )
         return ret
 
     cdef _Node* _build_tree_best_first(self, Dataset data):
         pass
 
-    cdef _Node* _create_node(self, np.float64_t[::1] ys, size_t depth):
+    cdef _Node* _create_node(self, np.float64_t[::1] ys,
+                             np.float64_t[::1] weights, size_t depth):
         self.max_depth = max(depth, self.max_depth)
         cdef _Node* node = new_node(depth)
-        _set_ys(node, self.idx_nodes, np.mean(ys), self._loss(ys) * ys.shape[0], ys.shape[0])
+        _set_ys(
+            node, self.idx_nodes, np.mean(ys),
+            self._loss(ys, weights) * ys.shape[0], ys.shape[0]
+        )
         return node
 
     cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):
@@ -597,7 +625,7 @@ cdef class CART:
 
         cdef np.float64_t current_loss
         if precomputed_loss == np.inf:
-            current_loss = self._loss(data.y) * data.get_length()
+            current_loss = self._loss(data.y, data.w)
         else:
             current_loss = precomputed_loss
         cdef np.float64_t prop_p0 = np.mean(np.asarray(data.p) == 0)
@@ -646,6 +674,7 @@ cdef class CART:
         cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])
         cdef np.float64_t[::1] sorted_p = np.asarray(data.p)[sorted_indices]
         cdef np.float64_t[::1] sorted_y = np.asarray(data.y)[sorted_indices]
+        cdef np.float64_t[::1] sorted_w = np.asarray(data.w)[sorted_indices]
         cdef np.float64_t[:, ::1] sorted_X = np.ascontiguousarray(
             np.asarray(data.X)[sorted_indices, :]
         )
@@ -657,9 +686,9 @@ cdef class CART:
         cdef np.float64_t prop_left_p0
         cdef np.float64_t prop_right_p0
         cdef np.float64_t loss, dloss
-        cdef Loss loss_left = Loss(self.loss_fct)
-        cdef Loss loss_right = Loss(self.loss_fct)
-        loss_right.augment(data.y)
+        cdef Loss loss_left = Loss(self.loss_fct, self.normalized_loss)
+        cdef Loss loss_right = Loss(self.loss_fct, self.normalized_loss)
+        loss_right.augment(data.y, data.w)
 
         cdef np.float64_t sum_p0_left = 0
         cdef np.float64_t sum_p0_right = nb_samples - np.sum(data.p)
@@ -688,12 +717,17 @@ cdef class CART:
 
                 prop_left_p0 = sum_p0_left / base_idx
                 prop_right_p0 = sum_p0_right / (nb_samples - base_idx)
-                loss_left.augment(sorted_y[prev_base_idx:base_idx])
-                loss_right.diminish(sorted_y[prev_base_idx:base_idx])
+                loss_left.augment(
+                    sorted_y[prev_base_idx:base_idx],
+                    sorted_w[prev_base_idx:base_idx]
+                )
+                loss_right.diminish(
+                    sorted_y[prev_base_idx:base_idx],
+                    sorted_w[prev_base_idx:base_idx]
+                )
                 prev_base_idx = base_idx
 
-                loss = loss_left.get()*base_idx + \
-                        loss_right.get()*(nb_samples - base_idx)
+                loss = loss_left.get() + loss_right.get()
                 dloss = current_loss - loss
 
                 if fabs(prop_left_p0 - prop_p0) > self.epsilon*prop_p0 or \
@@ -746,8 +780,8 @@ cdef class CART:
                 loss = dloss = 0.
                 prop_left_p0 = prop_right_p0 = 0
             else:
-                loss_left = self._loss(left_data.y) * left_data.get_length()
-                loss_right = self._loss(right_data.y) * right_data.get_length()
+                loss_left = self._loss(left_data.y, left_data.w)
+                loss_right = self._loss(right_data.y, right_data.w)
 
                 prop_left_p0 = np.mean(np.asarray(left_data.p) == 0)
                 prop_right_p0 = np.mean(np.asarray(right_data.p) == 0)

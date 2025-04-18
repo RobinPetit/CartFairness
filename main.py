@@ -77,7 +77,7 @@ if VERBOSE:
 margin = 1.0
 nb_cov = len(col_features)
 it = 1
-depth = 100
+depth = 10
 minobs = 100
 range_nb_obs = [1000*k for k in range(1, 6)]
 # bootstrap = "Yes"  # "No" # For model replication (dataset is not boostraped so we must end up with same trees) => for benchmarking computation time is better to let it True

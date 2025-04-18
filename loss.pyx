@@ -5,11 +5,10 @@
 # cython: language_level=3
 # cython: linetrace=True
 
-from cython cimport address
-
 cdef class Loss:
-    def __cinit__(self, LossFunction loss_type):
+    def __cinit__(self, LossFunction loss_type, bint normalized):
         self.loss_type = loss_type
+        self.normalized = normalized
         if loss_type == LossFunction.MSE:
             self.loss_ptr = create_mse()
         elif loss_type == LossFunction.POISSON:
@@ -33,21 +32,23 @@ cdef class Loss:
             ret = evaluate_mse(<MSE_t*>self.loss_ptr)
         elif self.loss_type == LossFunction.POISSON:
             ret = evaluate_poisson_deviance(<PoissonDeviance_t*>self.loss_ptr)
+        if self.normalized:
+            ret /= (<__BasicLoss_t*>self.loss_ptr).n
         return ret
 
-    cdef void augment(self, double[::1] ys) noexcept nogil:
+    cdef void augment(self, double[::1] ys, double[::1] ws) noexcept nogil:
         if self.loss_type == LossFunction.MSE:
-            augment_mse(<MSE_t*>self.loss_ptr, &ys[0], ys.shape[0])
+            augment_mse(<MSE_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0])
         elif self.loss_type == LossFunction.POISSON:
             augment_poisson_deviance(
-                <PoissonDeviance_t*>self.loss_ptr, &ys[0], ys.shape[0]
+                <PoissonDeviance_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0]
             )
 
-    cdef void diminish(self, double[::1] ys) noexcept nogil:
+    cdef void diminish(self, double[::1] ys, double[::1] ws) noexcept nogil:
         if self.loss_type == LossFunction.MSE:
-            diminish_mse(<MSE_t*>self.loss_ptr, &ys[0], ys.shape[0])
+            diminish_mse(<MSE_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0])
         elif self.loss_type == LossFunction.POISSON:
             diminish_poisson_deviance(
-                <PoissonDeviance_t*>self.loss_ptr, &ys[0], ys.shape[0]
+                <PoissonDeviance_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0]
             )
 

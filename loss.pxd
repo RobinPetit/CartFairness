@@ -6,6 +6,10 @@
 # cython: linetrace=True
 
 cdef extern from "_loss.h" nogil:
+    cdef struct __BasicLoss_t:
+        double value
+        size_t n
+        bint precomputed
     cdef struct MSE_t:
         pass
     cdef struct PoissonDeviance_t:
@@ -13,13 +17,13 @@ cdef extern from "_loss.h" nogil:
     MSE_t* create_mse()
     double evaluate_mse(MSE_t*)
     void destroy_mse(MSE_t**)
-    void augment_mse(MSE_t*, double*, size_t)
-    void diminish_mse(MSE_t*, double*, size_t)
+    void augment_mse(MSE_t*, double*, double*, size_t)
+    void diminish_mse(MSE_t*, double*, double*, size_t)
     PoissonDeviance_t* create_poisson_deviance()
     void destroy_poisson_deviance(PoissonDeviance_t**)
     double evaluate_poisson_deviance(PoissonDeviance_t*)
-    void augment_poisson_deviance(PoissonDeviance_t*, double*, size_t)
-    void diminish_poisson_deviance(PoissonDeviance_t*, double*, size_t)
+    void augment_poisson_deviance(PoissonDeviance_t*, double*, double*, size_t)
+    void diminish_poisson_deviance(PoissonDeviance_t*, double*, double*, size_t)
 
 ctypedef enum LossFunction:
     MSE,
@@ -27,7 +31,9 @@ ctypedef enum LossFunction:
 
 cdef class Loss:
     cdef LossFunction loss_type
+    cdef bint normalized
     cdef void* loss_ptr
+
     cdef double get(self) noexcept nogil
-    cdef void augment(self, double[::1] ys) noexcept nogil
-    cdef void diminish(self, double[::1] ys) noexcept nogil
+    cdef void augment(self, double[::1] ys, double[::1] ws) noexcept nogil
+    cdef void diminish(self, double[::1] ys, double[::1] ws) noexcept nogil
