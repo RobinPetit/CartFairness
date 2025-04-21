@@ -97,7 +97,7 @@ cdef class Dataset:
             filled_indices[indices] = True
             np.asarray(out)[indices, col_idx] = counter
             counter += 1
-        np.asarray(out)[~indices, col_idx] = -1
+        np.asarray(out)[~filled_indices, col_idx] = -1
 
     cdef Dataset sample(self, double prop_sample, bint replacement):
         cdef np.ndarray sampled_indices = np.random.choice(
