@@ -301,6 +301,7 @@ cdef class CART:
     cdef _Node* root
     cdef _SplitType split_type
     cdef size_t min_nb_new_instances
+    cdef np.float64_t prop_root_p0
 
     cdef list all_nodes
 
@@ -399,6 +400,7 @@ cdef class CART:
             print('Bootstrapping...')
             self.data = self.data.sample(self.prop_sample, self.replacement)
         # split train vs test ?!
+        self.prop_root_p0 = 1 - np.mean(self.data.p)
         self.root = self._build_tree(self.data)
         self._retrieve_all_nodes()
         if self.pruning:
@@ -510,7 +512,7 @@ cdef class CART:
             current_loss = self._loss(data.y, data.w)
         else:
             current_loss = precomputed_loss
-        cdef np.float64_t prop_p0 = np.mean(np.asarray(data.p) == 0)
+        cdef np.float64_t prop_p0 = self.prop_root_p0
 
         cdef SplitChoice ret = None
         cdef SplitChoice best_split
