@@ -90,11 +90,14 @@ cdef class Dataset:
         cdef int counter = 0
         if compute_mapping:
             self._reverse_mapping[col_idx] = np.unique(X[:, col_idx])
+        cdef np.ndarray filled_indices = np.zeros(X.shape[0], dtype=bool)
         cdef np.ndarray indices
         for value in self._reverse_mapping[col_idx]:
             indices = np.where(X[:, col_idx] == value)[0]
+            filled_indices[indices] = True
             np.asarray(out)[indices, col_idx] = counter
             counter += 1
+        np.asarray(out)[~indices, col_idx] = -1
 
     cdef Dataset sample(self, double prop_sample, bint replacement):
         cdef np.ndarray sampled_indices = np.random.choice(
