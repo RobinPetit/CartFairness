@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 
-import warnings
-warnings.simplefilter("error")
-
 # compare.py
 from version_simple_cython21_adj_categorical_clean_epsilon import CARTRegressor_cython, preprocess_data
 from version_simple_python_cat_clean_epsilon import CARTRegressor_python
@@ -11,14 +8,17 @@ import matplotlib.pyplot as plt
 from load_data import load_dataset
 import numpy as np
 
-from CART import Dataset, CART as NewCART
+from CART import CART as NewCART
+from dataset import Dataset
 
+import warnings
+warnings.simplefilter("error")
 
 ##################################################################################
 VERBOSE = False
 
 # load dataset and make sure that all numerical variable are in float64
-nb_observation = 50_000
+nb_observation = 1_000_000
 df_fictif, col_features, col_response, col_protected = load_dataset(nb_obs=nb_observation, verbose=VERBOSE)
 df_fictif.dropna(inplace=True)
 if VERBOSE:
@@ -78,28 +78,11 @@ margin = 1.0
 nb_cov = len(col_features)
 it = 1
 depth = 10
-minobs = 100
+minobs = 1
 range_nb_obs = [1000*k for k in range(1, 6)]
 # bootstrap = "Yes"  # "No" # For model replication (dataset is not boostraped so we must end up with same trees) => for benchmarking computation time is better to let it True
 bootstrap = 'No'
 ##################################################################################
-
-# dataset = Dataset(X_train, y_train, p_train, dtypes)
-# print(np.array([dataset.is_categorical(j) for j in range(len(dtypes))]))
-# start_time = time.perf_counter()
-# cart3 = NewCART(
-#     epsilon=margin, id=0, nb_cov=nb_cov, replacement=True, prop_sample=1.0, frac_valid=1.0,
-#     max_interaction_depth=depth, minobs=minobs, name="DiscriTree", loss="poisson",
-#     parallel="No", pruning="No", bootstrap="No")
-# nodes = cart3.fit(dataset)
-# print(nodes)
-# for node in cart3.nodes:
-#     print(node.loss, end=' ')
-#     if node.is_categorical:
-#         print('(categorical)')
-#     else:
-#         print('(numerical)')
-# exit()
 
 # Timing Cython function
 models = [NewCART, CARTRegressor_cython, CARTRegressor_python]
@@ -113,6 +96,8 @@ dataset = Dataset(X_train, y_train, p_train, dtypes)
 print(dataset.nb_features, 'features')
 print('Categorical:')
 print(np.where(np.array([dataset.is_categorical(j) for j in range(len(dtypes))]))[0])
+print('Features:')
+print(col_features)
 
 def mse(y, y_pred):
     return np.mean((y-y_pred)**2)

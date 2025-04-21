@@ -14,6 +14,7 @@
     } \
     } while(0);
 
+// Let's get C-messy!
 #define BASE_STRUCT_LOSS \
     double value; \
     size_t n; \
@@ -43,7 +44,7 @@ typedef struct PoissonDeviance_t {
 
 static inline MSE_t* create_mse() {
     MSE_t* ret = MALLOC_ONE(MSE_t);
-    ret->sum = ret->weighted_sum = ret->weighted_sum_squares= ret->value = 0;
+    ret->sum = ret->weighted_sum = ret->weighted_sum_squares = ret->value = 0;
     ret->sum_of_weights = 0;
     ret->n = 0;
     ret->precomputed = true;
@@ -90,6 +91,22 @@ static inline void diminish_mse(
         mse->weighted_sum_squares -= ys[i]*ys[i]*ws[i];
         mse->sum_of_weights -= ws[i];
     }
+    mse->precomputed = false;
+}
+
+static inline void join_mse(MSE_t* mse, const MSE_t* other) {
+    mse->sum += other->sum;
+    mse->weighted_sum += other->weighted_sum;
+    mse->weighted_sum_squares += other->weighted_sum_squares;
+    mse->sum_of_weights += other->sum_of_weights;
+    mse->precomputed = false;
+}
+
+static inline void unjoin_mse(MSE_t* mse, const MSE_t* other) {
+    mse->sum -= other->sum;
+    mse->weighted_sum -= other->weighted_sum;
+    mse->weighted_sum_squares -= other->weighted_sum_squares;
+    mse->sum_of_weights -= other->sum_of_weights;
     mse->precomputed = false;
 }
 
@@ -166,83 +183,26 @@ static inline void diminish_poisson_deviance(
     pd->precomputed = false;
 }
 
-/*typedef struct PoissonDeviance_t {
-    size_t* counts;
-    size_t n;
-    bool precomputed;
-    double value;
-} PoissonDeviance_t;
-
-static inline PoissonDeviance_t* create_poisson_deviance() {
-    PoissonDeviance_t* ret = (PoissonDeviance_t*)malloc(sizeof(*ret));
-    ret->n = 2;
-    ret->counts = (size_t*)calloc(ret->n, sizeof(size_t));
-    ret->precomputed = true;
-    ret->value = 0;
-    return ret;
-};
-static inline void destroy_poisson_deviance(PoissonDeviance_t** pd) {
-    if(*pd == NULL)
-        return;
-    if((*pd)->counts != NULL) {
-        free((*pd)->counts);
-        (*pd)->counts = NULL;
+static inline void join_poisson_deviance(
+        PoissonDeviance_t* pd, const PoissonDeviance_t* other) {
+    if(pd->max_y < other->max_y)
+        _reallocate_poisson_deviance(pd, other->max_y);
+    for(size_t k=0; k < other->max_y; ++k) {
+        pd->sum_of_weights[k] += other->sum_of_weights[k];
     }
-    *pd = NULL;
-}
-
-static inline void _compute_poisson(PoissonDeviance_t* pd) {
-    double mu = 0;
-    size_t total = 0;
-    for(size_t k=0; k < pd->n; ++k) {
-        mu += k * pd->counts[k];
-        total += pd->counts[k];
-    }
-    mu /= total;
-    pd->value = pd->counts[0] * mu;
-    if(mu > 1e-18) {
-        for(size_t k=1; k < pd->n; ++k)
-            pd->value += pd->counts[k] * (k * log(k / mu) + (mu - k));
-    } else {
-        for(size_t k=1; k < pd->n; ++k)
-            pd->value += pd->counts[k] * (mu - k);
-    }
-    pd->value *= 2. / total;
-    pd->precomputed = true;
-}
-
-static inline double evaluate_poisson_deviance(const PoissonDeviance_t* pd) {
-    if(!pd->precomputed)
-        _compute_poisson((PoissonDeviance_t*)(pd));
-    return pd->value;
-}
-
-static inline void _reallocate_poisson_deviance(PoissonDeviance_t* pd, size_t k) {
-    size_t current_size = pd->n;
-    while(pd->n <= k)
-        pd->n *= 2;
-    pd->counts = (size_t*)realloc(pd->counts, pd->n * sizeof(*pd->counts));
-    for(size_t i=current_size; i < pd->n; ++i)
-        pd->counts[i] = 0;
-}
-
-static inline void augment_poisson_deviance(
-        PoissonDeviance_t* pd, double* ys, double* ws, size_t n) {
-    for(size_t i=0; i < n; ++i) {
-        if(pd->n <= (size_t)ys[i])
-            _reallocate_poisson_deviance(pd, ys[i]);
-        ++pd->counts[(size_t)(ys[i])];
-    }
+    pd->weighted_sum += other->weighted_sum;
+    pd->sum += other->sum;
     pd->precomputed = false;
 }
 
-static inline void diminish_poisson_deviance(
-        PoissonDeviance_t* pd, double* ys, double* ws, size_t n) {
-    for(size_t i=0; i < n; ++i) {
-        --pd->counts[(int)(ys[i])];
+static inline void unjoin_poisson_deviance(
+        PoissonDeviance_t* pd, const PoissonDeviance_t* other) {
+    for(size_t k=0; k < other->max_y; ++k) {
+        pd->sum_of_weights[k] -= other->sum_of_weights[k];
     }
+    pd->weighted_sum -= other->weighted_sum;
+    pd->sum -= other->sum;
     pd->precomputed = false;
 }
-*/
 
 #endif

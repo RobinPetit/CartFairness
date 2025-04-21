@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #define __EPSILON 1e-10
@@ -17,7 +18,6 @@ typedef struct Vector {
 
 typedef struct PQ {
     Vector priorities;
-    // Vector data;
     Vector pq;
     size_t n;
 } PQ;

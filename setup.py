@@ -7,7 +7,10 @@ import numpy
 # np_include_path = "C:/Users/Admin/.conda/envs/PhD_TM/lib/site-packages/numpy/core/include"  # from numpy.get_include()
 pandas_include_path = "C:/Users/Admin/.conda/envs/PhD_TM/lib/site-packages/pandas/_libs/tslibs"  # /package/include"
 
-modules = ['CART', 'loss']
+modules = [
+    'CART', 'loss', 'dataset',
+    'version_simple_cython21_adj_categorical_clean_epsilon'
+]
 
 # Define the extension module
 extensions = [

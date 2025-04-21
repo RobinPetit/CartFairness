@@ -52,3 +52,24 @@ cdef class Loss:
                 <PoissonDeviance_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0]
             )
 
+    cdef size_t get_size(self) noexcept nogil:
+        return (<__BasicLoss_t*>self.loss_ptr).n
+
+    cdef void join(self, Loss other) noexcept nogil:
+        if self.loss_type == LossFunction.MSE:
+            join_mse(<MSE_t*>self.loss_ptr, <MSE_t*>other.loss_ptr)
+        elif self.loss_type == LossFunction.POISSON:
+            join_poisson_deviance(
+                <PoissonDeviance_t*>self.loss_ptr,
+                <PoissonDeviance_t*>other.loss_ptr
+            )
+
+    cdef void unjoin(self, Loss other) noexcept nogil:
+        if self.loss_type == LossFunction.MSE:
+            unjoin_mse(<MSE_t*>self.loss_ptr, <MSE_t*>other.loss_ptr)
+        elif self.loss_type == LossFunction.POISSON:
+            unjoin_poisson_deviance(
+                <PoissonDeviance_t*>self.loss_ptr,
+                <PoissonDeviance_t*>other.loss_ptr
+            )
+

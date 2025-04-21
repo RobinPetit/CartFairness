@@ -1,10 +1,10 @@
 BASE_EXTENSION=version_simple_cython21_adj_categorical_clean_epsilon
-NEW_EXTENSION=CART
+EXTENSIONS=${BASE_EXTENSION}.so CART.so loss.so dataset.so
 CC=gcc
 INCLUDE=$(shell ./python_include.py)
 FLAGS=-shared -pthread -fPIC -fwrapv -O3 -Wall -Wextra -std=c17 ${INCLUDE}
 
-all: ${BASE_EXTENSION}.so ${NEW_EXTENSION}.so loss.so
+all: ${EXTENSIONS}
 
 %.so: %.c
 	${CC} ${FLAGS} -o $@ $<
@@ -18,9 +18,13 @@ loss.so: _loss.h
 
 loss.c: loss.pxd
 
+dataset.so: _dataset.h
+
+dataset.h: dataset.pxd
+
 clean:
 	rm -f *.so *.c
 
 .PHONY: clean
 
-.SECONDARY: CART.c loss.c
+.SECONDARY: CART.c loss.c dataset.c
