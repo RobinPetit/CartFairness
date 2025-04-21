@@ -38,17 +38,18 @@ cdef extern from "_CART.h" nogil:
         Vector categorical_values_left
         Vector categorical_values_right
         int idx
+        Vector valid_modalities
 
     _Node* new_node(size_t)
     void clear_node(_Node*)
     void _set_ys(_Node*, size_t, double, double, size_t)
-    void _set_categorical_node_left_right_values(_Node*, np.int32_t*, size_t, size_t)
+    void _set_categorical_node_left_right_values(
+            _Node*, const np.int32_t*, size_t, size_t, const np.int32_t*)
     void _set_left_child(_Node*, _Node*)
     void _set_right_child(_Node*, _Node*)
     bint _is_root(_Node*)
     bint _is_leaf(_Node*)
     bint vector_contains_int32(Vector*, np.int32_t)
-
 
 cdef class Node:
     cdef _Node* node
@@ -156,6 +157,26 @@ cdef class Node:
             ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
         return ret
 
+    cpdef list _get_left_indices(self):
+        if not self.node.is_categorical:
+            raise ValueError('Not a categorical split')
+        cdef list ret = []
+        cdef size_t i
+        cdef Vector* vec = &self.node.categorical_values_left
+        for i in range(vec.n):
+            ret.append((<np.int32_t*>(vec._base))[i])
+        return ret
+
+    cpdef list _get_right_indices(self):
+        if not self.node.is_categorical:
+            raise ValueError('Not a categorical split')
+        cdef list ret = []
+        cdef size_t i
+        cdef Vector* vec = &self.node.categorical_values_right
+        for i in range(vec.n):
+            ret.append((<np.int32_t*>(vec._base))[i])
+        return ret
+
     def __str__(self):
         return f'Node(idx={self.node.idx}, ptr={<long>(self.node):x})'
     def __repr__(self):
@@ -205,13 +226,16 @@ cdef class SplitChoice:
     cdef bint is_categorical
     cdef size_t threshold_idx
     cdef np.int32_t[::1] labels  # Needs to be contiguous in memory!
+    cdef np.int32_t[::1] first_index
 
     def __cinit__(self, size_t feature_idx, bint is_categorical,
                   np.float64_t loss, np.float64_t dloss,
                   np.float64_t left_loss, np.float64_t right_loss,
                   Dataset left_data, Dataset right_data,
                   np.float64_t threshold=np.inf,
-                  int threshold_idx=0, np.int32_t[::1] ordered_labels=None):
+                  # for categorical splits
+                  int threshold_idx=0, np.int32_t[::1] ordered_labels=None,
+                  np.int32_t[::1] first_index=None):
         self.feature_idx = feature_idx
         self.loss = loss
         self.dloss = dloss
@@ -223,6 +247,7 @@ cdef class SplitChoice:
         if self.is_categorical:
             self.threshold_idx = threshold_idx
             self.labels = ordered_labels
+            self.first_index = first_index
         else:
             self.threshold = threshold
 
@@ -247,7 +272,7 @@ cdef void _compute_first_idx(
         indices[i] += indices[i-1]
 
 cdef void _select_indices(
-        np.int_t[:] sorted_indices, np.int32_t[:] ordered, size_t max_idx,
+        np.int32_t[:] sorted_indices, np.int32_t[:] ordered, size_t max_idx,
         np.int32_t[:] first_idx, np.npy_bool[:] selected) noexcept nogil:
     cdef size_t i
     cdef np.int32_t j
@@ -422,13 +447,13 @@ cdef class CART:
                 split.dloss <= self.delta_loss or split.loss <= 0 or \
                 self.nb_splitting_nodes > self.max_interaction_depth:
             return ret
-        assert split.loss_left == self._loss(split.left_data.y, split.left_data.w)
         ret.feature_idx = split.feature_idx
         self.nb_splitting_nodes += 1
         ret.dloss = split.dloss
         if split.is_categorical:
             _set_categorical_node_left_right_values(
-                ret, &split.labels[0], split.labels.shape[0], split.threshold_idx
+                ret, &split.labels[0], split.labels.shape[0],
+                split.threshold_idx, &split.first_index[0]
             )
             ret.threshold = split.threshold_idx + .5
         else:
@@ -464,7 +489,7 @@ cdef class CART:
         cdef _Node* node = new_node(depth)
         _set_ys(
             node, self.idx_nodes, np.mean(ys),
-            self._loss(ys, weights) * ys.shape[0], ys.shape[0]
+            self._loss(ys, weights), ys.shape[0]
         )
         return node
 
@@ -558,15 +583,16 @@ cdef class CART:
             for threshold_idx in range(values.shape[0]-1):
                 threshold = (values[threshold_idx] + values[threshold_idx+1])/2
                 base_idx = _masks(sorted_X[:, feature_idx], threshold, base_idx)
-                if min(base_idx, nb_samples-base_idx) <= self._minobs:
+                if base_idx <= self._minobs:
                     continue
+                if nb_samples-base_idx <= self._minobs:
+                    break
                 if base_idx - prev_base_idx < self.min_nb_new_instances:
                     continue
                 augment_p0_counts(
                     sorted_p[prev_base_idx:base_idx],
                     &sum_p0_left, &sum_p0_right
                 )
-
                 prop_left_p0 = sum_p0_left / base_idx
                 prop_right_p0 = sum_p0_right / (nb_samples - base_idx)
                 loss_left.augment(
@@ -608,7 +634,7 @@ cdef class CART:
     cdef SplitChoice _find_best_threshold_categorical_sorted_by_mean_ys(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
-        cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])
+        cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx]).astype(np.int32)
         cdef np.float64_t[::1] sorted_p = np.asarray(data.p)[sorted_indices]
         cdef np.float64_t[::1] sorted_y = np.asarray(data.y)[sorted_indices]
         cdef np.float64_t[::1] sorted_w = np.asarray(data.w)[sorted_indices]
@@ -628,7 +654,7 @@ cdef class CART:
 
         cdef np.float64_t prop_left_p0
         cdef np.float64_t prop_right_p0
-        cdef np.float64_t dloss
+        cdef np.float64_t dloss = 0
         cdef Loss loss_left = Loss(self.loss_fct, self.normalized_loss)
         cdef Loss loss_right = Loss(self.loss_fct, self.normalized_loss)
         loss_right.augment(data.y, data.w)
@@ -643,13 +669,12 @@ cdef class CART:
         cdef size_t nb_left = 0
         cdef size_t nb_added_left = 0
         cdef size_t beg_idx, end_idx
-        cdef size_t total = 0
         with nogil:  # Hell yeah baby!
             for idx in range(max_modality):
                 threshold_idx = ordered[idx]
                 beg_idx = first_idx[threshold_idx]
                 end_idx = first_idx[threshold_idx+1]
-                nb_added_left =  end_idx - beg_idx
+                nb_added_left = end_idx - beg_idx
                 nb_left += nb_added_left
                 augment_p0_counts(
                     sorted_p[beg_idx:end_idx],
@@ -666,7 +691,7 @@ cdef class CART:
                 if nb_added_left < self.min_nb_new_instances:
                     continue
                 if nb_samples - nb_left <= self._minobs:
-                    continue
+                    break
                 dloss = current_loss - (loss_left.get() + loss_right.get())
                 prop_left_p0 = sum_p0_left / nb_left
                 prop_right_p0 = sum_p0_right / (nb_samples - nb_left)
@@ -680,8 +705,7 @@ cdef class CART:
                     best_loss_left = loss_left.get()
                     best_loss_right = loss_right.get()
                     best_idx = idx
-                    total = nb_left
-        if total == 0 or dloss == 0:
+        if dloss == 0:
             return None
         cdef np.ndarray selected_indices = np.zeros(
             sorted_indices.shape[0], dtype=bool
@@ -695,7 +719,8 @@ cdef class CART:
             data[selected_indices],
             data[~selected_indices],
             threshold_idx=best_idx,
-            ordered_labels=ordered
+            ordered_labels=ordered,
+            first_index=first_idx
         )
 
     def predict(self, X):
@@ -714,14 +739,14 @@ cdef class CART:
         while not _is_leaf(node):
             if node.is_categorical:
                 categorical_label = <int>(x[node.feature_idx])
-                if vector_contains_int32(&node.categorical_values_left, categorical_label):
-                    node = node.left_child
-                elif vector_contains_int32(&node.categorical_values_right, categorical_label):
-                    node = node.right_child
-                else:
+                if not vector_contains_int32(&node.valid_modalities, categorical_label):
                     # Stop search if modality of categorical value has never been
                     # seen at this point
                     break
+                elif vector_contains_int32(&node.categorical_values_left, categorical_label):
+                    node = node.left_child
+                else:
+                    node = node.right_child
             else:
                 val = x[node.feature_idx]
                 if val <= node.threshold:

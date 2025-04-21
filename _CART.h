@@ -32,7 +32,7 @@ struct _Node {
     bool is_categorical;
     Vector categorical_values_left;
     Vector categorical_values_right;
-
+    Vector valid_modalities;
 };
 
 #ifndef __max
@@ -183,7 +183,8 @@ static inline void _set_ys(struct _Node* node, size_t idx, double avg, double lo
 }
 
 static inline void _set_categorical_node_left_right_values(
-        struct _Node* node, const int32_t* const labels, size_t n, size_t threshold_idx) {
+        struct _Node* node, const int32_t* const labels, size_t n,
+        size_t threshold_idx, const int32_t* first_idx) {
     node->is_categorical = true;
     init_vector_from_int_ptr(
         &node->categorical_values_left,
@@ -193,6 +194,10 @@ static inline void _set_categorical_node_left_right_values(
         &node->categorical_values_right,
         labels+threshold_idx+1, n-threshold_idx-1
     );
+    init_vector(&node->valid_modalities, n);
+    for(size_t i=0; i < n; ++i)
+        if(first_idx[i] < first_idx[i+1])
+            insert_int32_in_vector(&node->valid_modalities, (int32_t)i);
 }
 
 static inline void _set_left_child(struct _Node* root, struct _Node* child) {
