@@ -14,6 +14,7 @@ cdef extern from "_loss.h" nogil:
         pass
     cdef struct PoissonDeviance_t:
         pass
+    void _init_mse(MSE_t*)
     MSE_t* create_mse()
     double evaluate_mse(MSE_t*)
     void destroy_mse(MSE_t**)
@@ -21,6 +22,7 @@ cdef extern from "_loss.h" nogil:
     void diminish_mse(MSE_t*, double*, double*, size_t)
     void join_mse(MSE_t*, const MSE_t*)
     void unjoin_mse(MSE_t*, const MSE_t*)
+    void _init_poisson_deviance(PoissonDeviance_t*)
     PoissonDeviance_t* create_poisson_deviance()
     void destroy_poisson_deviance(PoissonDeviance_t**)
     double evaluate_poisson_deviance(PoissonDeviance_t*)

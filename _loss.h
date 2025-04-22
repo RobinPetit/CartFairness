@@ -12,7 +12,7 @@
         free(ptr); \
         ptr = NULL; \
     } \
-    } while(0);
+} while(0);
 
 // Let's get C-messy!
 #define BASE_STRUCT_LOSS \
@@ -41,13 +41,16 @@ typedef struct PoissonDeviance_t {
     double sum;
 } PoissonDeviance_t;
 
+static inline void _init_mse(MSE_t* mse) {
+    mse->sum = mse->weighted_sum = mse->weighted_sum_squares = mse->value = 0;
+    mse->sum_of_weights = 0;
+    mse->n = 0;
+    mse->precomputed = true;
+}
 
 static inline MSE_t* create_mse() {
     MSE_t* ret = MALLOC_ONE(MSE_t);
-    ret->sum = ret->weighted_sum = ret->weighted_sum_squares = ret->value = 0;
-    ret->sum_of_weights = 0;
-    ret->n = 0;
-    ret->precomputed = true;
+    _init_mse(ret);
     return ret;
 }
 
@@ -99,6 +102,7 @@ static inline void join_mse(MSE_t* mse, const MSE_t* other) {
     mse->weighted_sum += other->weighted_sum;
     mse->weighted_sum_squares += other->weighted_sum_squares;
     mse->sum_of_weights += other->sum_of_weights;
+    mse->n += other->n;
     mse->precomputed = false;
 }
 
@@ -107,6 +111,7 @@ static inline void unjoin_mse(MSE_t* mse, const MSE_t* other) {
     mse->weighted_sum -= other->weighted_sum;
     mse->weighted_sum_squares -= other->weighted_sum_squares;
     mse->sum_of_weights -= other->sum_of_weights;
+    mse->n -= other->n;
     mse->precomputed = false;
 }
 
@@ -122,17 +127,21 @@ static inline void _reallocate_poisson_deviance(PoissonDeviance_t* pd, size_t k)
     }
 }
 
+static inline void _init_poisson_deviance(PoissonDeviance_t* pd) {
+    pd->sum_of_weights = NULL;
+    pd->ylogys = NULL;
+    pd->max_y = 1;
+    _reallocate_poisson_deviance(pd, 2);
+    pd->sum = 0;
+    pd->ylogys[0] = pd->sum_of_weights[0] = 0.;
+    pd->precomputed = true;
+    pd->value = 0;
+    pd->n = 0;
+}
+
 static inline PoissonDeviance_t* create_poisson_deviance() {
     PoissonDeviance_t* ret = MALLOC_ONE(PoissonDeviance_t);
-    ret->sum_of_weights = NULL;
-    ret->ylogys = NULL;
-    ret->max_y = 1;
-    _reallocate_poisson_deviance(ret, 2);
-    ret->sum = 0;
-    ret->ylogys[0] = ret->sum_of_weights[0] = 0.;
-    ret->precomputed = true;
-    ret->value = 0;
-    ret->n = 0;
+    _init_poisson_deviance(ret);
     return ret;
 }
 
@@ -187,21 +196,21 @@ static inline void join_poisson_deviance(
         PoissonDeviance_t* pd, const PoissonDeviance_t* other) {
     if(pd->max_y < other->max_y)
         _reallocate_poisson_deviance(pd, other->max_y);
-    for(size_t k=0; k < other->max_y; ++k) {
+    for(size_t k=0; k < other->max_y; ++k)
         pd->sum_of_weights[k] += other->sum_of_weights[k];
-    }
     pd->weighted_sum += other->weighted_sum;
     pd->sum += other->sum;
+    pd->n += other->n;
     pd->precomputed = false;
 }
 
 static inline void unjoin_poisson_deviance(
         PoissonDeviance_t* pd, const PoissonDeviance_t* other) {
-    for(size_t k=0; k < other->max_y; ++k) {
+    for(size_t k=0; k < other->max_y; ++k)
         pd->sum_of_weights[k] -= other->sum_of_weights[k];
-    }
     pd->weighted_sum -= other->weighted_sum;
     pd->sum -= other->sum;
+    pd->n -= other->n;
     pd->precomputed = false;
 }
 

@@ -165,6 +165,6 @@ cdef class Dataset:
         cdef np.ndarray ret = np.argsort(ysums)
         return ret[np.asarray(ysizes)[ret] > 0]
 
-    cdef int nb_modalities_of(self, int feature_idx):
+    cpdef int nb_modalities_of(self, int feature_idx):
         return len(self._reverse_mapping[feature_idx])
 

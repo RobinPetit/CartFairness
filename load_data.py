@@ -2,6 +2,105 @@ import pandas as pd
 import numpy as np
 
 # Example
+# Example
+def load_dataset_charpentier(nb_obs, verbose: bool=True):
+    #df_fictif = pd.read_feather("data.feather")
+
+    df_fictif = pd.read_feather("freqMTPLT2freq.feather")
+
+    #print(df_fictif)
+    #print(df_fictif.dtypes)
+
+    def inspect_col():
+        list_covariates = []
+        for col in df_fictif.columns:
+            print(f"col: {col}")
+            print(df_fictif[col].value_counts())
+            list_covariates.append(col)
+
+        print(list_covariates)
+
+    #inspect_col()
+    #quit()
+
+    list_covariates = ['VehPower', 'VehAge', 'DrivAge', 'BonusMalus', 'VehBrand', 'Area', 'Density', 'Region']
+    #list_covariates = ['VehPower', 'VehAge', 'DrivAge', 'Density']
+
+    df_fictif['gender'] = df_fictif['VehGas'].map({'Regular': 0, 'Diesel': 1})
+    p = df_fictif['gender'].values
+    df_fictif['p'] = p
+
+    df_fictif['y'] = df_fictif['ClaimNb']
+
+    col_features = list_covariates
+    col_features.append("gender")
+    col_response = ['y']
+    col_protected = ['p']
+
+    df_fictif = df_fictif[np.concatenate((col_features, col_response, col_protected))]
+
+    df_fictif = df_fictif.iloc[:nb_obs, :]
+
+    # if nb_obs<1000000:
+    # df_fictif = df_fictif.iloc[:nb_obs, :]
+
+    # df_fictif = df_fictif.sample(frac=1, random_state=2023).reset_index(drop=True)
+
+    if verbose:
+        print(df_fictif)
+        print(df_fictif.dtypes)
+        print(df_fictif.isna().sum())
+        print(df_fictif.describe())
+    return df_fictif, col_features, col_response, col_protected
+
+
+def load_dataset_wutricht(nb_obs, verbose: bool=True):
+    df_fictif = pd.read_feather("data.feather")
+
+    #df_fictif = pd.read_feather("freqMTPLT2freq.feather")
+
+    print(df_fictif)
+    print(df_fictif.dtypes)
+
+    def inspect_col():
+        list_covariates = []
+        for col in df_fictif.columns:
+            print(f"col: {col}")
+            print(df_fictif[col].value_counts())
+            list_covariates.append(col)
+
+        print(list_covariates)
+
+    #inspect_col()
+    #quit()
+
+    list_covariates = ['age', 'ac', 'power', 'brand', 'area', 'dens', 'ct']
+
+    p = df_fictif['gas'].values
+    df_fictif['p'] = p
+    df_fictif['gender'] = df_fictif['gas'].map({'Regular': 0, 'Diesel': 1})
+    df_fictif['y'] = df_fictif['claims']
+
+    col_features = list_covariates
+    col_features.append("gender")
+    col_response = ['y']
+    col_protected = ['p']
+
+    df_fictif = df_fictif[np.concatenate((col_features, col_response, col_protected))]
+
+    df_fictif = df_fictif.iloc[:nb_obs, :]
+
+    # if nb_obs<1000000:
+    # df_fictif = df_fictif.iloc[:nb_obs, :]
+
+    # df_fictif = df_fictif.sample(frac=1, random_state=2023).reset_index(drop=True)
+
+    if verbose:
+        print(df_fictif)
+        print(df_fictif.dtypes)
+        print(df_fictif.isna().sum())
+        print(df_fictif.describe())
+    return df_fictif, col_features, col_response, col_protected
 
 def load_dataset(nb_obs, verbose: bool=True):
     df_fictif = pd.read_feather("master_gender_agg2.feather")

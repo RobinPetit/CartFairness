@@ -51,6 +51,20 @@ cdef extern from "_CART.h" nogil:
     bint _is_leaf(_Node*)
     bint vector_contains_int32(Vector*, np.int32_t)
 
+    cdef struct PartitionResult_t:
+        np.uint32_t mask
+        double total_loss
+        double loss_left
+        double loss_right
+    PartitionResult_t find_best_partition_mse(
+        size_t, const double*, const double*, const double*,
+        const np.int32_t*, const np.int32_t*,
+        double, double, size_t)
+    PartitionResult_t find_best_partition_poisson_deviance(
+        size_t, const double*, const double*, const double*,
+        const np.int32_t*, const np.int32_t*,
+        double, double, size_t)
+
 cdef class Node:
     cdef _Node* node
 
@@ -144,7 +158,8 @@ cdef class Node:
         cdef size_t i
         cdef Vector* vec = &self.node.categorical_values_left
         for i in range(vec.n):
-            ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
+            idx = (<np.int32_t*>(vec._base))[i]
+            ret.append(data._reverse_mapping[self.node.feature_idx][idx])
         return ret
 
     cpdef list get_right_modalities(self, Dataset data):
@@ -153,8 +168,10 @@ cdef class Node:
         cdef list ret = []
         cdef size_t i
         cdef Vector* vec = &self.node.categorical_values_right
+        cdef int idx
         for i in range(vec.n):
-            ret.append(data._reverse_mapping[self.node.feature_idx][(<np.int32_t*>(vec._base))[i]])
+            idx = (<np.int32_t*>(vec._base))[i]
+            ret.append(data._reverse_mapping[self.node.feature_idx][idx])
         return ret
 
     cpdef list _get_left_indices(self):
@@ -280,6 +297,8 @@ cdef void _select_indices(
         for j in range(first_idx[ordered[i]], first_idx[ordered[i]+1]):
             selected[sorted_indices[j]] = True
 
+MAX_NB_MODALITIES = 30
+
 @cython.final
 cdef class CART:
     cdef bint bootstrap
@@ -302,6 +321,7 @@ cdef class CART:
     cdef _SplitType split_type
     cdef size_t min_nb_new_instances
     cdef np.float64_t prop_root_p0
+    cdef bint exact_categorical_splits
 
     cdef list all_nodes
 
@@ -313,7 +333,7 @@ cdef class CART:
                   minobs=1, delta_loss=0, loss="MSE", name=None,
                   parallel="Yes", pruning="No", bootstrap="No",
                   split='depth', min_nb_new_instances=1,
-                  normalized_loss=False):
+                  normalized_loss=False, exact_categorical_splits=False):
         self.bootstrap = (bootstrap == 'Yes')
         self.pruning = (pruning == 'Yes')
         self.normalized_loss = normalized_loss
@@ -344,6 +364,7 @@ cdef class CART:
         else:
             raise ValueError('Unknown split type: ' + str(split))
         self.min_nb_new_instances = min_nb_new_instances
+        self.exact_categorical_splits = exact_categorical_splits
 
     property nodes:
         def __get__(self):
@@ -401,6 +422,16 @@ cdef class CART:
             self.data = self.data.sample(self.prop_sample, self.replacement)
         # split train vs test ?!
         self.prop_root_p0 = 1 - np.mean(self.data.p)
+        if self.exact_categorical_splits:
+            for j in range(dataset.nb_features):
+                if not dataset.is_categorical(j):
+                    continue
+                if dataset.nb_modalities_of(j) > MAX_NB_MODALITIES:
+                    raise ValueError(
+                        'Unable to perform exact categorical split on '
+                        f'covariate {j} that has {dataset.nb_modalities_of(j)} '
+                        f'> {MAX_NB_MODALITIES} modalities'
+                    )
         self.root = self._build_tree(self.data)
         self._retrieve_all_nodes()
         if self.pruning:
@@ -628,15 +659,116 @@ cdef class CART:
     cdef SplitChoice _find_best_threshold_categorical(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
-        return self._find_best_threshold_categorical_sorted_by_mean_ys(
-            data, feature_idx, current_loss, prop_p0
+        if self.exact_categorical_splits:
+            return self._find_best_threshold_categorical_exact(
+                data, feature_idx, current_loss, prop_p0
+            )
+        else:
+            return self._find_best_threshold_categorical_sorted_by_mean_ys(
+                data, feature_idx, current_loss, prop_p0
+            )
+
+    cdef SplitChoice _find_best_threshold_categorical_exact(
+            self, Dataset data, int feature_idx,
+            np.float64_t current_loss, np.float64_t prop_p0):
+        cdef np.ndarray sorted_indices = np.argsort(
+            data.X[:, feature_idx]
+        ).astype(np.int32)
+        cdef np.float64_t[::1] sorted_p = np.asarray(data.p)[sorted_indices]
+        cdef np.float64_t[::1] sorted_y = np.asarray(data.y)[sorted_indices]
+        cdef np.float64_t[::1] sorted_w = np.asarray(data.w)[sorted_indices]
+        cdef np.float64_t[:, ::1] sorted_X = np.ascontiguousarray(
+            np.asarray(data.X)[sorted_indices, :]
         )
-        # TODO add exact categorical split
+        cdef int idx_of_max = sorted_indices[sorted_indices.shape[0]-1]
+        cdef int max_modality = data.X[idx_of_max, feature_idx]
+        cdef np.int32_t[:] first_idx = np.zeros(max_modality+2, dtype=np.int32)
+        cdef np.ndarray mean_ys = np.zeros(max_modality+1, np.float64)
+        _compute_first_idx(
+            sorted_X[:, feature_idx], sorted_y,
+            first_idx, mean_ys
+        )
+        cdef size_t nb_modalities = 0
+        cdef np.int32_t[:] mapping = np.empty(max_modality+1, dtype=np.int32)
+        cdef size_t j = 0
+        while j+1 < first_idx.shape[0]:
+            while j+1 < first_idx.shape[0] and first_idx[j] == first_idx[j+1]:
+                j += 1
+            mapping[nb_modalities] = j
+            nb_modalities += 1
+            j += 1
+        mapping = mapping[:nb_modalities]
+        if nb_modalities <= 1:
+            return None
+        if nb_modalities > MAX_NB_MODALITIES:
+            raise ValueError(
+                f'Unable to perform exact split on {nb_modalities} modalities'
+            )
+        cdef PartitionResult_t result
+        if self.loss_fct == LossFunction.MSE:
+            result = find_best_partition_mse(
+                nb_modalities,
+                &sorted_y[0], &sorted_w[0], &sorted_p[0],
+                &first_idx[0], &mapping[0],
+                self.prop_root_p0, self.epsilon, self.minobs
+            )
+        elif self.loss_fct == LossFunction.POISSON:
+            result = find_best_partition_poisson_deviance(
+                nb_modalities,
+                &sorted_y[0], &sorted_w[0], &sorted_p[0],
+                &first_idx[0], &mapping[0],
+                self.prop_root_p0, self.epsilon, self.minobs
+            )
+        if np.isinf(result.total_loss):
+            return None
+        cdef np.ndarray goes_left  = np.zeros(sorted_y.shape[0], dtype=bool)
+        cdef np.ndarray goes_right = np.zeros(sorted_y.shape[0], dtype=bool)
+        cdef int i
+        cdef int beg, end
+        cdef int nb_modalities_left = 0
+        cdef int l = 0
+        cdef int r = nb_modalities-1
+        cdef np.int32_t[:] ordered = np.zeros(nb_modalities, dtype=np.int32)
+        for i in range(nb_modalities):
+            beg = first_idx[mapping[i]]
+            end = first_idx[mapping[i]+1]
+            if result.mask&1:
+                nb_modalities_left += 1
+                goes_left[sorted_indices[beg:end]]  = True
+                ordered[l] = mapping[i]
+                l += 1
+            else:
+                goes_right[sorted_indices[beg:end]] = True
+                ordered[r] = mapping[i]
+                r -= 1
+            result.mask >>= 1
+        cdef Dataset left_data  = data[goes_left]
+        cdef Dataset right_data = data[goes_right]
+        assert np.all(np.logical_or(goes_left, goes_right)), (
+            np.asarray(mapping),
+            np.unique(
+                np.asarray(data.X)[
+                    np.logical_and(~goes_left, ~goes_right), feature_idx
+                ],
+                return_counts=True
+            )
+        )
+        return SplitChoice(
+            feature_idx, True, current_loss,
+            current_loss - result.total_loss,
+            result.loss_left, result.loss_right,
+            left_data, right_data,
+            threshold_idx=nb_modalities_left,
+            ordered_labels=ordered,
+            first_index=first_idx
+        )
 
     cdef SplitChoice _find_best_threshold_categorical_sorted_by_mean_ys(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
-        cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx]).astype(np.int32)
+        cdef np.ndarray sorted_indices = np.argsort(
+            data.X[:, feature_idx]
+        ).astype(np.int32)
         cdef np.float64_t[::1] sorted_p = np.asarray(data.p)[sorted_indices]
         cdef np.float64_t[::1] sorted_y = np.asarray(data.y)[sorted_indices]
         cdef np.float64_t[::1] sorted_w = np.asarray(data.w)[sorted_indices]
@@ -741,11 +873,13 @@ cdef class CART:
         while not _is_leaf(node):
             if node.is_categorical:
                 categorical_label = <int>(x[node.feature_idx])
-                if not vector_contains_int32(&node.valid_modalities, categorical_label):
-                    # Stop search if modality of categorical value has never been
-                    # seen at this point
+                if not vector_contains_int32(
+                        &node.valid_modalities, categorical_label):
+                    # Stop search if modality of categorical value has never
+                    # been seen at this point
                     break
-                elif vector_contains_int32(&node.categorical_values_left, categorical_label):
+                elif vector_contains_int32(
+                        &node.categorical_values_left, categorical_label):
                     node = node.left_child
                 else:
                     node = node.right_child
@@ -762,7 +896,9 @@ cdef class CART:
 
     cpdef np.ndarray get_node_importances(self):
         # Attention si on subsample les covariables!
-        cdef np.ndarray importances = np.zeros(self.data.nb_features, dtype=float)
+        cdef np.ndarray importances = np.zeros(
+            self.data.nb_features, dtype=np.float64
+        )
         cdef int feature_idx
         cdef Node node
         for node in self.all_nodes:

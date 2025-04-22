@@ -16,9 +16,10 @@ warnings.simplefilter("error")
 
 ##################################################################################
 VERBOSE = False
+PLOT = False
 
 # load dataset and make sure that all numerical variable are in float64
-nb_observation = 1_000_000
+nb_observation = 10_000
 df_fictif, col_features, col_response, col_protected = load_dataset(nb_obs=nb_observation, verbose=VERBOSE)
 df_fictif.dropna(inplace=True)
 if VERBOSE:
@@ -92,10 +93,23 @@ models.pop(1)
 
 timers = [list() for _ in range(len(models))]
 
+# Just to reduce the number of modalities for exact split  #
+values, counts = np.unique(X_train[:, 2], return_counts=True)
+values, counts = zip(*sorted(list(zip(values, counts)), key=lambda e: e[1]))
+cdf = np.cumsum(counts) * 100 / X_train.shape[0]
+idx = np.where(cdf >= 10.)[0][0]
+indices = np.zeros(X_train.shape[0], dtype=bool)
+for i in range(idx, len(values)):
+    indices[X_train[:, 2] == values[i]] = True
+X_train = X_train[indices, :]
+y_train = y_train[indices]
+p_train = p_train[indices]
+
 dataset = Dataset(X_train, y_train, p_train, dtypes)
 print(dataset.nb_features, 'features')
 print('Categorical:')
 print(np.where(np.array([dataset.is_categorical(j) for j in range(len(dtypes))]))[0])
+print([dataset.nb_modalities_of(j) for j in range(len(dtypes))])
 print('Features:')
 print(col_features)
 
@@ -138,15 +152,15 @@ timers = [
 
 for i in range(len(timers)-1):
     print(f'Average speedup of {model_names[i]}: {means[-1] / means[i]:1.2f}')
-exit()
 
-for i in range(len(models)):
-    plt.plot(range_nb_obs, timers[i], label=model_names[i] + f' Avg speedup {means[2] / means[i]:1.2f}')
+if PLOT:
+    for i in range(len(models)):
+        plt.plot(range_nb_obs, timers[i], label=model_names[i] + f' Avg speedup {means[2] / means[i]:1.2f}')
 
-plt.xlabel('Training set size')
-plt.ylabel('Speedup factor')
-plt.suptitle(f"Implementation comparison ({nb_observation:,} observations)")
-plt.grid(True)
-plt.legend()
-# plt.show()
-plt.savefig('comparison.png', bbox_inches='tight')
+    plt.xlabel('Training set size')
+    plt.ylabel('Speedup factor')
+    plt.suptitle(f"Implementation comparison ({nb_observation:,} observations)")
+    plt.grid(True)
+    plt.legend()
+    # plt.show()
+    plt.savefig('comparison.png', bbox_inches='tight')
