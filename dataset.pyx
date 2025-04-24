@@ -144,7 +144,9 @@ cdef class Dataset:
         return self._indexed_w
 
     cdef np.ndarray transform(self, np.ndarray X):
-        cdef np.ndarray ret = np.empty_like(X, dtype=np.float64)
+        cdef np.ndarray[np.float64_t, ndim=2] ret = np.empty_like(
+            X, dtype=np.float64, order='C'
+        )
         cdef int idx
         for feature_idx in range(X.shape[1]):
             if self._is_categorical[feature_idx]:
@@ -152,18 +154,6 @@ cdef class Dataset:
             else:
                 ret[:, feature_idx] = X[:, feature_idx]
         return ret
-
-    cdef np.ndarray order_categorical(self, int feature_idx):
-        cdef int size = len(self._reverse_mapping[feature_idx])
-        cdef np.float64_t[:] ysums = np.zeros(size, dtype=np.float64)
-        cdef np.int32_t[:] ysizes = np.zeros(size, dtype=np.int32)
-        _extract_mean_ys(self.X[:, feature_idx], self.y[:], ysums, ysizes)
-        cdef int i
-        for i in range(ysums.shape[0]):
-            if ysums[i] > 0:
-                ysums[i] /= ysizes[i]
-        cdef np.ndarray ret = np.argsort(ysums)
-        return ret[np.asarray(ysizes)[ret] > 0]
 
     cpdef int nb_modalities_of(self, int feature_idx):
         return len(self._reverse_mapping[feature_idx])

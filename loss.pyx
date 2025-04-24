@@ -5,6 +5,9 @@
 # cython: language_level=3
 # cython: linetrace=True
 
+cimport cython
+
+@cython.final
 cdef class Loss:
     def __cinit__(self, LossFunction loss_type, bint normalized):
         self.loss_type = loss_type

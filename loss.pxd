@@ -5,6 +5,8 @@
 # cython: language_level=3
 # cython: linetrace=True
 
+cimport cython
+
 cdef extern from "_loss.h" nogil:
     cdef struct __BasicLoss_t:
         double value
@@ -45,6 +47,7 @@ ctypedef enum LossFunction:
     POISSON,
     GAMMA
 
+@cython.final
 cdef class Loss:
     cdef LossFunction loss_type
     cdef bint normalized

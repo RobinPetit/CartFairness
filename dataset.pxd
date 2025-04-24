@@ -38,5 +38,4 @@ cdef class Dataset:
     cdef size_t get_length(self) noexcept nogil
     cdef size_t size(self) noexcept nogil
     cdef np.ndarray transform(self, np.ndarray X)
-    cdef np.ndarray order_categorical(self, int feature_idx)
     cpdef int nb_modalities_of(self, int feature_idx)

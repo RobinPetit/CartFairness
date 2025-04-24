@@ -16,58 +16,7 @@ from cython.parallel import prange
 from loss cimport Loss, LossFunction
 from dataset cimport Dataset
 
-ctypedef size_t Pyssize_t
-
-cdef extern from "_CART.h" nogil:
-    cdef struct Vector:
-        void* _base
-        size_t allocated
-        size_t n
-    cdef struct _Node:
-        _Node* left_child
-        _Node* right_child
-        _Node* parent
-        np.float64_t avg_value
-        size_t nb_samples
-        size_t depth
-        int feature_idx
-        np.float64_t threshold
-        np.float64_t loss
-        np.float64_t dloss
-        bint is_categorical
-        Vector categorical_values_left
-        Vector categorical_values_right
-        int idx
-        Vector valid_modalities
-
-    _Node* new_node(size_t)
-    void clear_node(_Node*)
-    void _set_ys(_Node*, size_t, double, double, size_t)
-    void _set_categorical_node_left_right_values(
-            _Node*, const np.int32_t*, size_t, size_t, const np.int32_t*)
-    void _set_left_child(_Node*, _Node*)
-    void _set_right_child(_Node*, _Node*)
-    bint _is_root(_Node*)
-    bint _is_leaf(_Node*)
-    bint vector_contains_int32(Vector*, np.int32_t)
-
-    cdef struct PartitionResult_t:
-        np.uint32_t mask
-        double total_loss
-        double loss_left
-        double loss_right
-    PartitionResult_t find_best_partition_mse(
-        size_t, const double*, const double*, const double*,
-        const np.int32_t*, const np.int32_t*,
-        double, double, size_t)
-    PartitionResult_t find_best_partition_poisson_deviance(
-        size_t, const double*, const double*, const double*,
-        const np.int32_t*, const np.int32_t*,
-        double, double, size_t)
-
 cdef class Node:
-    cdef _Node* node
-
     @staticmethod
     cdef Node from_ptr(_Node* ptr):
         cdef Node ret = Node.__new__(Node)
@@ -236,16 +185,6 @@ cdef void augment_p0_counts(double[::1] p, double* sum_left, double* sum_right) 
 
 @cython.final
 cdef class SplitChoice:
-    cdef size_t feature_idx
-    cdef np.float64_t threshold
-    cdef np.float64_t loss, dloss
-    cdef np.float64_t loss_left, loss_right
-    cdef Dataset left_data, right_data
-    cdef bint is_categorical
-    cdef size_t threshold_idx
-    cdef np.int32_t[::1] labels  # Needs to be contiguous in memory!
-    cdef np.int32_t[::1] first_index
-
     def __cinit__(self, size_t feature_idx, bint is_categorical,
                   np.float64_t loss, np.float64_t dloss,
                   np.float64_t left_loss, np.float64_t right_loss,
@@ -272,14 +211,10 @@ cdef class SplitChoice:
     cdef bint is_better_than(self, SplitChoice other):
         return other is None or other.dloss < self.dloss
 
-ctypedef enum _SplitType:
-    BEST,
-    DEPTH
-
 cdef void _compute_first_idx(
         np.float64_t[::1] Xs, np.float64_t[::1] ys,  # in
         np.int32_t[::1] indices, np.float64_t[::1] mean_ys  # out
-    ) noexcept nogil:
+        ) noexcept nogil:
     cdef int i
     for i in range(ys.shape[0]):
         indices[<int>(Xs[i])+1] += 1
@@ -298,12 +233,8 @@ cdef void _select_indices(
         for j in range(first_idx[ordered[i]], first_idx[ordered[i]+1]):
             selected[sorted_indices[j]] = True
 
+@cython.final
 cdef class __SortedFeatureData:
-    cdef np.ndarray indices
-    cdef np.float64_t[::1] X
-    cdef np.float64_t[::1] y
-    cdef np.float64_t[::1] w
-    cdef np.float64_t[::1] p
     def __cinit__(self, Dataset data, int feature_idx):
         self.indices = np.argsort(data.X[:, feature_idx]).astype(np.int32)
         self.X = np.asarray(data.X)[self.indices, feature_idx]
@@ -318,39 +249,15 @@ MAX_NB_MODALITIES = 30
 
 @cython.final
 cdef class CART:
-    cdef bint bootstrap
-    cdef bint replacement
-    cdef LossFunction loss_fct
-    cdef np.float64_t _epsilon
-    cdef int nb_cov
-    cdef int id
-    cdef np.float64_t prop_sample
-    cdef np.float64_t delta_loss
-    cdef size_t _minobs
-    cdef size_t max_depth
-    cdef int max_interaction_depth
-    cdef int nb_nodes
-    cdef int nb_splitting_nodes
-    cdef bint normalized_loss
-    cdef bint pruning
-    cdef Dataset data
-    cdef _Node* root
-    cdef _SplitType split_type
-    cdef size_t min_nb_new_instances
-    cdef np.float64_t prop_root_p0
-    cdef bint exact_categorical_splits
-
-    cdef list all_nodes
-
-    cdef int idx_nodes
-
-    def __init__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
-                  replacement=False, prop_sample=1.0, frac_valid=0.2,
-                  max_interaction_depth=0, max_depth=0, margin="absolute",
-                  minobs=1, delta_loss=0, loss="MSE", name=None,
-                  parallel="Yes", pruning="No", bootstrap="No",
-                  split='depth', min_nb_new_instances=1,
-                  normalized_loss=False, exact_categorical_splits=False):
+    def __init__(
+            self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
+            replacement=False, prop_sample=1.0, frac_valid=0.2,
+            max_interaction_depth=0, max_depth=0, margin="absolute",
+            minobs=1, delta_loss=0, loss="MSE", name=None,
+            parallel="Yes", pruning="No", bootstrap="No",
+            split='depth', min_nb_new_instances=1,
+            normalized_loss=False, exact_categorical_splits=False
+            ):
         self.bootstrap = (bootstrap == 'Yes')
         self.pruning = (pruning == 'Yes')
         self.normalized_loss = normalized_loss
@@ -419,6 +326,15 @@ cdef class CART:
         print('*******************************')
         print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
         return self.nodes
+
+    def predict(self, X):
+        cdef np.float64_t[:, ::1] data = self.data.transform(X)
+        cdef int n = X.shape[0]
+        cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
+        cdef int i
+        for i in prange(n, nogil=True, schedule='runtime'):
+            ret[i] = self._predict_instance(data[i, :])
+        return ret
 
     ########## Cython
 
@@ -845,15 +761,6 @@ cdef class CART:
             ordered_labels=ordered,
             first_index=first_idx
         )
-
-    def predict(self, X):
-        cdef np.float64_t[:, ::1] data = self.data.transform(X)
-        cdef int n = X.shape[0]
-        cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
-        cdef int i
-        for i in prange(n, nogil=True, schedule='runtime'):
-            ret[i] = self._predict_instance(data[i, :])
-        return ret
 
     cdef np.float64_t _predict_instance(self, np.float64_t[::1] x) noexcept nogil:
         cdef _Node* node = self.root
