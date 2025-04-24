@@ -13,18 +13,20 @@ cdef class Loss:
             self.loss_ptr = create_mse()
         elif loss_type == LossFunction.POISSON:
             self.loss_ptr = create_poisson_deviance()
+        elif loss_type == LossFunction.GAMMA:
+            self.loss_ptr = create_gamma_deviance()
         else:
             raise ValueError('Unknown loss type!')
         if self.loss_ptr == NULL:
             raise ValueError('NULL POINTER!')
 
     def __dealloc__(self):
-        cdef MSE_t* mse_ptr = <MSE_t*>self.loss_ptr
-        cdef PoissonDeviance_t* poisson_ptr = <PoissonDeviance_t*>self.loss_ptr
         if self.loss_type == LossFunction.MSE:
-            destroy_mse(&mse_ptr)
+            destroy_mse(&self.loss_ptr)
         elif self.loss_type == LossFunction.POISSON:
-            destroy_poisson_deviance(&poisson_ptr)
+            destroy_poisson_deviance(&self.loss_ptr)
+        elif self.loss_type == LossFunction.GAMMA:
+            destroy_gamma_deviance(&self.loss_ptr)
 
     cdef double get(self) noexcept nogil:
         cdef double ret = 0
@@ -32,6 +34,8 @@ cdef class Loss:
             ret = evaluate_mse(<MSE_t*>self.loss_ptr)
         elif self.loss_type == LossFunction.POISSON:
             ret = evaluate_poisson_deviance(<PoissonDeviance_t*>self.loss_ptr)
+        elif self.loss_type == LossFunction.GAMMA:
+            ret = evaluate_gamma_deviance(<GammaDeviance_t*>self.loss_ptr)
         if self.normalized:
             ret /= (<__BasicLoss_t*>self.loss_ptr).n
         return ret
@@ -43,6 +47,10 @@ cdef class Loss:
             augment_poisson_deviance(
                 <PoissonDeviance_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0]
             )
+        elif self.loss_type == LossFunction.GAMMA:
+            augment_gamma_deviance(
+                <GammaDeviance_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0]
+            )
 
     cdef void diminish(self, double[::1] ys, double[::1] ws) noexcept nogil:
         if self.loss_type == LossFunction.MSE:
@@ -50,6 +58,10 @@ cdef class Loss:
         elif self.loss_type == LossFunction.POISSON:
             diminish_poisson_deviance(
                 <PoissonDeviance_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0]
+            )
+        elif self.loss_type == LossFunction.GAMMA:
+            diminish_gamma_deviance(
+                <GammaDeviance_t*>self.loss_type, &ys[0], &ws[0], ys.shape[0]
             )
 
     cdef size_t get_size(self) noexcept nogil:
@@ -63,6 +75,11 @@ cdef class Loss:
                 <PoissonDeviance_t*>self.loss_ptr,
                 <PoissonDeviance_t*>other.loss_ptr
             )
+        elif self.loss_type == LossFunction.GAMMA:
+            join_gamma_deviance(
+                <GammaDeviance_t*>self.loss_ptr,
+                <GammaDeviance_t*>other.loss_ptr
+            )
 
     cdef void unjoin(self, Loss other) noexcept nogil:
         if self.loss_type == LossFunction.MSE:
@@ -71,5 +88,10 @@ cdef class Loss:
             unjoin_poisson_deviance(
                 <PoissonDeviance_t*>self.loss_ptr,
                 <PoissonDeviance_t*>other.loss_ptr
+            )
+        elif self.loss_type == LossFunction.GAMMA:
+            unjoin_gamma_deviance(
+                <GammaDeviance_t*>self.loss_ptr,
+                <GammaDeviance_t*>other.loss_ptr
             )
 

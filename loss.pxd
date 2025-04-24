@@ -14,26 +14,36 @@ cdef extern from "_loss.h" nogil:
         pass
     cdef struct PoissonDeviance_t:
         pass
+    cdef struct GammaDeviance_t:
+        pass
     void _init_mse(MSE_t*)
     MSE_t* create_mse()
     double evaluate_mse(MSE_t*)
-    void destroy_mse(MSE_t**)
+    void destroy_mse(void**)
     void augment_mse(MSE_t*, double*, double*, size_t)
     void diminish_mse(MSE_t*, double*, double*, size_t)
     void join_mse(MSE_t*, const MSE_t*)
     void unjoin_mse(MSE_t*, const MSE_t*)
     void _init_poisson_deviance(PoissonDeviance_t*)
     PoissonDeviance_t* create_poisson_deviance()
-    void destroy_poisson_deviance(PoissonDeviance_t**)
+    void destroy_poisson_deviance(void**)
     double evaluate_poisson_deviance(PoissonDeviance_t*)
     void augment_poisson_deviance(PoissonDeviance_t*, double*, double*, size_t)
     void diminish_poisson_deviance(PoissonDeviance_t*, double*, double*, size_t)
     void join_poisson_deviance(PoissonDeviance_t*, const PoissonDeviance_t*)
     void unjoin_poisson_deviance(PoissonDeviance_t*, const PoissonDeviance_t*)
+    GammaDeviance_t* create_gamma_deviance()
+    void destroy_gamma_deviance(void**)
+    double evaluate_gamma_deviance(GammaDeviance_t*)
+    void augment_gamma_deviance(GammaDeviance_t*, double*, double*, size_t)
+    void diminish_gamma_deviance(GammaDeviance_t*, double*, double*, size_t)
+    void join_gamma_deviance(GammaDeviance_t*, const GammaDeviance_t*)
+    void unjoin_gamma_deviance(GammaDeviance_t*, const GammaDeviance_t*)
 
 ctypedef enum LossFunction:
     MSE,
-    POISSON
+    POISSON,
+    GAMMA
 
 cdef class Loss:
     cdef LossFunction loss_type

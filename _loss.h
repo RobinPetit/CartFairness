@@ -41,6 +41,21 @@ typedef struct PoissonDeviance_t {
     double sum;
 } PoissonDeviance_t;
 
+typedef struct GammaDeviance_t {
+    BASE_STRUCT_LOSS
+    double sum;
+    double weighted_sum;
+    double weighted_sum_log;
+    double sum_of_weighths;
+} GammaDeviance_t;
+
+static inline void _destroy_basic_loss(void** ptr) {
+    if(*ptr == NULL)
+        return;
+    free(*ptr);
+    *ptr = NULL;
+}
+
 static inline void _init_mse(MSE_t* mse) {
     mse->sum = mse->weighted_sum = mse->weighted_sum_squares = mse->value = 0;
     mse->sum_of_weights = 0;
@@ -54,11 +69,8 @@ static inline MSE_t* create_mse() {
     return ret;
 }
 
-static inline void destroy_mse(MSE_t** mse) {
-    if(*mse == NULL)
-        return;
-    free(*mse);
-    *mse = NULL;
+static inline void destroy_mse(void** mse) {
+    _destroy_basic_loss(mse);
 }
 
 static inline void _compute_mse(MSE_t* mse) {
@@ -145,12 +157,13 @@ static inline PoissonDeviance_t* create_poisson_deviance() {
     return ret;
 }
 
-static inline void destroy_poisson_deviance(PoissonDeviance_t** pd) {
-    if(*pd == NULL)
+static inline void destroy_poisson_deviance(void** ptr) {
+    if(*ptr == NULL)
         return;
-    RELEASE_PTR((*pd)->sum_of_weights);
-    RELEASE_PTR((*pd)->ylogys);
-    *pd = NULL;
+    PoissonDeviance_t* pd = *ptr;
+    RELEASE_PTR(pd->sum_of_weights);
+    RELEASE_PTR(pd->ylogys);
+    *ptr = NULL;
 }
 
 static inline void _compute_poisson(PoissonDeviance_t* pd) {
@@ -172,7 +185,7 @@ static inline double evaluate_poisson_deviance(const PoissonDeviance_t* pd) {
 
 static inline void augment_poisson_deviance(
         PoissonDeviance_t* pd, const double* ys, const double* ws, size_t n) {
-    for(size_t i=0; i < n; ++i) {
+    for(size_t i = 0; i < n; ++i) {
         if((size_t)(ys[i]) >= pd->max_y)
             _reallocate_poisson_deviance(pd, ys[i]);
         pd->sum_of_weights[(size_t)ys[i]] += ws[i];
@@ -212,6 +225,81 @@ static inline void unjoin_poisson_deviance(
     pd->sum -= other->sum;
     pd->n -= other->n;
     pd->precomputed = false;
+}
+
+static inline void _init_gamma_deviance(GammaDeviance_t* gd) {
+    gd->value = gd->n = 0;
+    gd->precomputed = false;
+    gd->sum = gd->weighted_sum = gd->weighted_sum_log = gd->sum_of_weighths = 0;
+}
+
+static inline GammaDeviance_t* create_gamma_deviance() {
+    GammaDeviance_t* ret = MALLOC_ONE(GammaDeviance_t);
+    _init_gamma_deviance(ret);
+    return ret;
+}
+
+static inline void destroy_gamma_deviance(void** gd) {
+    _destroy_basic_loss(gd);
+}
+
+static inline void _compute_gamma_deviance(GammaDeviance_t* gd) {
+    double mu = gd->sum / gd->n;
+    gd->precomputed = true;
+    gd->value = gd->weighted_sum_log
+        - (log(mu)+1) * gd->sum_of_weighths
+        + gd->weighted_sum / mu;
+    gd->value *= 2;
+}
+
+static inline double evaluate_gamma_deviance(const GammaDeviance_t* gd) {
+    if(!gd->precomputed)
+        _compute_gamma_deviance((GammaDeviance_t*)gd);
+    return gd->value;
+}
+
+static inline void augment_gamma_deviance(
+        GammaDeviance_t* gd, const double* ys, const double* ws, size_t n) {
+    for(size_t i = 0; i < n; ++i) {
+        gd->weighted_sum += ws[i] * ys[i];
+        gd->sum_of_weighths += ws[i];
+        gd->weighted_sum_log += ws[i] * log(ys[i]);
+        gd->sum += ys[i];
+    }
+    gd->n += n;
+    gd->precomputed = false;
+}
+
+static inline void diminish_gamma_deviance(
+        GammaDeviance_t* gd, const double* ys, const double* ws, size_t n) {
+    for(size_t i = 0; i < n; ++i) {
+        gd->weighted_sum -= ws[i] * ys[i];
+        gd->sum_of_weighths -= ws[i];
+        gd->weighted_sum_log -= ws[i] * log(ys[i]);
+        gd->sum -= ys[i];
+    }
+    gd->n -= n;
+    gd->precomputed = false;
+}
+
+static inline void join_gamma_deviance(
+        GammaDeviance_t* gd, const GammaDeviance_t* other) {
+    gd->weighted_sum += other->weighted_sum;
+    gd->sum_of_weighths += other->sum_of_weighths;
+    gd->weighted_sum_log += other->weighted_sum_log;
+    gd->sum += other->sum;
+    gd->n += other->n;
+    gd->precomputed = false;
+}
+
+static inline void unjoin_gamma_deviance(
+        GammaDeviance_t* gd, const GammaDeviance_t* other) {
+    gd->weighted_sum -= other->weighted_sum;
+    gd->sum_of_weighths -= other->sum_of_weighths;
+    gd->weighted_sum_log -= other->weighted_sum_log;
+    gd->sum -= other->sum;
+    gd->n -= other->n;
+    gd->precomputed = false;
 }
 
 #endif

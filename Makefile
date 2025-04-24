@@ -2,9 +2,9 @@ BASE_EXTENSION=version_simple_cython21_adj_categorical_clean_epsilon
 EXTENSIONS=${BASE_EXTENSION}.so CART.so loss.so dataset.so
 CC=gcc
 INCLUDE=$(shell ./python_include.py)
-FLAGS=-shared -pthread -fPIC -fwrapv -Wall -Wextra -std=c17 ${INCLUDE}
-FLAGS=${FLAGS} -O3  # For release
-# FLAGS=${FLAGS} -g -fsanitize=address  # For debug
+BASE_FLAGS=-shared -pthread -fPIC -fwrapv -Wall -Wextra -std=c17 ${INCLUDE}
+FLAGS=${BASE_FLAGS} -O3  # For release
+# FLAGS=${BASE_FLAGS} -g -fsanitize=address  # For debug
 
 all: ${EXTENSIONS}
 

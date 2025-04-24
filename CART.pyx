@@ -209,8 +209,9 @@ PROBE = 0
 class TODOError(ValueError):
     pass
 
-cdef int _masks(np.float64_t[:] values, np.float64_t threshold,
-                   int base_idx) noexcept nogil:
+cdef int _masks(
+        np.float64_t[::1] values, np.float64_t threshold,
+        int base_idx) noexcept nogil:
     cdef int beg = base_idx
     cdef int mid
     cdef int end = values.shape[0]
@@ -276,9 +277,9 @@ ctypedef enum _SplitType:
     DEPTH
 
 cdef void _compute_first_idx(
-            np.float64_t[:] Xs, np.float64_t[:] ys,  # in
-            np.int32_t[:] indices, np.float64_t[:] mean_ys  # out
-        ) noexcept nogil:
+        np.float64_t[::1] Xs, np.float64_t[::1] ys,  # in
+        np.int32_t[::1] indices, np.float64_t[::1] mean_ys  # out
+    ) noexcept nogil:
     cdef int i
     for i in range(ys.shape[0]):
         indices[<int>(Xs[i])+1] += 1
@@ -289,13 +290,29 @@ cdef void _compute_first_idx(
         indices[i] += indices[i-1]
 
 cdef void _select_indices(
-        np.int32_t[:] sorted_indices, np.int32_t[:] ordered, size_t max_idx,
-        np.int32_t[:] first_idx, np.npy_bool[:] selected) noexcept nogil:
+        np.int32_t[::1] sorted_indices, np.int32_t[::1] ordered, size_t max_idx,
+        np.int32_t[::1] first_idx, np.npy_bool[::1] selected) noexcept nogil:
     cdef size_t i
     cdef np.int32_t j
     for i in range(max_idx+1):
         for j in range(first_idx[ordered[i]], first_idx[ordered[i]+1]):
             selected[sorted_indices[j]] = True
+
+cdef class __SortedFeatureData:
+    cdef np.ndarray indices
+    cdef np.float64_t[::1] X
+    cdef np.float64_t[::1] y
+    cdef np.float64_t[::1] w
+    cdef np.float64_t[::1] p
+    def __cinit__(self, Dataset data, int feature_idx):
+        self.indices = np.argsort(data.X[:, feature_idx]).astype(np.int32)
+        self.X = np.asarray(data.X)[self.indices, feature_idx]
+        self.y = np.asarray(data.y)[self.indices]
+        self.w = np.asarray(data.w)[self.indices]
+        self.p = np.asarray(data.p)[self.indices]
+
+    cdef inline np.float64_t get_max(self) noexcept nogil:
+        return self.X[self.X.shape[0]-1]
 
 MAX_NB_MODALITIES = 30
 
@@ -327,7 +344,7 @@ cdef class CART:
 
     cdef int idx_nodes
 
-    def __cinit__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
+    def __init__(self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
                   replacement=False, prop_sample=1.0, frac_valid=0.2,
                   max_interaction_depth=0, max_depth=0, margin="absolute",
                   minobs=1, delta_loss=0, loss="MSE", name=None,
@@ -352,7 +369,8 @@ cdef class CART:
         loss = loss.lower()
         LOSS_MAPPING = {
             'mse': LossFunction.MSE,
-            'poisson': LossFunction.POISSON
+            'poisson': LossFunction.POISSON,
+            'gamma': LossFunction.GAMMA
         }
         assert loss in LOSS_MAPPING.keys()
         self.loss_fct = LOSS_MAPPING[loss]
@@ -365,6 +383,44 @@ cdef class CART:
             raise ValueError('Unknown split type: ' + str(split))
         self.min_nb_new_instances = min_nb_new_instances
         self.exact_categorical_splits = exact_categorical_splits
+
+    def fit(self, dataset: Dataset,
+            np.ndarray[np.float64_t, ndim=1] samples_weights=None):
+        global PROBE
+        PROBE = 0
+        start = time()
+        self.data = dataset
+        if self.bootstrap:
+            print('Bootstrapping...')
+            self.data = self.data.sample(self.prop_sample, self.replacement)
+        # split train vs test ?!
+        self.prop_root_p0 = 1 - np.mean(self.data.p)
+        if self.exact_categorical_splits:
+            for j in range(dataset.nb_features):
+                if not dataset.is_categorical(j):
+                    continue
+                if dataset.nb_modalities_of(j) > MAX_NB_MODALITIES:
+                    raise ValueError(
+                        'Unable to perform exact categorical split on '
+                        f'covariate {j} that has {dataset.nb_modalities_of(j)} '
+                        f'> {MAX_NB_MODALITIES} modalities'
+                    )
+        self.all_nodes = []
+        self.root = self._build_tree(self.data)
+        if self.pruning:
+            raise TODOError()
+        time_elapsed = time() - start
+        print("\n")
+        print('*******************************')
+        print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
+        print(f"Time elapsed: {time_elapsed}")
+        print(f"Tree depth:{self.max_depth}")
+        print(f"Nb nodes: {len(self.nodes)}")
+        print('*******************************')
+        print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
+        return self.nodes
+
+    ########## Cython
 
     property nodes:
         def __get__(self):
@@ -411,63 +467,14 @@ cdef class CART:
         loss.augment(ys, ws)
         return loss.get()
 
-    def fit(self, dataset: Dataset,
-            np.ndarray[np.float64_t, ndim=1] samples_weights=None):
-        global PROBE
-        PROBE = 0
-        start = time()
-        self.data = dataset
-        if self.bootstrap:
-            print('Bootstrapping...')
-            self.data = self.data.sample(self.prop_sample, self.replacement)
-        # split train vs test ?!
-        self.prop_root_p0 = 1 - np.mean(self.data.p)
-        if self.exact_categorical_splits:
-            for j in range(dataset.nb_features):
-                if not dataset.is_categorical(j):
-                    continue
-                if dataset.nb_modalities_of(j) > MAX_NB_MODALITIES:
-                    raise ValueError(
-                        'Unable to perform exact categorical split on '
-                        f'covariate {j} that has {dataset.nb_modalities_of(j)} '
-                        f'> {MAX_NB_MODALITIES} modalities'
-                    )
-        self.root = self._build_tree(self.data)
-        self._retrieve_all_nodes()
-        if self.pruning:
-            raise TODOError()
-        time_elapsed = time() - start
-        print("\n")
-        print('*******************************')
-        print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
-        print(f"Time elapsed: {time_elapsed}")
-        print(f"Tree depth:{self.max_depth}")
-        print(f"Nb nodes: {len(self.nodes)}")
-        print('*******************************')
-        print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
-        return self.nodes
-
-    cdef void _retrieve_all_nodes(self):
-        self.all_nodes = list()
-        cdef Node node
-        cdef list stack = []
-        stack.append(Node.from_ptr(self.root))
-        while len(stack) > 0:
-            node = stack.pop()
-            self.all_nodes.append(node)
-            if dereference(node.node).left_child != NULL:
-                stack.append(Node.from_ptr(dereference(node.node).left_child))
-            if dereference(node.node).right_child != NULL:
-                stack.append(Node.from_ptr(dereference(node.node).right_child))
-        self.all_nodes.sort(key=lambda n: n.index)
-
     cdef _Node* _build_tree(self, Dataset data):
         if self.split_type == _SplitType.DEPTH:
             return self._build_tree_depth_first(data)
         elif self.split_type == _SplitType.BEST:
             return self._build_tree_best_first(data)
 
-    cdef _Node* _build_tree_depth_first(self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
+    cdef _Node* _build_tree_depth_first(
+            self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
         cdef SplitChoice split = self._find_best_split(data, loss)
         cdef _Node* ret = self._create_node(data.y, data.w, depth)
         ret.threshold = -1
@@ -475,10 +482,13 @@ cdef class CART:
         self.nb_nodes += 1
         self.idx_nodes += 1
         ret.dloss = 0.
-        if split is None or split.left_data.size() <= self._minobs or \
-                split.right_data.size() <= self._minobs or \
-                split.dloss <= self.delta_loss or split.loss <= 0 or \
-                self.nb_splitting_nodes > self.max_interaction_depth:
+        if (
+            split is None or
+            split.left_data.size() <= self._minobs or
+            split.right_data.size() <= self._minobs or
+            split.dloss <= self.delta_loss or split.loss <= 0 or
+            self.nb_splitting_nodes > self.max_interaction_depth
+        ):
             return ret
         ret.feature_idx = split.feature_idx
         self.nb_splitting_nodes += 1
@@ -524,17 +534,19 @@ cdef class CART:
             node, self.idx_nodes, np.mean(ys),
             self._loss(ys, weights), ys.shape[0]
         )
+        self.all_nodes.append(Node.from_ptr(node))
         return node
 
-    cdef SplitChoice _find_best_split(self, Dataset data, np.float64_t precomputed_loss=np.inf):
-        cdef np.uint8_t[:] usable = np.ones(data.X.shape[1], dtype=np.uint8)
+    cdef SplitChoice _find_best_split(
+            self, Dataset data, np.float64_t precomputed_loss=np.inf):
+        cdef np.uint8_t[::1] usable = np.ones(data.X.shape[1], dtype=bool)
         cdef int j
         for j in range(usable.shape[0]):
             if usable[j] and not data.not_all_equal(j):
                 usable[j] = False
         cdef np.ndarray covariates = np.where(usable)[0]
         cdef np.ndarray indices
-        if covariates.shape[0] > self.nb_cov:
+        if covariates.shape[0] > self.nb_cov:  # TODO: Should not be here!
             indices = np.random.choice(covariates.shape[0], self.nb_cov, replace=False)
             covariates = covariates[indices]
 
@@ -576,21 +588,23 @@ cdef class CART:
             PROBE += time() - start
         return ret
 
+    cdef inline void _update_losses(
+            self, Loss loss_left, Loss loss_right,
+            np.float64_t[::1] ys, np.float64_t[::1] ws) noexcept nogil:
+        loss_left.augment(ys, ws)
+        loss_right.diminish(ys, ws)
+
     cdef SplitChoice _find_best_threshold_numerical(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
         global PROBE
-        cdef np.float64_t[:] values = np.unique(data.X[:, feature_idx])
+        cdef np.float64_t[::1] values = np.unique(data.X[:, feature_idx])
         cdef size_t base_idx = 0
         cdef size_t prev_base_idx = 0
         cdef int threshold_idx
         cdef size_t nb_samples = data.size()
-        cdef np.ndarray sorted_indices = np.argsort(data.X[:, feature_idx])
-        cdef np.float64_t[::1] sorted_p = np.asarray(data.p)[sorted_indices]
-        cdef np.float64_t[::1] sorted_y = np.asarray(data.y)[sorted_indices]
-        cdef np.float64_t[::1] sorted_w = np.asarray(data.w)[sorted_indices]
-        cdef np.float64_t[:, ::1] sorted_X = np.ascontiguousarray(
-            np.asarray(data.X)[sorted_indices, :]
+        cdef __SortedFeatureData sorted_data = __SortedFeatureData(
+            data, feature_idx
         )
 
         cdef np.float64_t threshold
@@ -615,7 +629,7 @@ cdef class CART:
         with nogil:  # Yeepee! It is all nogil!
             for threshold_idx in range(values.shape[0]-1):
                 threshold = (values[threshold_idx] + values[threshold_idx+1])/2
-                base_idx = _masks(sorted_X[:, feature_idx], threshold, base_idx)
+                base_idx = _masks(sorted_data.X, threshold, base_idx)
                 if base_idx <= self._minobs:
                     continue
                 if nb_samples-base_idx <= self._minobs:
@@ -623,18 +637,15 @@ cdef class CART:
                 if base_idx - prev_base_idx < self.min_nb_new_instances:
                     continue
                 augment_p0_counts(
-                    sorted_p[prev_base_idx:base_idx],
+                    sorted_data.p[prev_base_idx:base_idx],
                     &sum_p0_left, &sum_p0_right
                 )
                 prop_left_p0 = sum_p0_left / base_idx
                 prop_right_p0 = sum_p0_right / (nb_samples - base_idx)
-                loss_left.augment(
-                    sorted_y[prev_base_idx:base_idx],
-                    sorted_w[prev_base_idx:base_idx]
-                )
-                loss_right.diminish(
-                    sorted_y[prev_base_idx:base_idx],
-                    sorted_w[prev_base_idx:base_idx]
+                self._update_losses(
+                    loss_left, loss_right,
+                    sorted_data.y[prev_base_idx:base_idx],
+                    sorted_data.w[prev_base_idx:base_idx]
                 )
                 prev_base_idx = base_idx
                 dloss = current_loss - (loss_left.get() + loss_right.get())
@@ -651,8 +662,8 @@ cdef class CART:
         return SplitChoice(
             feature_idx, False, current_loss,
             best_dloss, best_loss_left, best_loss_right,
-            data[sorted_indices[:best_base_idx]],
-            data[sorted_indices[best_base_idx:]],
+            data[sorted_data.indices[:best_base_idx]],
+            data[sorted_data.indices[best_base_idx:]],
             threshold=best_threshold
         )
 
@@ -671,25 +682,16 @@ cdef class CART:
     cdef SplitChoice _find_best_threshold_categorical_exact(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
-        cdef np.ndarray sorted_indices = np.argsort(
-            data.X[:, feature_idx]
-        ).astype(np.int32)
-        cdef np.float64_t[::1] sorted_p = np.asarray(data.p)[sorted_indices]
-        cdef np.float64_t[::1] sorted_y = np.asarray(data.y)[sorted_indices]
-        cdef np.float64_t[::1] sorted_w = np.asarray(data.w)[sorted_indices]
-        cdef np.float64_t[:, ::1] sorted_X = np.ascontiguousarray(
-            np.asarray(data.X)[sorted_indices, :]
+        cdef __SortedFeatureData sorted_data = __SortedFeatureData(
+            data, feature_idx
         )
-        cdef int idx_of_max = sorted_indices[sorted_indices.shape[0]-1]
-        cdef int max_modality = data.X[idx_of_max, feature_idx]
-        cdef np.int32_t[:] first_idx = np.zeros(max_modality+2, dtype=np.int32)
-        cdef np.ndarray mean_ys = np.zeros(max_modality+1, np.float64)
-        _compute_first_idx(
-            sorted_X[:, feature_idx], sorted_y,
-            first_idx, mean_ys
-        )
+        cdef size_t nb_samples = data.size()
+        cdef int max_modality = <int>sorted_data.get_max()
+        cdef np.int32_t[::1] first_idx = np.zeros(max_modality+2, dtype=np.int32)
+        cdef np.float64_t[::1]mean_ys = np.zeros(max_modality+1, np.float64)
+        _compute_first_idx(sorted_data.X, sorted_data.y, first_idx, mean_ys)
         cdef size_t nb_modalities = 0
-        cdef np.int32_t[:] mapping = np.empty(max_modality+1, dtype=np.int32)
+        cdef np.int32_t[::1] mapping = np.empty(max_modality+1, dtype=np.int32)
         cdef size_t j = 0
         while j+1 < first_idx.shape[0]:
             while j+1 < first_idx.shape[0] and first_idx[j] == first_idx[j+1]:
@@ -708,37 +710,37 @@ cdef class CART:
         if self.loss_fct == LossFunction.MSE:
             result = find_best_partition_mse(
                 nb_modalities,
-                &sorted_y[0], &sorted_w[0], &sorted_p[0],
+                &sorted_data.y[0], &sorted_data.w[0], &sorted_data.p[0],
                 &first_idx[0], &mapping[0],
                 self.prop_root_p0, self.epsilon, self.minobs
             )
         elif self.loss_fct == LossFunction.POISSON:
             result = find_best_partition_poisson_deviance(
                 nb_modalities,
-                &sorted_y[0], &sorted_w[0], &sorted_p[0],
+                &sorted_data.y[0], &sorted_data.w[0], &sorted_data.p[0],
                 &first_idx[0], &mapping[0],
                 self.prop_root_p0, self.epsilon, self.minobs
             )
         if np.isinf(result.total_loss):
             return None
-        cdef np.ndarray goes_left  = np.zeros(sorted_y.shape[0], dtype=bool)
-        cdef np.ndarray goes_right = np.zeros(sorted_y.shape[0], dtype=bool)
+        cdef np.ndarray goes_left  = np.zeros(nb_samples, dtype=bool)
+        cdef np.ndarray goes_right = np.zeros(nb_samples, dtype=bool)
         cdef int i
         cdef int beg, end
         cdef int nb_modalities_left = 0
         cdef int l = 0
         cdef int r = nb_modalities-1
-        cdef np.int32_t[:] ordered = np.zeros(nb_modalities, dtype=np.int32)
+        cdef np.int32_t[::1] ordered = np.zeros(nb_modalities, dtype=np.int32)
         for i in range(nb_modalities):
             beg = first_idx[mapping[i]]
             end = first_idx[mapping[i]+1]
             if result.mask&1:
                 nb_modalities_left += 1
-                goes_left[sorted_indices[beg:end]]  = True
+                goes_left[sorted_data.indices[beg:end]]  = True
                 ordered[l] = mapping[i]
                 l += 1
             else:
-                goes_right[sorted_indices[beg:end]] = True
+                goes_right[sorted_data.indices[beg:end]] = True
                 ordered[r] = mapping[i]
                 r -= 1
             result.mask >>= 1
@@ -766,24 +768,14 @@ cdef class CART:
     cdef SplitChoice _find_best_threshold_categorical_sorted_by_mean_ys(
             self, Dataset data, int feature_idx,
             np.float64_t current_loss, np.float64_t prop_p0):
-        cdef np.ndarray sorted_indices = np.argsort(
-            data.X[:, feature_idx]
-        ).astype(np.int32)
-        cdef np.float64_t[::1] sorted_p = np.asarray(data.p)[sorted_indices]
-        cdef np.float64_t[::1] sorted_y = np.asarray(data.y)[sorted_indices]
-        cdef np.float64_t[::1] sorted_w = np.asarray(data.w)[sorted_indices]
-        cdef np.float64_t[:, ::1] sorted_X = np.ascontiguousarray(
-            np.asarray(data.X)[sorted_indices, :]
+        cdef __SortedFeatureData sorted_data = __SortedFeatureData(
+            data, feature_idx
         )
-        cdef int idx_of_max = sorted_indices[sorted_indices.shape[0]-1]
-        cdef int max_modality = data.X[idx_of_max, feature_idx]
-        cdef np.int32_t[:] first_idx = np.zeros(max_modality+2, dtype=np.int32)
-        cdef np.ndarray mean_ys = np.zeros(max_modality+1, np.float64)
-        _compute_first_idx(
-            sorted_X[:, feature_idx], sorted_y,
-            first_idx, mean_ys
-        )
-        cdef np.int32_t[:] ordered = np.argsort(mean_ys).astype(np.int32)
+        cdef int max_modality = <int>sorted_data.get_max()
+        cdef np.int32_t[::1] first_idx = np.zeros(max_modality+2, dtype=np.int32)
+        cdef np.float64_t[::1] mean_ys = np.zeros(max_modality+1, np.float64)
+        _compute_first_idx(sorted_data.X, sorted_data.y, first_idx, mean_ys)
+        cdef np.int32_t[::1] ordered = np.argsort(mean_ys).astype(np.int32)
         cdef size_t nb_samples = data.size()
 
         cdef np.float64_t prop_left_p0
@@ -811,16 +803,13 @@ cdef class CART:
                 nb_added_left = end_idx - beg_idx
                 nb_left += nb_added_left
                 augment_p0_counts(
-                    sorted_p[beg_idx:end_idx],
+                    sorted_data.p[beg_idx:end_idx],
                     &sum_p0_left, &sum_p0_right
                 )
-                loss_left.augment(
-                    sorted_y[beg_idx:end_idx],
-                    sorted_w[beg_idx:end_idx]
-                )
-                loss_right.diminish(
-                    sorted_y[beg_idx:end_idx],
-                    sorted_w[beg_idx:end_idx]
+                self._update_losses(
+                    loss_left, loss_right,
+                    sorted_data.y[beg_idx:end_idx],
+                    sorted_data.w[beg_idx:end_idx]
                 )
                 if nb_added_left < self.min_nb_new_instances:
                     continue
@@ -841,11 +830,11 @@ cdef class CART:
                     best_idx = idx
         if dloss == 0:
             return None
-        cdef np.ndarray selected_indices = np.zeros(
-            sorted_indices.shape[0], dtype=bool
+        cdef np.ndarray[np.npy_bool, ndim=1] selected_indices = np.zeros(
+            sorted_data.indices.shape[0], dtype=bool
         )
         _select_indices(
-            sorted_indices, ordered, best_idx, first_idx, selected_indices
+            sorted_data.indices, ordered, best_idx, first_idx, selected_indices
         )
         return SplitChoice(
             feature_idx, True, current_loss,
@@ -858,7 +847,7 @@ cdef class CART:
         )
 
     def predict(self, X):
-        cdef np.float64_t[:, :] data = self.data.transform(X)
+        cdef np.float64_t[:, ::1] data = self.data.transform(X)
         cdef int n = X.shape[0]
         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
         cdef int i
@@ -866,7 +855,7 @@ cdef class CART:
             ret[i] = self._predict_instance(data[i, :])
         return ret
 
-    cdef np.float64_t _predict_instance(self, np.float64_t[:] x) noexcept nogil:
+    cdef np.float64_t _predict_instance(self, np.float64_t[::1] x) noexcept nogil:
         cdef _Node* node = self.root
         cdef np.float64_t val
         cdef int categorical_label
