@@ -16,56 +16,67 @@ ctypedef enum _SplitType:
     BEST,
     DEPTH
 
+cdef extern from "<Python.h>" nogil:
+    cdef struct PyObject:
+        pass
+    PyObject* Py_NewRef(PyObject*)
+    void Py_XDECREF(void*)
+
 cdef extern from "_CART.h" nogil:
     cdef struct Vector:
-        void* _base
+        void*  _base
         size_t allocated
         size_t n
     cdef struct _Node:
-        _Node* left_child
-        _Node* right_child
-        _Node* parent
+        _Node*       left_child
+        _Node*       right_child
+        _Node*       parent
+
         np.float64_t avg_value
-        size_t nb_samples
-        size_t depth
-        int feature_idx
         np.float64_t threshold
         np.float64_t loss
         np.float64_t dloss
-        bint is_categorical
-        Vector categorical_values_left
-        Vector categorical_values_right
-        int idx
-        Vector valid_modalities
+        size_t       nb_samples
+        size_t       depth
+        size_t       feature_idx
+        size_t       idx
+        bint         is_categorical
+        Vector       categorical_values_left
+        Vector       categorical_values_right
+        Vector       valid_modalities
+        void*        extra_data
 
     _Node* new_node(size_t)
-    void clear_node(_Node*)
-    void _set_ys(_Node*, size_t, double, double, size_t)
-    void _set_categorical_node_left_right_values(
-            _Node*, const np.int32_t*, size_t, size_t, const np.int32_t*)
-    void _set_left_child(_Node*, _Node*)
-    void _set_right_child(_Node*, _Node*)
-    bint _is_root(_Node*)
-    bint _is_leaf(_Node*)
-    bint vector_contains_int32(Vector*, np.int32_t)
+    void   clear_node(_Node*)
+    void   _set_ys(_Node*, size_t, double, double, size_t)
+    void   _set_categorical_node_left_right_values(
+                _Node*, const np.int32_t*, size_t, size_t, const np.int32_t*)
+    void   _set_left_child(_Node*, _Node*)
+    void   _set_right_child(_Node*, _Node*)
+    bint   _is_root(_Node*)
+    bint   _is_leaf(_Node*)
+    bint   vector_contains_int32(Vector*, np.int32_t)
+
+    cdef struct NodePq_t:
+        Vector data
+        size_t n
+
+    void   init_node_pq(NodePq_t*, size_t)
+    void   destroy_pq_node(NodePq_t*)
+    void   pq_insert(NodePq_t*, _Node*)
+    _Node* pq_top(NodePq_t*)
+    _Node* pq_pop(NodePq_t*)
+    bint   pq_empty(const NodePq_t*)
 
     cdef struct PartitionResult_t:
         np.uint32_t mask
-        double total_loss
-        double loss_left
-        double loss_right
+        double      total_loss
+        double      loss_left
+        double      loss_right
     PartitionResult_t find_best_partition(
         LossFunction, size_t, const double*, const double*, const double*,
         const np.int32_t*, const np.int32_t*,
         double, double, size_t)
-    # PartitionResult_t find_best_partition_mse(
-    #     size_t, const double*, const double*, const double*,
-    #     const np.int32_t*, const np.int32_t*,
-    #     double, size_t)
-    # PartitionResult_t find_best_partition_poisson_deviance(
-    #     size_t, const double*, const double*, const double*,
-    #     const np.int32_t*, const np.int32_t*,
-    #     double, size_t)
 
 from dataset cimport Dataset
 
@@ -140,8 +151,7 @@ cdef class CART:
             self, Dataset data, size_t depth=*, np.float64_t loss=*)
     cdef _Node* _build_tree_best_first(self, Dataset data)
     cdef _Node* _create_node(
-        self, np.float64_t[::1] ys,
-        np.float64_t[::1] weights, size_t depth
+            self, Dataset data, size_t depth, np.float64_t loss=*
     )
     cdef inline void _update_losses(
         self, Loss loss_left, Loss loss_right,

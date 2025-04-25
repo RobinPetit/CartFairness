@@ -1,12 +1,14 @@
 #ifndef __CART_HEADER__
 #define __CART_HEADER__
 
-#include "_loss.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include <Python.h>
+#include "_loss.h"
 
 #define __EPSILON 1e-10
 #define CLOSE_ENOUGH(a, b) (fabs(a-b) < __EPSILON)
@@ -17,23 +19,22 @@ typedef struct Vector {
     size_t n;
 } Vector;
 
-typedef struct PQ {
-    Vector priorities;
-    Vector pq;
-    size_t n;
-} PQ;
+typedef struct NodePq_t {
+    Vector data;
+} NodePq_t;
 
 struct _Node {
     struct _Node* parent;
     struct _Node* left_child;
     struct _Node* right_child;
 
-    double avg_value, threshold, loss, dloss;
-    size_t nb_samples, depth, feature_idx, idx;
-    bool is_categorical;
-    Vector categorical_values_left;
-    Vector categorical_values_right;
-    Vector valid_modalities;
+    double     avg_value, threshold, loss, dloss;
+    size_t     nb_samples, depth, feature_idx, idx;
+    bool       is_categorical;
+    Vector     categorical_values_left;
+    Vector     categorical_values_right;
+    Vector     valid_modalities;
+    PyObject*  extra_data;
 };
 
 #ifndef __max
@@ -125,34 +126,80 @@ static inline int32_t Vector_int32_at(const Vector* vec, size_t i) {
 
 /********** PQ **********/
 
-/*static inline void init_PQ(PQ* pq, size_t n) {
-    pq->n = n;
-    init_vector(&pq->pq, n);
-    init_vector(&pq->priorities, n);
+static inline void init_node_pq(NodePq_t* pq, size_t n) {
+    init_vector(&pq->data, n+1);
+    pq->data.n = 1;  // start indexing at 1
 }
 
-static inline void free_PQ(PQ* pq) {
-    free_vector(&pq->priorities);
-    free_vector(&pq->pq);
-    pq->n = 0;
+static inline void destroy_pq_node(NodePq_t* pq) {
+    free_vector(&pq->data);
 }
 
-static inline bool PQ_less(PQ* pq, size_t i, size_t j) {
-    double pi = Vector_double_at(&pq->priorities, Vector_int32_at(&pq->pq, i));
-    double pj = Vector_double_at(&pq->priorities, Vector_int32_at(&pq->pq, j));
-    return pi < pj;
+static inline double __get_pq_loss(NodePq_t* pq, size_t i) {
+    return ((struct _Node**)pq->data._base)[i]->loss;
 }
 
-static inline void PQ_swap(PQ* pq, size_t i, size_t j) {
-    // pq->
+static inline double __get_pq_dloss(NodePq_t* pq, size_t i) {
+    return ((struct _Node**)pq->data._base)[i]->dloss;
 }
 
-static inline void PQ_swim(PQ* pq, size_t i) {
-    while(i > 0 && PQ_less(pq, i, (i-1)/2)) {
-        PQ_swap(pq, i, (i-1)/2);
-        i = (i-1) / 2;
+static inline bool _pq_less_loss(NodePq_t* pq, size_t i, size_t j) {
+    return __get_pq_loss(pq, i) < __get_pq_loss(pq, j);
+}
+
+static inline bool _pq_less_dloss(NodePq_t* pq, size_t i, size_t j) {
+    return __get_pq_dloss(pq, i) < __get_pq_dloss(pq, j);
+}
+
+static inline void _pq_swap(NodePq_t* pq, size_t i, size_t j) {
+    void* ptr_i = ((void**)pq->data._base)[i];
+    ((void**)pq->data._base)[i] = ((void**)pq->data._base)[j];
+    ((void**)pq->data._base)[j] = ptr_i;
+}
+
+#define PQ_LESS _pq_less_loss
+
+static inline void _pq_swim(NodePq_t* pq, size_t i) {
+    while(i > 1 && PQ_LESS(pq, i/2, i)) {
+        _pq_swap(pq, i, i/2);
+        i /= 2;
     }
-}*/
+}
+
+static inline void _pq_sink(NodePq_t* pq, size_t i) {
+    while(2*i < pq->data.n) {
+        size_t left_child = 2*i;
+        size_t right_child = left_child+1;
+        size_t biggest_child = left_child;
+        if(right_child < pq->data.n && PQ_LESS(pq, left_child, right_child))
+            biggest_child = right_child;
+        if(PQ_LESS(pq, biggest_child, i))
+            break;
+        _pq_swap(pq, i, biggest_child);
+        i = biggest_child;
+    }
+}
+
+static inline void pq_insert(NodePq_t* pq, struct _Node* node) {
+    insert_ptr_in_vector(&pq->data, node);
+    _pq_swim(pq, pq->data.n-1);
+}
+
+static inline struct _Node* pq_top(NodePq_t* pq) {
+    return ((struct _Node**)pq->data._base)[1];
+}
+
+static inline struct _Node* pq_pop(NodePq_t* pq) {
+    --pq->data.n;
+    _pq_swap(pq, 1, pq->data.n);
+    struct _Node* ret = ((struct _Node**)pq->data._base)[pq->data.n];
+    _pq_sink(pq, 1);
+    return ret;
+}
+
+static inline bool pq_empty(const NodePq_t* pq) {
+    return pq->data.n <= 1;
+}
 
 /********** Node **********/
 

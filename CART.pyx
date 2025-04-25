@@ -6,11 +6,9 @@
 # cython: linetrace=True
 
 cimport numpy as np
-from libc.math cimport log, fabs
-from libc.stdlib cimport calloc
+from libc.math cimport fabs, INFINITY
 
 import cython
-from cython.operator cimport dereference
 from cython.parallel import prange
 
 from loss cimport Loss, LossFunction
@@ -28,15 +26,15 @@ cdef class Node:
 
     property feature_idx:
         def __get__(self):
-            return dereference(self.node).feature_idx
+            return self.node.feature_idx
 
     property threshold:
         def __get__(self):
-            return dereference(self.node).threshold
+            return self.node.threshold
 
     property loss:
         def __get__(self):
-            return dereference(self.node).loss
+            return self.node.loss
 
     property dloss:
         def __get__(self):
@@ -44,27 +42,23 @@ cdef class Node:
 
     property avg_value:
         def __get__(self):
-            return dereference(self.node).avg_value
+            return self.node.avg_value
 
     property depth:
         def __get__(self):
-            return dereference(self.node).depth
+            return self.node.depth
 
     property parent:
         def __get__(self):
-            return Node.from_ptr(dereference(self.node).parent)
+            return Node.from_ptr(self.node.parent)
 
     property left_child:
         def __get__(self):
-            return Node.from_ptr(dereference(self.node).left_child)
-        def __set__(self, Node value):
-            dereference(self.node).left_child = value.node
+            return Node.from_ptr(self.node.left_child)
 
     property right_child:
         def __get__(self):
-            return Node.from_ptr(dereference(self.node).right_child)
-        def __set__(self, Node value):
-            dereference(self.node).right_child = value.node
+            return Node.from_ptr(self.node.right_child)
 
     property is_leaf:
         def __get__(self):
@@ -81,7 +75,7 @@ cdef class Node:
 
     property nb_samples:
         def __get__(self):
-            return dereference(self.node).nb_samples
+            return self.node.nb_samples
 
     property is_categorical:
         def __get__(self):
@@ -392,16 +386,15 @@ cdef class CART:
             return self._build_tree_depth_first(data)
         elif self.split_type == _SplitType.BEST:
             return self._build_tree_best_first(data)
+        cdef Node node
+        for node in self.all_nodes:
+            Py_XDECREF(node.node.extra_data)
+            node.node.extra_data = NULL
 
     cdef _Node* _build_tree_depth_first(
             self, Dataset data, size_t depth=0, np.float64_t loss=np.inf):
         cdef SplitChoice split = self._find_best_split(data, loss)
-        cdef _Node* ret = self._create_node(data.y, data.w, depth)
-        ret.threshold = -1
-        ret.feature_idx = -1
-        self.nb_nodes += 1
-        self.idx_nodes += 1
-        ret.dloss = 0.
+        cdef _Node* ret = self._create_node(data, depth, split.loss)
         if (
             split is None or
             split.left_data.size() <= self._minobs or
@@ -421,15 +414,11 @@ cdef class CART:
             ret.threshold = split.threshold_idx + .5
         else:
             ret.threshold = split.threshold
-        cdef bint   _kind = _is_root(ret)
-        cdef int    _idx = dereference(ret).feature_idx
-        cdef np.float64_t _threshold = dereference(ret).threshold
-        cdef np.float64_t _loss = dereference(ret).loss
-        cdef np.float64_t _avg = dereference(ret).avg_value
-        cdef str kind = 'Node' if _kind else 'Leaf'
-        print(f"{'  ' * depth} {kind} ({ret.idx}), Depth: {depth}, "
-              f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
-              f", Mean_value: {_avg},  N={ret.nb_samples}")
+        print(f"{'  ' * ret.depth} Node ({ret.idx}), "
+              f"Depth: {ret.depth}, "
+              f"Feature: {ret.feature_idx}, "
+              f"Threshold: {ret.threshold}, DLoss: {ret.dloss}"
+              f", Mean_value: {ret.avg_value},  N={ret.nb_samples}")
         if depth < self.max_depth:
             _set_left_child(
                 ret, self._build_tree_depth_first(
@@ -444,17 +433,70 @@ cdef class CART:
         return ret
 
     cdef _Node* _build_tree_best_first(self, Dataset data):
-        pass
+        cdef _Node* node = self._create_node(data, 0)
+        cdef _Node* ret = node
+        cdef _Node* left
+        cdef _Node* right
+        cdef NodePq_t pq
+        init_node_pq(&pq, self.max_interaction_depth)
+        pq_insert(&pq, node)
+        cdef SplitChoice
+        while (
+                self.nb_splitting_nodes < self.max_interaction_depth and
+                not pq_empty(&pq)
+        ):
+            node = pq_pop(&pq)
+            if node.depth >= self.max_depth:
+                continue
+            split = self._find_best_split(
+                <Dataset>(<object>node.extra_data), node.loss
+            )
+            if split is None:
+                continue
+            node.feature_idx = split.feature_idx
+            node.dloss = split.dloss
+            if split.is_categorical:
+                _set_categorical_node_left_right_values(
+                    node, &split.labels[0], split.labels.shape[0],
+                    split.threshold_idx, &split.first_index[0]
+                )
+                node.threshold = split.threshold_idx + .5
+            else:
+                node.threshold = split.threshold
+            self.nb_splitting_nodes += 1
+            left = self._create_node(
+                split.left_data, node.depth+1, split.loss_left
+            )
+            right = self._create_node(
+                split.right_data, node.depth+1, split.loss_right
+            )
+            _set_left_child(node, left)
+            _set_right_child(node, right)
+            pq_insert(&pq, left)
+            pq_insert(&pq, right)
+            print(f"{'  ' * node.depth} {'Leaf' if _is_leaf(node) else 'Node'} "
+                  f"({node.idx}), Depth: {node.depth}, "
+                  f"Feature: {node.feature_idx}, "
+                  f"Threshold: {node.threshold}, DLoss: {node.dloss}"
+                  f", Mean_value: {node.avg_value},  N={node.nb_samples}")
+        return ret
 
-    cdef _Node* _create_node(self, np.float64_t[::1] ys,
-                             np.float64_t[::1] weights, size_t depth):
-        self.max_depth = max(depth, self.max_depth)
+    cdef _Node* _create_node(
+            self, Dataset data, size_t depth, np.float64_t loss=INFINITY):
+        self.depth = max(depth, self.depth)
         cdef _Node* node = new_node(depth)
+        if loss == np.inf:
+            loss = self._loss(data.y, data.w)
         _set_ys(
-            node, self.idx_nodes, np.mean(ys),
-            self._loss(ys, weights), ys.shape[0]
+            node, self.idx_nodes, np.mean(data.y), loss, data.size()
         )
+        node.dloss = 0
+        node.threshold = -1
+        node.feature_idx = -1
+        node.extra_data = Py_NewRef(<PyObject*>data)
         self.all_nodes.append(Node.from_ptr(node))
+        self.nb_nodes += 1
+        self.idx_nodes += 1
         return node
 
     cdef SplitChoice _find_best_split(
