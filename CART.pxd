@@ -54,14 +54,18 @@ cdef extern from "_CART.h" nogil:
         double total_loss
         double loss_left
         double loss_right
-    PartitionResult_t find_best_partition_mse(
-        size_t, const double*, const double*, const double*,
+    PartitionResult_t find_best_partition(
+        LossFunction, size_t, const double*, const double*, const double*,
         const np.int32_t*, const np.int32_t*,
         double, double, size_t)
-    PartitionResult_t find_best_partition_poisson_deviance(
-        size_t, const double*, const double*, const double*,
-        const np.int32_t*, const np.int32_t*,
-        double, double, size_t)
+    # PartitionResult_t find_best_partition_mse(
+    #     size_t, const double*, const double*, const double*,
+    #     const np.int32_t*, const np.int32_t*,
+    #     double, size_t)
+    # PartitionResult_t find_best_partition_poisson_deviance(
+    #     size_t, const double*, const double*, const double*,
+    #     const np.int32_t*, const np.int32_t*,
+    #     double, size_t)
 
 from dataset cimport Dataset
 
@@ -111,12 +115,15 @@ cdef class CART:
     cdef np.float64_t prop_sample
     cdef np.float64_t delta_loss
     cdef size_t _minobs
+    cdef size_t depth
     cdef size_t max_depth
     cdef int max_interaction_depth
     cdef int nb_nodes
     cdef int nb_splitting_nodes
     cdef bint normalized_loss
     cdef bint pruning
+    cdef bint relative_margin
+    cdef np.float64_t prop_margin
     cdef Dataset data
     cdef _Node* root
     cdef _SplitType split_type

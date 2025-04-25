@@ -42,10 +42,10 @@ cdef extern from "_loss.h" nogil:
     void join_gamma_deviance(GammaDeviance_t*, const GammaDeviance_t*)
     void unjoin_gamma_deviance(GammaDeviance_t*, const GammaDeviance_t*)
 
-ctypedef enum LossFunction:
-    MSE,
-    POISSON,
-    GAMMA
+    ctypedef enum LossFunction "LossFunction_e":
+        MSE,
+        POISSON,
+        GAMMA
 
 @cython.final
 cdef class Loss:

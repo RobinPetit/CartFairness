@@ -252,14 +252,15 @@ cdef class CART:
     def __init__(
             self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
             replacement=False, prop_sample=1.0, frac_valid=0.2,
-            max_interaction_depth=0, max_depth=0, margin="absolute",
+            max_interaction_depth=0, max_depth=<size_t>(-1), margin="absolute",
             minobs=1, delta_loss=0, loss="MSE", name=None,
             parallel="Yes", pruning="No", bootstrap="No",
             split='depth', min_nb_new_instances=1,
             normalized_loss=False, exact_categorical_splits=False
-            ):
+    ):
         self.bootstrap = (bootstrap == 'Yes')
         self.pruning = (pruning == 'Yes')
+        self.relative_margin = (margin == 'relative')
         self.normalized_loss = normalized_loss
         self.replacement = replacement
         self._epsilon = epsilon
@@ -268,7 +269,7 @@ cdef class CART:
         self.prop_sample = prop_sample
         self.delta_loss = delta_loss
         self._minobs = minobs
-        self.max_depth = 0
+        self.max_depth = max_depth
         self.nb_nodes = 0
         self.nb_splitting_nodes = 0
         self.idx_nodes = 0
@@ -302,6 +303,9 @@ cdef class CART:
             self.data = self.data.sample(self.prop_sample, self.replacement)
         # split train vs test ?!
         self.prop_root_p0 = 1 - np.mean(self.data.p)
+        self.prop_margin = self._epsilon
+        if self.relative_margin:
+            self.prop_margin *= self.prop_root_p0
         if self.exact_categorical_splits:
             for j in range(dataset.nb_features):
                 if not dataset.is_categorical(j):
@@ -321,7 +325,7 @@ cdef class CART:
         print('*******************************')
         print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
         print(f"Time elapsed: {time_elapsed}")
-        print(f"Tree depth:{self.max_depth}")
+        print(f"Tree depth:{self.depth}")
         print(f"Nb nodes: {len(self.nodes)}")
         print('*******************************')
         print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
@@ -417,26 +421,26 @@ cdef class CART:
             ret.threshold = split.threshold_idx + .5
         else:
             ret.threshold = split.threshold
-        cdef size_t _depth = dereference(ret).depth
         cdef bint   _kind = _is_root(ret)
         cdef int    _idx = dereference(ret).feature_idx
         cdef np.float64_t _threshold = dereference(ret).threshold
         cdef np.float64_t _loss = dereference(ret).loss
         cdef np.float64_t _avg = dereference(ret).avg_value
         cdef str kind = 'Node' if _kind else 'Leaf'
-        print(f"{'  ' * _depth} {kind} ({Node.from_ptr(ret).index}), Depth: {_depth}, "
+        print(f"{'  ' * depth} {kind} ({ret.idx}), Depth: {depth}, "
               f"Feature: {_idx}, Threshold: {_threshold}, DLoss: {ret.dloss}"
-              f", Mean_value: {_avg},  N={Node.from_ptr(ret).nb_samples}")
-        _set_left_child(
-            ret, self._build_tree_depth_first(
-                split.left_data, depth+1, split.loss_left
+              f", Mean_value: {_avg},  N={ret.nb_samples}")
+        if depth < self.max_depth:
+            _set_left_child(
+                ret, self._build_tree_depth_first(
+                    split.left_data, depth+1, split.loss_left
+                )
             )
-        )
-        _set_right_child(
-            ret, self._build_tree_depth_first(
-                split.right_data, depth+1, split.loss_right
+            _set_right_child(
+                ret, self._build_tree_depth_first(
+                    split.right_data, depth+1, split.loss_right
+                )
             )
-        )
         return ret
 
     cdef _Node* _build_tree_best_first(self, Dataset data):
@@ -566,8 +570,8 @@ cdef class CART:
                 prev_base_idx = base_idx
                 dloss = current_loss - (loss_left.get() + loss_right.get())
 
-                if fabs(prop_left_p0 - prop_p0) > self._epsilon*prop_p0 or \
-                        fabs(prop_right_p0 - prop_p0) > self._epsilon*prop_p0:
+                if fabs(prop_left_p0 - prop_p0) > self.prop_margin or \
+                        fabs(prop_right_p0 - prop_p0) > self.prop_margin:
                     continue
                 if dloss > best_dloss:
                     best_dloss = dloss
@@ -608,7 +612,7 @@ cdef class CART:
         _compute_first_idx(sorted_data.X, sorted_data.y, first_idx, mean_ys)
         cdef size_t nb_modalities = 0
         cdef np.int32_t[::1] mapping = np.empty(max_modality+1, dtype=np.int32)
-        cdef size_t j = 0
+        cdef int j = 0
         while j+1 < first_idx.shape[0]:
             while j+1 < first_idx.shape[0] and first_idx[j] == first_idx[j+1]:
                 j += 1
@@ -623,25 +627,17 @@ cdef class CART:
                 f'Unable to perform exact split on {nb_modalities} modalities'
             )
         cdef PartitionResult_t result
-        if self.loss_fct == LossFunction.MSE:
-            result = find_best_partition_mse(
-                nb_modalities,
-                &sorted_data.y[0], &sorted_data.w[0], &sorted_data.p[0],
-                &first_idx[0], &mapping[0],
-                self.prop_root_p0, self.epsilon, self.minobs
-            )
-        elif self.loss_fct == LossFunction.POISSON:
-            result = find_best_partition_poisson_deviance(
-                nb_modalities,
-                &sorted_data.y[0], &sorted_data.w[0], &sorted_data.p[0],
-                &first_idx[0], &mapping[0],
-                self.prop_root_p0, self.epsilon, self.minobs
-            )
+        result = find_best_partition(
+            self.loss_fct, nb_modalities,
+            &sorted_data.y[0], &sorted_data.w[0], &sorted_data.p[0],
+            &first_idx[0], &mapping[0],
+            self.prop_root_p0, self.prop_margin, self.minobs
+        )
         if np.isinf(result.total_loss):
             return None
         cdef np.ndarray goes_left  = np.zeros(nb_samples, dtype=bool)
         cdef np.ndarray goes_right = np.zeros(nb_samples, dtype=bool)
-        cdef int i
+        cdef size_t i
         cdef int beg, end
         cdef int nb_modalities_left = 0
         cdef int l = 0

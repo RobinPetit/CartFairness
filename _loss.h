@@ -5,6 +5,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+typedef enum LossFunction_e {
+    MSE,
+    POISSON,
+    GAMMA
+} LossFunction_e;
+
 #define MALLOC_ONE(T) (T*)(malloc(sizeof(T)))
 #define REALLOC(T, ptr, n) ptr = (T*)realloc(ptr, n*sizeof(T))
 #define RELEASE_PTR(ptr) do { \
@@ -20,9 +26,9 @@
     size_t n; \
     bool precomputed;
 
-struct __BasicLoss_t {
+typedef struct __BasicLoss_t {
     BASE_STRUCT_LOSS
-};
+} __BasicLoss_t;
 
 typedef struct MSE_t {
     BASE_STRUCT_LOSS
@@ -52,8 +58,7 @@ typedef struct GammaDeviance_t {
 static inline void _destroy_basic_loss(void** ptr) {
     if(*ptr == NULL)
         return;
-    free(*ptr);
-    *ptr = NULL;
+    RELEASE_PTR(*ptr);
 }
 
 static inline void _init_mse(MSE_t* mse) {
@@ -163,7 +168,7 @@ static inline void destroy_poisson_deviance(void** ptr) {
     PoissonDeviance_t* pd = *ptr;
     RELEASE_PTR(pd->sum_of_weights);
     RELEASE_PTR(pd->ylogys);
-    *ptr = NULL;
+    RELEASE_PTR(pd);
 }
 
 static inline void _compute_poisson(PoissonDeviance_t* pd) {
@@ -300,6 +305,123 @@ static inline void unjoin_gamma_deviance(
     gd->sum -= other->sum;
     gd->n -= other->n;
     gd->precomputed = false;
+}
+
+typedef struct AnyLoss_t {
+    union {
+        __BasicLoss_t* base;
+        MSE_t* mse;
+        PoissonDeviance_t* pd;
+        GammaDeviance_t* gd;
+        void* any;
+    };
+    LossFunction_e type;
+} AnyLoss_t;
+
+static inline void _init_any_loss(AnyLoss_t* loss) {
+    switch(loss->type) {
+    case MSE:
+        _init_mse(loss->mse);
+        break;
+    case POISSON:
+        _init_poisson_deviance(loss->pd);
+        break;
+    case GAMMA:
+        _init_gamma_deviance(loss->gd);
+        break;
+    default:
+        break;
+    }
+}
+
+static inline AnyLoss_t _create_any_loss_array(LossFunction_e type, size_t n) {
+    AnyLoss_t ret = {.any=NULL, .type=type};
+    switch(type) {
+    case MSE:
+        ret.mse = calloc(n, sizeof(MSE_t));
+        for(size_t i = 0; i < n; ++i)
+            _init_mse(&ret.mse[i]);
+        break;
+    case POISSON:
+        ret.pd = calloc(n, sizeof(PoissonDeviance_t));
+        for(size_t i = 0; i < n; ++i)
+            _init_poisson_deviance(&ret.pd[i]);
+        break;
+    case GAMMA:
+        ret.gd = calloc(n, sizeof(GammaDeviance_t));
+        for(size_t i = 0; i < n; ++i)
+            _init_gamma_deviance(&ret.gd[i]);
+        break;
+    default: break;
+    }
+    return ret;
+}
+
+static inline void _destroy_any_loss_array(AnyLoss_t* losses, size_t n) {
+    if(losses->type == POISSON) {
+        for(size_t i = 0; i < n; ++i) {
+            RELEASE_PTR(losses->pd[i].sum_of_weights);
+            RELEASE_PTR(losses->pd[i].ylogys);
+        }
+    }
+    RELEASE_PTR(losses->any);
+}
+
+static inline void* _get_any_loss(AnyLoss_t* losses, size_t i) {
+    switch(losses->type) {
+    case MSE:
+        return &losses->mse[i];
+    case POISSON:
+        return &losses->pd[i];
+    case GAMMA:
+        return &losses->gd[i];
+    default:
+        return 0;
+    }
+}
+
+static inline void _augment_any_loss(
+        AnyLoss_t* losses, size_t i,
+        const double* ys, const double* ws, size_t n) {
+    switch(losses->type) {
+    case MSE:
+        augment_mse(losses->mse+i, ys, ws, n);
+        break;
+    case POISSON:
+        augment_poisson_deviance(losses->pd+i, ys, ws, n);
+        break;
+    case GAMMA:
+        augment_gamma_deviance(losses->gd+i, ys, ws, n);
+        break;
+    default:
+        break;
+    }
+}
+
+static inline void _join_any_loss(AnyLoss_t* loss, const void* other) {
+    switch(loss->type) {
+    case MSE:
+        join_mse(loss->mse, other);
+        break;
+    case POISSON:
+        join_poisson_deviance(loss->pd, other);
+        break;
+    case GAMMA:
+        join_gamma_deviance(loss->gd, other);
+        break;
+    }
+}
+
+static inline double _evaluate_any_loss(const AnyLoss_t* loss) {
+    switch(loss->type) {
+    case MSE:
+        return evaluate_mse(loss->mse);
+    case POISSON:
+        return evaluate_poisson_deviance(loss->pd);
+    case GAMMA:
+        return evaluate_gamma_deviance(loss->gd);
+    default: return 0;
+    }
 }
 
 #endif
