@@ -14,7 +14,7 @@ typedef enum LossFunction_e {
 #define MALLOC_ONE(T) (T*)(malloc(sizeof(T)))
 #define REALLOC(T, ptr, n) ptr = (T*)realloc(ptr, n*sizeof(T))
 #define RELEASE_PTR(ptr) do { \
-    if((ptr) == NULL) { \
+    if((ptr) != NULL) { \
         free(ptr); \
         ptr = NULL; \
     } \

@@ -741,15 +741,6 @@ cdef class CART:
             result.mask >>= 1
         cdef Dataset left_data  = data[goes_left]
         cdef Dataset right_data = data[goes_right]
-        assert np.all(np.logical_or(goes_left, goes_right)), (
-            np.asarray(mapping),
-            np.unique(
-                np.asarray(data.X)[
-                    np.logical_and(~goes_left, ~goes_right), feature_idx
-                ],
-                return_counts=True
-            )
-        )
         return SplitChoice(
             feature_idx, True, current_loss,
             current_loss - result.total_loss,

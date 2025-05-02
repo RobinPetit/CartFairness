@@ -57,11 +57,8 @@ static inline void init_vector(Vector* vector, size_t n) {
 }
 
 static inline void free_vector(Vector* vector) {
-    if(vector->_base != NULL) {
-        free(vector->_base);
-        vector->allocated = vector->n = 0;
-        vector->_base = NULL;
-    }
+    RELEASE_PTR(vector->_base);
+    vector->allocated = vector->n = 0;
 }
 
 static inline bool vector_contains_int32(const Vector* vector, int32_t x) {
@@ -89,23 +86,18 @@ static inline void _ensure_sufficient_size(Vector* vector) {
     }
 }
 
-static inline void insert_ptr_in_vector(Vector* vector, void* entry) {
-    _ensure_sufficient_size(vector);
-    ((void**)(vector->_base))[vector->n] = entry;
-    ++vector->n;
+#define __LET_INSERT_IN_VECTOR(_name, T) \
+static inline void insert_ ## _name ## _in_vector(Vector* vector, T entry) { \
+    _ensure_sufficient_size(vector); \
+    ((T*)vector->_base)[vector->n] = entry; \
+    ++vector->n; \
 }
 
-static inline void insert_int32_in_vector(Vector* vector, int32_t entry) {
-    _ensure_sufficient_size(vector);
-    ((int32_t*)(vector->_base))[vector->n] = entry;
-    ++vector->n;
-}
+__LET_INSERT_IN_VECTOR(ptr, void*)
+__LET_INSERT_IN_VECTOR(int32, int32_t)
+__LET_INSERT_IN_VECTOR(double, double)
 
-static inline void insert_double_in_vector(Vector* vector, double entry) {
-    _ensure_sufficient_size(vector);
-    ((double*)(vector->_base))[vector->n] = entry;
-    ++vector->n;
-}
+#undef __LET_INSERT_IN_VECTOR
 
 static inline void init_vector_from_int_ptr(
         Vector* vector, const int32_t* const data, size_t n) {
@@ -210,6 +202,7 @@ static inline struct _Node* new_node(size_t depth) {
     ret->is_categorical = false;
     init_vector(&ret->categorical_values_left, 0);
     init_vector(&ret->categorical_values_right, 0);
+    init_vector(&ret->valid_modalities, 0);
     return ret;
 }
 
@@ -220,6 +213,7 @@ static inline void clear_node(struct _Node* root) {
         clear_node(root->right_child);
     free_vector(&root->categorical_values_left);
     free_vector(&root->categorical_values_right);
+    free_vector(&root->valid_modalities);
     free(root);
 }
 
@@ -297,8 +291,6 @@ static inline PartitionResult_t find_best_partition(
     double loss;
     PartitionResult_t ret = {0, INFINITY, INFINITY, INFINITY};
     for(uint32_t mask = 1; mask < (1u<<(nb_modalities-1)); ++mask) {
-        _destroy_any_loss_array(&loss_left, 1);
-        _destroy_any_loss_array(&loss_right, 1);
         _init_any_loss(&loss_left);
         _init_any_loss(&loss_right);
         uint32_t copy = mask;

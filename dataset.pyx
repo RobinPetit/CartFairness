@@ -138,12 +138,7 @@ cdef class Dataset:
         cdef np.ndarray indices = np.empty(i+j, dtype=int)
         indices[:i] = indices_0[:i]
         indices[i:] = indices_1[:j]
-        cdef Dataset ret = self[indices]
-        print(f'Initial prop_p0: {self.get_prop_p0()}')
-        print(f'Sampled prop_p0: {ret.get_prop_p0()}')
-        print((self.sum_of_weights_p0, self.sum_of_weights_p1))
-        print((np.asarray(self.w)[where_p_is_0[:i]].sum(), np.asarray(self.w)[where_p_is_1[:j]].sum()))
-        return ret
+        return self[indices]
 
     cdef bint not_all_equal(self, int col_idx) noexcept nogil:
         cdef size_t i = 0
