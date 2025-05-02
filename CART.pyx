@@ -31,7 +31,12 @@ cdef class Node:
 
     property feature_idx:
         def __get__(self):
-            return self.node.feature_idx
+            cdef int ret
+            if self.node.feature_idx == <size_t>-1:
+                ret = -1
+            else:
+                ret = <int>self.node.feature_idx
+            return ret
 
     property threshold:
         def __get__(self):
@@ -430,6 +435,8 @@ cdef class CART:
             split.dloss <= self.delta_loss or split.loss <= 0 or
             self.nb_splitting_nodes > self.max_interaction_depth
         ):
+            ret.loss = 0.
+            ret.feature_idx = -1
             return ret
         ret.feature_idx = split.feature_idx
         self.nb_splitting_nodes += 1
@@ -662,7 +669,7 @@ cdef class CART:
                     best_loss_right = loss_right.get()
                     best_base_idx = base_idx
                     best_threshold = threshold
-        if dloss == 0:
+        if best_dloss == 0:
             return None
         return SplitChoice(
             feature_idx, False, current_loss,
