@@ -269,7 +269,7 @@ cdef class CART:
             minobs=1, delta_loss=0, loss="MSE", name=None,
             parallel="Yes", pruning="No", bootstrap="No",
             split='best', min_nb_new_instances=1,
-            normalized_loss=False, exact_categorical_splits=True
+            normalized_loss=False, exact_categorical_splits=False
     ):
         self.prop_p0 = prop_root_p0
         self.bootstrap = (bootstrap == 'Yes')
