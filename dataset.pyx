@@ -68,6 +68,9 @@ cdef class Dataset:
                 self._is_categorical[col_idx] = False
                 np.asarray(self._X)[:, col_idx] = X[:, col_idx]
 
+    def __len__(self) -> int:
+        return self.size()
+
     def __getitem__(self, indices):
         assert isinstance(indices, (slice, np.ndarray))
         cdef Dataset ret = Dataset.__new__(Dataset)

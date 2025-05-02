@@ -565,7 +565,7 @@ cdef class CART:
             best_split = self._find_best_threshold(
                 data, feature_idx, current_loss, prop_p0
             )
-            if best_split.is_better_than(ret):
+            if best_split is not None and best_split.is_better_than(ret):
                 ret = best_split
         return ret
 
@@ -662,12 +662,15 @@ cdef class CART:
                     best_loss_right = loss_right.get()
                     best_base_idx = base_idx
                     best_threshold = threshold
+        if dloss == 0:
+            return None
         return SplitChoice(
             feature_idx, False, current_loss,
             best_dloss, best_loss_left, best_loss_right,
             data[sorted_data.indices[:best_base_idx]],
             data[sorted_data.indices[best_base_idx:]],
-            threshold=best_threshold
+            threshold=best_threshold,
+            threshold_idx=best_threshold-.5
         )
 
     cdef SplitChoice _find_best_threshold_categorical(
