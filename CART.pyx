@@ -262,14 +262,16 @@ MAX_NB_MODALITIES = 30
 @cython.final
 cdef class CART:
     def __init__(
-            self, epsilon=0., prop_root_p0=1.0, id=0, nb_cov=1,
+            self, epsilon=0., prop_root_p0=-1., id=0, nb_cov=1,
             replacement=False, prop_sample=1.0, frac_valid=0.2,
-            max_interaction_depth=0, max_depth=<size_t>(-1), margin="absolute",
+            max_interaction_depth=0, max_depth=<size_t>(-1),
+            margin="absolute",
             minobs=1, delta_loss=0, loss="MSE", name=None,
             parallel="Yes", pruning="No", bootstrap="No",
             split='best', min_nb_new_instances=1,
-            normalized_loss=False, exact_categorical_splits=False
+            normalized_loss=False, exact_categorical_splits=True
     ):
+        self.prop_p0 = prop_root_p0
         self.bootstrap = (bootstrap == 'Yes')
         self.pruning = (pruning == 'Yes')
         self.relative_margin = (margin == 'relative')
@@ -314,8 +316,11 @@ cdef class CART:
             print('Bootstrapping...')
             self.data = self.data.sample(self.prop_sample, self.replacement)
         # split train vs test ?!
-        cdef np.ndarray w = np.asarray(dataset.w)
-        self.prop_root_p0 = np.average(1-np.asarray(self.data.p), weights=w)
+        if self.prop_p0 < 0:
+            self.prop_root_p0 = np.average(
+                1-np.asarray(self.data.p),
+                weights=np.asarray(self.data.w)
+            )
         self.prop_margin = self._epsilon
         if self.relative_margin:
             self.prop_margin *= self.prop_root_p0
@@ -486,6 +491,8 @@ cdef class CART:
                 node.threshold = split.threshold_idx + .5
             else:
                 node.threshold = split.threshold
+            Py_XDECREF(<PyObject*>node.extra_data)
+            node.extra_data = NULL
             self.nb_splitting_nodes += 1
             left = self._create_node(
                 split.left_data, node.depth+1, split.loss_left
@@ -502,6 +509,10 @@ cdef class CART:
                   f"Feature: {node.feature_idx}, "
                   f"Threshold: {node.threshold}, DLoss: {node.dloss}"
                   f", Mean_value: {node.avg_value},  N={node.nb_samples}")
+        while not pq_empty(&pq):
+            node = pq_pop(&pq)
+            Py_XDECREF(<PyObject*>node.extra_data)
+            node.extra_data = NULL
         return ret
 
     cdef _Node* _create_node(

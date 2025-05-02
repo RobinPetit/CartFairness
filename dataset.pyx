@@ -46,17 +46,25 @@ cdef class Dataset:
         self._reverse_mapping = [[] for _ in range(X.shape[1])]
         cdef size_t nb_cols = X.shape[1]
         cdef bint categorical, is_pd_categorical, is_np_categorical
+        self.sum_of_weights_p0 = np.asarray(self._w)[p == 0].sum()
+        self.sum_of_weights_p1 = np.asarray(self._w)[p == 1].sum()
+
         cdef int col_idx
         for col_idx in range(len(dtypes)):
             dtype = dtypes[col_idx]
-            is_pd_categorical = isinstance(dtype, pd.core.dtypes.dtypes.CategoricalDtype)
-            is_np_categorical = isinstance(dtype, np.dtype) and dtype.kind == 'U'
+            is_pd_categorical = isinstance(
+                dtype,
+                pd.core.dtypes.dtypes.CategoricalDtype
+            )
+            is_np_categorical = isinstance(dtype, np.dtype) \
+                    and dtype.kind == 'U'
             categorical = is_pd_categorical or is_np_categorical
             if categorical:
                 self._is_categorical[col_idx] = True
                 self._labelize(X, self._X, col_idx, True)
             else:
-                assert isinstance(dtype, np.dtype) and dtype.kind in 'fiu'
+                assert isinstance(dtype, np.dtype) \
+                        and dtype.kind in 'fiu'
                 self._is_categorical[col_idx] = False
                 np.asarray(self._X)[:, col_idx] = X[:, col_idx]
 
@@ -99,11 +107,43 @@ cdef class Dataset:
             counter += 1
         np.asarray(out)[~filled_indices, col_idx] = -1
 
-    cdef Dataset sample(self, double prop_sample, bint replacement):
-        cdef np.ndarray sampled_indices = np.random.choice(
-            self._size, size=int(self._size * prop_sample), replace=replacement
+    cdef Dataset sample(self, double prop_sample,
+                        bint replacement):
+        cdef np.ndarray where_p_is_0 = np.where(
+            np.asarray(self.p) == 0
+        )[0]
+        cdef np.ndarray where_p_is_1 = np.where(
+            np.asarray(self.p) == 1
+        )[0]
+        cdef np.ndarray indices_0 = np.random.choice(
+            where_p_is_0, where_p_is_0.shape[0],
+            replace=replacement
         )
-        return self[sampled_indices]
+        cdef np.ndarray indices_1 = np.random.choice(
+            where_p_is_1, where_p_is_1.shape[0],
+            replace=replacement
+        )
+        cdef np.ndarray cumsum_on_0 = np.cumsum(
+            np.asarray(self.w)[indices_0]
+        )
+        cdef np.ndarray cumsum_on_1 = np.cumsum(
+            np.asarray(self.w)[indices_1]
+        )
+        cdef int i = np.searchsorted(
+            cumsum_on_0, prop_sample*self.sum_of_weights_p0, 'right'
+        )
+        cdef int j = np.searchsorted(
+            cumsum_on_1, prop_sample*self.sum_of_weights_p1, 'right'
+        )
+        cdef np.ndarray indices = np.empty(i+j, dtype=int)
+        indices[:i] = indices_0[:i]
+        indices[i:] = indices_1[:j]
+        cdef Dataset ret = self[indices]
+        print(f'Initial prop_p0: {self.get_prop_p0()}')
+        print(f'Sampled prop_p0: {ret.get_prop_p0()}')
+        print((self.sum_of_weights_p0, self.sum_of_weights_p1))
+        print((np.asarray(self.w)[where_p_is_0[:i]].sum(), np.asarray(self.w)[where_p_is_1[:j]].sum()))
+        return ret
 
     cdef bint not_all_equal(self, int col_idx) noexcept nogil:
         cdef size_t i = 0
@@ -160,6 +200,6 @@ cdef class Dataset:
 
     cdef np.float64_t get_prop_p0(self):
         if self._w is None:
-            return np.mean(self.p)
+            return np.mean(1-np.asarray(self.p))
         else:
-            return np.average(self.p, weights=self.w)
+            return np.average(1-np.asarray(self.p), weights=self.w)

@@ -31,9 +31,16 @@ cdef class Dataset:
     cdef np.float64_t[:] _indexed_p
     cdef np.float64_t[:] _indexed_w
 
+    cdef np.float64_t sum_of_weights_p0
+    cdef np.float64_t sum_of_weights_p1
+
     cpdef bint is_categorical(self, int feature_idx)
-    cdef void _labelize( self, np.ndarray[object, ndim=2] X, np.float64_t[:, :] out, int col_idx, bint compute_mapping=*)
-    cdef Dataset sample(self, double prop_sample, bint replacement)
+    cdef void _labelize(
+            self, np.ndarray[object, ndim=2] X,
+            np.float64_t[:, :] out, int col_idx,
+            bint compute_mapping=*)
+    cdef Dataset sample(
+            self, double prop_sample, bint replacement)
     cdef bint not_all_equal(self, int col_idx) noexcept nogil
     cdef size_t get_length(self) noexcept nogil
     cdef size_t size(self) noexcept nogil

@@ -297,6 +297,8 @@ static inline PartitionResult_t find_best_partition(
     double loss;
     PartitionResult_t ret = {0, INFINITY, INFINITY, INFINITY};
     for(uint32_t mask = 1; mask < (1u<<(nb_modalities-1)); ++mask) {
+        _destroy_any_loss_array(&loss_left, 1);
+        _destroy_any_loss_array(&loss_right, 1);
         _init_any_loss(&loss_left);
         _init_any_loss(&loss_right);
         uint32_t copy = mask;

@@ -20,12 +20,6 @@ ctypedef enum _SplitType:
     BEST,
     DEPTH
 
-# cdef extern from "<Python.h>" nogil:
-#     cdef struct PyObject:
-#         pass
-#     PyObject* Py_NewRef(PyObject*)
-#     void Py_XDECREF(void*)
-
 cdef extern from "_CART.h" nogil:
     cdef struct Vector:
         void*  _base
@@ -140,6 +134,7 @@ cdef class CART:
     cdef bint pruning
     cdef bint relative_margin
     cdef np.float64_t prop_margin
+    cdef np.float64_t prop_p0
     cdef Dataset data
     cdef _Node* root
     cdef _SplitType split_type
