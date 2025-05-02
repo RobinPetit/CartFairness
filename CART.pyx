@@ -45,6 +45,10 @@ cdef class Node:
         def __get__(self):
             return self.node.dloss
 
+    property prop_p0:
+        def __get__(self):
+            return self.node.prop_p0
+
     property avg_value:
         def __get__(self):
             return self.node.avg_value
@@ -172,16 +176,24 @@ cdef int _masks(
     return beg
 
 cdef void augment_p0_counts(
-        double[::1] p, double* sum_left, double* sum_right) noexcept nogil:
+        double[::1] p, double[::1] w, double* sum_left, double* sum_right,
+        double* sum_weights_left, double* sum_weights_right
+        ) noexcept nogil:
     cdef double _sum_left = sum_left[0]
     cdef double _sum_right = sum_right[0]
+    cdef double _sum_weights_left = sum_weights_left[0]
+    cdef double _sum_weights_right = sum_weights_right[0]
     cdef int i
     for i in range(p.shape[0]):
         if p[i] == 0:
-            _sum_left += 1
-            _sum_right -= 1
+            _sum_left += w[i]
+            _sum_right -= w[i]
+        _sum_weights_left += w[i]
+        _sum_weights_right -= w[i]
     sum_left[0] = _sum_left
     sum_right[0] = _sum_right
+    sum_weights_left[0] = _sum_weights_left
+    sum_weights_right[0] = _sum_weights_right
 
 @cython.final
 cdef class SplitChoice:
@@ -302,7 +314,8 @@ cdef class CART:
             print('Bootstrapping...')
             self.data = self.data.sample(self.prop_sample, self.replacement)
         # split train vs test ?!
-        self.prop_root_p0 = 1 - np.mean(self.data.p)
+        cdef np.ndarray w = np.asarray(dataset.w)
+        self.prop_root_p0 = np.average(1-np.asarray(self.data.p), weights=w)
         self.prop_margin = self._epsilon
         if self.relative_margin:
             self.prop_margin *= self.prop_root_p0
@@ -332,7 +345,11 @@ cdef class CART:
         return self.nodes
 
     def predict(self, X):
-        cdef np.float64_t[:, ::1] data = self.data.transform(X)
+        cdef np.float64_t[:, ::1] data
+        if X.dtype.kind.lower()== 'o':
+            data = self.data.transform(X)
+        else:
+            data = X
         cdef int n = X.shape[0]
         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
         cdef int i
@@ -493,8 +510,9 @@ cdef class CART:
         cdef _Node* node = new_node(depth)
         if loss == np.inf:
             loss = self._loss(data.y, data.w)
-        _set_ys(
-            node, self.idx_nodes, np.mean(data.y), loss, data.size()
+        _set_ys_ps(
+            node, self.idx_nodes, np.mean(data.y), loss,
+            data.size(), data.get_prop_p0()
         )
         node.dloss = 0
         node.threshold = -1
@@ -571,10 +589,11 @@ cdef class CART:
         cdef size_t base_idx = 0
         cdef size_t prev_base_idx = 0
         cdef int threshold_idx
-        cdef size_t nb_samples = data.size()
         cdef __SortedFeatureData sorted_data = __SortedFeatureData(
             data, feature_idx
         )
+        cdef size_t nb_samples = data.size()
+        cdef double sum_of_weights = np.sum(sorted_data.w)
 
         cdef np.float64_t threshold
         cdef np.float64_t prop_left_p0
@@ -586,6 +605,8 @@ cdef class CART:
 
         cdef np.float64_t sum_p0_left = 0
         cdef np.float64_t sum_p0_right = nb_samples - np.sum(data.p)
+        cdef np.float64_t sum_weights_p0_left = 0.
+        cdef np.float64_t sum_weights_p0_right = sum_of_weights
 
         cdef SplitChoice ret  = None
 
@@ -607,10 +628,12 @@ cdef class CART:
                     continue
                 augment_p0_counts(
                     sorted_data.p[prev_base_idx:base_idx],
-                    &sum_p0_left, &sum_p0_right
+                    sorted_data.w[prev_base_idx:base_idx],
+                    &sum_p0_left, &sum_p0_right,
+                    &sum_weights_p0_left, &sum_weights_p0_right
                 )
-                prop_left_p0 = sum_p0_left / base_idx
-                prop_right_p0 = sum_p0_right / (nb_samples - base_idx)
+                prop_left_p0 = sum_p0_left / sum_weights_p0_left
+                prop_right_p0 = sum_p0_right / sum_weights_p0_right
                 self._update_losses(
                     loss_left, loss_right,
                     sorted_data.y[prev_base_idx:base_idx],
@@ -738,6 +761,7 @@ cdef class CART:
         _compute_first_idx(sorted_data.X, sorted_data.y, first_idx, mean_ys)
         cdef np.int32_t[::1] ordered = np.argsort(mean_ys).astype(np.int32)
         cdef size_t nb_samples = data.size()
+        cdef double sum_of_weights = np.sum(sorted_data.w)
 
         cdef np.float64_t prop_left_p0
         cdef np.float64_t prop_right_p0
@@ -748,6 +772,8 @@ cdef class CART:
 
         cdef np.float64_t sum_p0_left = 0
         cdef np.float64_t sum_p0_right = nb_samples - np.sum(data.p)
+        cdef np.float64_t sum_weights_p0_left = 0.
+        cdef np.float64_t sum_weights_p0_right = sum_of_weights
         cdef double best_loss_left = 0
         cdef double best_loss_right = 0
         cdef double best_dloss = 0
@@ -765,7 +791,9 @@ cdef class CART:
                 nb_left += nb_added_left
                 augment_p0_counts(
                     sorted_data.p[beg_idx:end_idx],
-                    &sum_p0_left, &sum_p0_right
+                    sorted_data.w[beg_idx:end_idx],
+                    &sum_p0_left, &sum_p0_right,
+                    &sum_weights_p0_left, &sum_weights_p0_right
                 )
                 self._update_losses(
                     loss_left, loss_right,
@@ -777,10 +805,10 @@ cdef class CART:
                 if nb_samples - nb_left <= self._minobs:
                     break
                 dloss = current_loss - (loss_left.get() + loss_right.get())
-                prop_left_p0 = sum_p0_left / nb_left
-                prop_right_p0 = sum_p0_right / (nb_samples - nb_left)
-                if fabs(prop_left_p0 - prop_p0) > self._epsilon*prop_p0 or \
-                        fabs(prop_right_p0 - prop_p0) > self._epsilon*prop_p0:
+                prop_left_p0 = sum_p0_left / sum_weights_p0_left
+                prop_right_p0 = sum_p0_right / sum_weights_p0_right
+                if fabs(prop_left_p0 - prop_p0) > self.prop_margin or \
+                        fabs(prop_right_p0 - prop_p0) > self.prop_margin:
                     continue
                 if nb_left <= self._minobs:
                     continue

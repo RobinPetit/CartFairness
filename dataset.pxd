@@ -39,3 +39,4 @@ cdef class Dataset:
     cdef size_t size(self) noexcept nogil
     cdef np.ndarray transform(self, np.ndarray X)
     cpdef int nb_modalities_of(self, int feature_idx)
+    cdef np.float64_t get_prop_p0(self)

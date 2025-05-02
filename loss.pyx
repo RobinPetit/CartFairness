@@ -7,6 +7,8 @@
 
 cimport cython
 
+import numpy as np
+
 @cython.final
 cdef class Loss:
     def __cinit__(self, LossFunction loss_type, bint normalized):
@@ -97,4 +99,9 @@ cdef class Loss:
                 <GammaDeviance_t*>self.loss_ptr,
                 <GammaDeviance_t*>other.loss_ptr
             )
+
+cpdef float poisson_deviance(np.ndarray y, np.ndarray y_hat):
+    cdef np.ndarray[np.float64_t, ndim=1] ret = y * np.log((y+1e-12) / (y_hat+1e-12)) + (y_hat - y)
+    ret[np.isnan(ret)] = 0
+    return 2*np.mean(ret)
 

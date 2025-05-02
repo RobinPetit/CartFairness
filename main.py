@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # compare.py
-from version_simple_cython21_adj_categorical_clean_epsilon import CARTRegressor_cython, preprocess_data
+# from version_simple_cython21_adj_categorical_clean_epsilon import CARTRegressor_cython, preprocess_data
 from version_simple_python_cat_clean_epsilon import CARTRegressor_python
 import time
 import matplotlib.pyplot as plt
@@ -9,7 +9,12 @@ from load_data import load_dataset
 import numpy as np
 
 from CART import CART as NewCART
-from dataset import Dataset
+try:
+    from dataset import Dataset
+    from loss import poisson_deviance
+except ModuleNotFoundError:
+    from CART import Dataset
+    from CART import poisson_deviance
 
 import warnings
 warnings.simplefilter("error")
@@ -19,11 +24,9 @@ VERBOSE = False
 PLOT = False
 
 # load dataset and make sure that all numerical variable are in float64
-nb_observation = 10_000
+nb_observation = 500_000
 df_fictif, col_features, col_response, col_protected = load_dataset(nb_obs=nb_observation, verbose=VERBOSE)
 df_fictif.dropna(inplace=True)
-if VERBOSE:
-    print(df_fictif)
 
 frac_train = 0.7
 
@@ -61,49 +64,51 @@ y_testing = y_testing.astype(np.float64).reshape(-1)
 dtypes = df_fictif[col_features].dtypes.values
 dic_cov = {col: str(df_fictif[col].dtype) for col in col_features}
 
-X_train = preprocess_data(X_train, dic_cov)
-X_test = preprocess_data(X_test, dic_cov)
-X_training = preprocess_data(X_training, dic_cov)
-X_testing = preprocess_data(X_testing, dic_cov)
+# X_train = preprocess_data(X_train, dic_cov)
+# X_test = preprocess_data(X_test, dic_cov)
+# X_training = preprocess_data(X_training, dic_cov)
+# X_testing = preprocess_data(X_testing, dic_cov)
 
 if VERBOSE:
-    print(X_train.dtype, X_train)
-    print(y_train.dtype, y_train)
-    print(p_train.dtype, p_train)
+    print('X:')
+    print(X_train.dtype)
     print(X_train)
+    print('y:')
+    print(y_train.dtype)
     print(y_train)
+    print('p:')
+    print(p_train.dtype)
     print(p_train)
+    print()
 ##################################################################################
 # Tree parameters
 margin = 1.0
 nb_cov = len(col_features)
 it = 1
-depth = 10
-minobs = 1
+depth = 100
+minobs = 10
 range_nb_obs = [1000*k for k in range(1, 6)]
 # bootstrap = "Yes"  # "No" # For model replication (dataset is not boostraped so we must end up with same trees) => for benchmarking computation time is better to let it True
 bootstrap = 'No'
 ##################################################################################
 
 # Timing Cython function
-models = [NewCART, CARTRegressor_cython, CARTRegressor_python]
-model_names = ['Cython (new)', 'Cython (original)', 'Python']
-model_names.pop(1)
-models.pop(1)
+models = [NewCART, CARTRegressor_python]
+model_names = ['Cython (new)', 'Python']
 
 timers = [list() for _ in range(len(models))]
 
 # Just to reduce the number of modalities for exact split  #
-values, counts = np.unique(X_train[:, 2], return_counts=True)
-values, counts = zip(*sorted(list(zip(values, counts)), key=lambda e: e[1]))
-cdf = np.cumsum(counts) * 100 / X_train.shape[0]
-idx = np.where(cdf >= 10.)[0][0]
-indices = np.zeros(X_train.shape[0], dtype=bool)
-for i in range(idx, len(values)):
-    indices[X_train[:, 2] == values[i]] = True
-X_train = X_train[indices, :]
-y_train = y_train[indices]
-p_train = p_train[indices]
+# values, counts = np.unique(X_train[:, 2], return_counts=True)
+# values, counts = zip(*sorted(list(zip(values, counts)), key=lambda e: e[1]))
+# cdf = np.cumsum(counts) * 100 / X_train.shape[0]
+# idx = np.where(cdf >= 10.)[0][0]
+# indices = np.zeros(X_train.shape[0], dtype=bool)
+# for i in range(idx, len(values)):
+#     indices[X_train[:, 2] == values[i]] = True
+# X_train = X_train[indices, :]
+# y_train = y_train[indices]
+# p_train = p_train[indices]
 
 dataset = Dataset(X_train, y_train, p_train, dtypes)
 print(dataset.nb_features, 'features')
@@ -115,6 +120,29 @@ print(col_features)
 
 def mse(y, y_pred):
     return np.mean((y-y_pred)**2)
+
+cart_best = NewCART(
+    epsilon=margin, margin="absolute", id=1, nb_cov=nb_cov,
+    replacement=True, prop_sample=0.5, frac_valid=1.0,
+    max_interaction_depth=depth, minobs=minobs,
+    name="DiscriTree_cython", loss="poisson", parallel="No",
+    pruning="No", bootstrap=bootstrap, split='best'
+)
+cart_depth = NewCART(
+    epsilon=margin, margin="absolute", id=1, nb_cov=nb_cov,
+    replacement=True, prop_sample=0.5, frac_valid=1.0,
+    max_interaction_depth=depth, minobs=minobs,
+    name="DiscriTree_cython", loss="poisson", parallel="No",
+    pruning="No", bootstrap=bootstrap, split='depth'
+)
+cart_best.fit(dataset)
+cart_depth.fit(dataset)
+dataset_test = Dataset(X_test, y_test, p_test, dtypes)
+y_pred_best = cart_best.predict(np.asarray(dataset_test.X))
+y_pred_depth = cart_depth.predict(np.asarray(dataset_test.X))
+print(f'For depth first: {poisson_deviance(y_test, y_pred_depth)}')
+print(f'For best first: {poisson_deviance(y_test, y_pred_best)}')
+exit()
 
 importances = []
 mses = []

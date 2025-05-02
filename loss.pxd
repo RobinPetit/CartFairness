@@ -6,6 +6,7 @@
 # cython: linetrace=True
 
 cimport cython
+cimport numpy as np
 
 cdef extern from "_loss.h" nogil:
     cdef struct __BasicLoss_t:
@@ -43,9 +44,9 @@ cdef extern from "_loss.h" nogil:
     void unjoin_gamma_deviance(GammaDeviance_t*, const GammaDeviance_t*)
 
     ctypedef enum LossFunction "LossFunction_e":
-        MSE,
-        POISSON,
-        GAMMA
+        MSE = 1,
+        POISSON = 2,
+        GAMMA = 3
 
 @cython.final
 cdef class Loss:
@@ -60,3 +61,5 @@ cdef class Loss:
 
     cdef inline void join(self, Loss other) noexcept nogil
     cdef inline void unjoin(self, Loss other) noexcept nogil
+
+cpdef float poisson_deviance(np.ndarray y1, np.ndarray y2)

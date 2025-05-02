@@ -28,7 +28,7 @@ struct _Node {
     struct _Node* left_child;
     struct _Node* right_child;
 
-    double     avg_value, threshold, loss, dloss;
+    double     prop_p0, avg_value, threshold, loss, dloss;
     size_t     nb_samples, depth, feature_idx, idx;
     bool       is_categorical;
     Vector     categorical_values_left;
@@ -223,12 +223,13 @@ static inline void clear_node(struct _Node* root) {
     free(root);
 }
 
-static inline void _set_ys(
-        struct _Node* node, size_t idx, double avg, double loss, size_t size) {
+static inline void _set_ys_ps(
+        struct _Node* node, size_t idx, double avg, double loss, size_t size, double prop_p0) {
     node->idx = idx;
     node->avg_value = avg;
     node->loss = loss;
     node->nb_samples = size;
+    node->prop_p0 = prop_p0;
 }
 
 static inline void _set_categorical_node_left_right_values(
@@ -316,8 +317,8 @@ static inline PartitionResult_t find_best_partition(
         size_t count_right = loss_right.base->n;
         if(count_left <= minobs || count_right <= minobs)
             continue;
-        double prop_p0_left = sum_p0_left / (double)count_left;
-        double prop_p0_right = sum_p0_right / (double)count_right;
+        double prop_p0_left = sum_p0_left / (double)loss_left.base->sum_of_weights;
+        double prop_p0_right = sum_p0_right / (double)loss_right.base->sum_of_weights;
         if(fabs(prop_p0_left - prop_root_p0) > prop_margin)
             continue;
         if(fabs(prop_p0_right - prop_root_p0) > prop_margin)

@@ -24,7 +24,8 @@ typedef enum LossFunction_e {
 #define BASE_STRUCT_LOSS \
     double value; \
     size_t n; \
-    bool precomputed;
+    bool precomputed; \
+    double sum_of_weights;
 
 typedef struct __BasicLoss_t {
     BASE_STRUCT_LOSS
@@ -35,16 +36,15 @@ typedef struct MSE_t {
     double sum;
     double weighted_sum;
     double weighted_sum_squares;
-    double sum_of_weights;
 } MSE_t;
 
 typedef struct PoissonDeviance_t {
     BASE_STRUCT_LOSS
-    double* sum_of_weights;
     double* ylogys;
     size_t max_y;
     double weighted_sum;
     double sum;
+    double* sum_of_weights_ys;
 } PoissonDeviance_t;
 
 typedef struct GammaDeviance_t {
@@ -52,7 +52,6 @@ typedef struct GammaDeviance_t {
     double sum;
     double weighted_sum;
     double weighted_sum_log;
-    double sum_of_weighths;
 } GammaDeviance_t;
 
 static inline void _destroy_basic_loss(void** ptr) {
@@ -136,21 +135,22 @@ static inline void _reallocate_poisson_deviance(PoissonDeviance_t* pd, size_t k)
     size_t current_size = pd->max_y;
     while(pd->max_y <= k)
         pd->max_y *= 2;
-    REALLOC(double, pd->sum_of_weights, pd->max_y);
+    REALLOC(double, pd->sum_of_weights_ys, pd->max_y);
     REALLOC(double, pd->ylogys, pd->max_y);
     for(size_t i=current_size; i < pd->max_y; ++i) {
-        pd->sum_of_weights[i] = 0;
+        pd->sum_of_weights_ys[i] = 0;
         pd->ylogys[i] = i * log(i);
     }
 }
 
 static inline void _init_poisson_deviance(PoissonDeviance_t* pd) {
-    pd->sum_of_weights = NULL;
+    pd->sum_of_weights = 0;
+    pd->sum_of_weights_ys = NULL;
     pd->ylogys = NULL;
     pd->max_y = 1;
     _reallocate_poisson_deviance(pd, 2);
     pd->sum = 0;
-    pd->ylogys[0] = pd->sum_of_weights[0] = 0.;
+    pd->ylogys[0] = pd->sum_of_weights_ys[0] = 0.;
     pd->precomputed = true;
     pd->value = 0;
     pd->n = 0;
@@ -166,7 +166,7 @@ static inline void destroy_poisson_deviance(void** ptr) {
     if(*ptr == NULL)
         return;
     PoissonDeviance_t* pd = *ptr;
-    RELEASE_PTR(pd->sum_of_weights);
+    RELEASE_PTR(pd->sum_of_weights_ys);
     RELEASE_PTR(pd->ylogys);
     RELEASE_PTR(pd);
 }
@@ -174,9 +174,9 @@ static inline void destroy_poisson_deviance(void** ptr) {
 static inline void _compute_poisson(PoissonDeviance_t* pd) {
     double mu = pd->sum / pd->n;
     double logmu = (mu > 1e-18) ? log(mu) : 0.;
-    pd->value = pd->sum_of_weights[0] * mu;
+    pd->value = pd->sum_of_weights_ys[0] * mu;
     for(size_t k=1; k < pd->max_y; ++k)
-        pd->value += pd->sum_of_weights[k] *
+        pd->value += pd->sum_of_weights_ys[k] *
             (pd->ylogys[k] - k*(1.+logmu) + mu);
     pd->value *= 2.;
     pd->precomputed = true;
@@ -193,7 +193,8 @@ static inline void augment_poisson_deviance(
     for(size_t i = 0; i < n; ++i) {
         if((size_t)(ys[i]) >= pd->max_y)
             _reallocate_poisson_deviance(pd, ys[i]);
-        pd->sum_of_weights[(size_t)ys[i]] += ws[i];
+        pd->sum_of_weights += ws[i];
+        pd->sum_of_weights_ys[(size_t)ys[i]] += ws[i];
         pd->sum += ys[i];
     }
     pd->n += n;
@@ -203,7 +204,8 @@ static inline void augment_poisson_deviance(
 static inline void diminish_poisson_deviance(
         PoissonDeviance_t* pd, const double* ys, const double* ws, size_t n) {
     for(size_t i=0; i < n; ++i) {
-        pd->sum_of_weights[(size_t)ys[i]] -= ws[i];
+        pd->sum_of_weights -= ws[i];
+        pd->sum_of_weights_ys[(size_t)ys[i]] -= ws[i];
         pd->sum -= ys[i];
     }
     pd->n -= n;
@@ -215,7 +217,8 @@ static inline void join_poisson_deviance(
     if(pd->max_y < other->max_y)
         _reallocate_poisson_deviance(pd, other->max_y);
     for(size_t k=0; k < other->max_y; ++k)
-        pd->sum_of_weights[k] += other->sum_of_weights[k];
+        pd->sum_of_weights_ys[k] += other->sum_of_weights_ys[k];
+    pd->sum_of_weights += other->sum_of_weights;
     pd->weighted_sum += other->weighted_sum;
     pd->sum += other->sum;
     pd->n += other->n;
@@ -225,7 +228,8 @@ static inline void join_poisson_deviance(
 static inline void unjoin_poisson_deviance(
         PoissonDeviance_t* pd, const PoissonDeviance_t* other) {
     for(size_t k=0; k < other->max_y; ++k)
-        pd->sum_of_weights[k] -= other->sum_of_weights[k];
+        pd->sum_of_weights_ys[k] -= other->sum_of_weights_ys[k];
+    pd->sum_of_weights -= other->sum_of_weights;
     pd->weighted_sum -= other->weighted_sum;
     pd->sum -= other->sum;
     pd->n -= other->n;
@@ -235,7 +239,7 @@ static inline void unjoin_poisson_deviance(
 static inline void _init_gamma_deviance(GammaDeviance_t* gd) {
     gd->value = gd->n = 0;
     gd->precomputed = false;
-    gd->sum = gd->weighted_sum = gd->weighted_sum_log = gd->sum_of_weighths = 0;
+    gd->sum = gd->weighted_sum = gd->weighted_sum_log = gd->sum_of_weights = 0;
 }
 
 static inline GammaDeviance_t* create_gamma_deviance() {
@@ -252,7 +256,7 @@ static inline void _compute_gamma_deviance(GammaDeviance_t* gd) {
     double mu = gd->sum / gd->n;
     gd->precomputed = true;
     gd->value = gd->weighted_sum_log
-        - (log(mu)+1) * gd->sum_of_weighths
+        - (log(mu)+1) * gd->sum_of_weights
         + gd->weighted_sum / mu;
     gd->value *= 2;
 }
@@ -267,7 +271,7 @@ static inline void augment_gamma_deviance(
         GammaDeviance_t* gd, const double* ys, const double* ws, size_t n) {
     for(size_t i = 0; i < n; ++i) {
         gd->weighted_sum += ws[i] * ys[i];
-        gd->sum_of_weighths += ws[i];
+        gd->sum_of_weights += ws[i];
         gd->weighted_sum_log += ws[i] * log(ys[i]);
         gd->sum += ys[i];
     }
@@ -279,7 +283,7 @@ static inline void diminish_gamma_deviance(
         GammaDeviance_t* gd, const double* ys, const double* ws, size_t n) {
     for(size_t i = 0; i < n; ++i) {
         gd->weighted_sum -= ws[i] * ys[i];
-        gd->sum_of_weighths -= ws[i];
+        gd->sum_of_weights -= ws[i];
         gd->weighted_sum_log -= ws[i] * log(ys[i]);
         gd->sum -= ys[i];
     }
@@ -290,7 +294,7 @@ static inline void diminish_gamma_deviance(
 static inline void join_gamma_deviance(
         GammaDeviance_t* gd, const GammaDeviance_t* other) {
     gd->weighted_sum += other->weighted_sum;
-    gd->sum_of_weighths += other->sum_of_weighths;
+    gd->sum_of_weights += other->sum_of_weights;
     gd->weighted_sum_log += other->weighted_sum_log;
     gd->sum += other->sum;
     gd->n += other->n;
@@ -300,7 +304,7 @@ static inline void join_gamma_deviance(
 static inline void unjoin_gamma_deviance(
         GammaDeviance_t* gd, const GammaDeviance_t* other) {
     gd->weighted_sum -= other->weighted_sum;
-    gd->sum_of_weighths -= other->sum_of_weighths;
+    gd->sum_of_weights -= other->sum_of_weights;
     gd->weighted_sum_log -= other->weighted_sum_log;
     gd->sum -= other->sum;
     gd->n -= other->n;
@@ -360,7 +364,7 @@ static inline AnyLoss_t _create_any_loss_array(LossFunction_e type, size_t n) {
 static inline void _destroy_any_loss_array(AnyLoss_t* losses, size_t n) {
     if(losses->type == POISSON) {
         for(size_t i = 0; i < n; ++i) {
-            RELEASE_PTR(losses->pd[i].sum_of_weights);
+            RELEASE_PTR(losses->pd[i].sum_of_weights_ys);
             RELEASE_PTR(losses->pd[i].ylogys);
         }
     }

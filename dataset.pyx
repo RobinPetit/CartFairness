@@ -158,3 +158,8 @@ cdef class Dataset:
     cpdef int nb_modalities_of(self, int feature_idx):
         return len(self._reverse_mapping[feature_idx])
 
+    cdef np.float64_t get_prop_p0(self):
+        if self._w is None:
+            return np.mean(self.p)
+        else:
+            return np.average(self.p, weights=self.w)

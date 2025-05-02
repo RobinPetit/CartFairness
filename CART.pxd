@@ -36,6 +36,7 @@ cdef extern from "_CART.h" nogil:
         _Node*       right_child
         _Node*       parent
 
+        np.float64_t prop_p0
         np.float64_t avg_value
         np.float64_t threshold
         np.float64_t loss
@@ -52,7 +53,7 @@ cdef extern from "_CART.h" nogil:
 
     _Node* new_node(size_t)
     void   clear_node(_Node*)
-    void   _set_ys(_Node*, size_t, double, double, size_t)
+    void   _set_ys_ps(_Node*, size_t, double, double, size_t, double)
     void   _set_categorical_node_left_right_values(
                 _Node*, const np.int32_t*, size_t, size_t, const np.int32_t*)
     void   _set_left_child(_Node*, _Node*)
