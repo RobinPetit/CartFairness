@@ -354,7 +354,7 @@ cdef class CART:
         if X.dtype.kind.lower()== 'o':
             data = self.data.transform(X)
         else:
-            data = X
+            data = np.ascontiguousarray(X, dtype=np.float64)
         cdef int n = X.shape[0]
         cdef np.ndarray[np.float64_t, ndim=1] ret = np.empty(n, dtype=np.float64)
         cdef int i
