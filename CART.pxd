@@ -11,16 +11,20 @@ cimport numpy as np
 ctypedef size_t Pyssize_t
 
 from loss cimport Loss, LossFunction
+from dataset cimport Dataset
+
+#include "loss.pxd"
+#include "dataset.pxd"
 
 ctypedef enum _SplitType:
     BEST,
     DEPTH
 
-cdef extern from "<Python.h>" nogil:
-    cdef struct PyObject:
-        pass
-    PyObject* Py_NewRef(PyObject*)
-    void Py_XDECREF(void*)
+# cdef extern from "<Python.h>" nogil:
+#     cdef struct PyObject:
+#         pass
+#     PyObject* Py_NewRef(PyObject*)
+#     void Py_XDECREF(void*)
 
 cdef extern from "_CART.h" nogil:
     cdef struct Vector:
@@ -78,8 +82,8 @@ cdef extern from "_CART.h" nogil:
         const np.int32_t*, const np.int32_t*,
         double, double, size_t)
 
-from dataset cimport Dataset
 
+@cython.final
 cdef class Node:
     cdef _Node* node
 

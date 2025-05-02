@@ -10,10 +10,15 @@ from libc.math cimport fabs, INFINITY
 
 import cython
 from cython.parallel import prange
+from cpython.ref cimport PyObject,  Py_XINCREF, Py_XDECREF
 
 from loss cimport Loss, LossFunction
 from dataset cimport Dataset
 
+# include "loss.pyx"
+# include "dataset.pyx"
+
+@cython.final
 cdef class Node:
     @staticmethod
     cdef Node from_ptr(_Node* ptr):
@@ -166,7 +171,8 @@ cdef int _masks(
             end = mid
     return beg
 
-cdef void augment_p0_counts(double[::1] p, double* sum_left, double* sum_right) noexcept nogil:
+cdef void augment_p0_counts(
+        double[::1] p, double* sum_left, double* sum_right) noexcept nogil:
     cdef double _sum_left = sum_left[0]
     cdef double _sum_right = sum_right[0]
     cdef int i
@@ -249,7 +255,7 @@ cdef class CART:
             max_interaction_depth=0, max_depth=<size_t>(-1), margin="absolute",
             minobs=1, delta_loss=0, loss="MSE", name=None,
             parallel="Yes", pruning="No", bootstrap="No",
-            split='depth', min_nb_new_instances=1,
+            split='best', min_nb_new_instances=1,
             normalized_loss=False, exact_categorical_splits=False
     ):
         self.bootstrap = (bootstrap == 'Yes')
@@ -388,7 +394,7 @@ cdef class CART:
             return self._build_tree_best_first(data)
         cdef Node node
         for node in self.all_nodes:
-            Py_XDECREF(node.node.extra_data)
+            Py_XDECREF(<PyObject*>node.node.extra_data)
             node.node.extra_data = NULL
 
     cdef _Node* _build_tree_depth_first(
@@ -442,7 +448,7 @@ cdef class CART:
         pq_insert(&pq, node)
         cdef SplitChoice
         while (
-                self.nb_splitting_nodes < self.max_interaction_depth and
+                self.nb_splitting_nodes <= self.max_interaction_depth and
                 not pq_empty(&pq)
         ):
             node = pq_pop(&pq)
@@ -493,7 +499,8 @@ cdef class CART:
         node.dloss = 0
         node.threshold = -1
         node.feature_idx = -1
-        node.extra_data = Py_NewRef(<PyObject*>data)
+        node.extra_data = <PyObject*>data
+        Py_XINCREF(<PyObject*>node.extra_data)
         self.all_nodes.append(Node.from_ptr(node))
         self.nb_nodes += 1
         self.idx_nodes += 1

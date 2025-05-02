@@ -586,7 +586,6 @@ class CARTRegressor_python:
 
         else:
             if node.mapping_categorical is not None:
-                #print(f"Original: {x[node.feature_index]}, Mapped: {np.vectorize(node.mapping_categorical.get)(x[node.feature_index])}")
                 if x[node.feature_index] not in node.mapping_categorical.keys():
                     return node.average_value
                 else:

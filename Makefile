@@ -1,8 +1,7 @@
 BASE_EXTENSION=version_simple_cython21_adj_categorical_clean_epsilon
-EXTENSIONS=${BASE_EXTENSION}.so CART.so loss.so dataset.so
-CC=gcc
+EXTENSIONS=CART.so loss.so dataset.so # ${BASE_EXTENSION}.so
 INCLUDE=$(shell ./python_include.py)
-BASE_FLAGS=-shared -pthread -fPIC -fwrapv -Wall -Wextra -std=c17 ${INCLUDE}
+BASE_FLAGS=-shared -pthread -fPIC -fwrapv -Wall -Wextra -std=c17 ${INCLUDE} -DNPY_NO_DEPRECATED_API -march=native
 FLAGS=${BASE_FLAGS} -O3  # For release
 # FLAGS=${BASE_FLAGS} -g # -fsanitize=address  # For debug
 

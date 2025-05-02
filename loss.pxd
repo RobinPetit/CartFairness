@@ -53,10 +53,10 @@ cdef class Loss:
     cdef bint normalized
     cdef void* loss_ptr
 
-    cdef double get(self) noexcept nogil
-    cdef void augment(self, double[::1] ys, double[::1] ws) noexcept nogil
-    cdef void diminish(self, double[::1] ys, double[::1] ws) noexcept nogil
-    cdef size_t get_size(self) noexcept nogil
+    cdef inline double get(self) noexcept nogil
+    cdef inline void augment(self, double[::1] ys, double[::1] ws) noexcept nogil
+    cdef inline void diminish(self, double[::1] ys, double[::1] ws) noexcept nogil
+    cdef inline size_t get_size(self) noexcept nogil
 
-    cdef void join(self, Loss other) noexcept nogil
-    cdef void unjoin(self, Loss other) noexcept nogil
+    cdef inline void join(self, Loss other) noexcept nogil
+    cdef inline void unjoin(self, Loss other) noexcept nogil

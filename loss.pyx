@@ -31,7 +31,7 @@ cdef class Loss:
         elif self.loss_type == LossFunction.GAMMA:
             destroy_gamma_deviance(&self.loss_ptr)
 
-    cdef double get(self) noexcept nogil:
+    cdef inline double get(self) noexcept nogil:
         cdef double ret = 0
         if self.loss_type == LossFunction.MSE:
             ret = evaluate_mse(<MSE_t*>self.loss_ptr)
@@ -43,7 +43,7 @@ cdef class Loss:
             ret /= (<__BasicLoss_t*>self.loss_ptr).n
         return ret
 
-    cdef void augment(self, double[::1] ys, double[::1] ws) noexcept nogil:
+    cdef inline void augment(self, double[::1] ys, double[::1] ws) noexcept nogil:
         if self.loss_type == LossFunction.MSE:
             augment_mse(<MSE_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0])
         elif self.loss_type == LossFunction.POISSON:
@@ -55,7 +55,7 @@ cdef class Loss:
                 <GammaDeviance_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0]
             )
 
-    cdef void diminish(self, double[::1] ys, double[::1] ws) noexcept nogil:
+    cdef inline void diminish(self, double[::1] ys, double[::1] ws) noexcept nogil:
         if self.loss_type == LossFunction.MSE:
             diminish_mse(<MSE_t*>self.loss_ptr, &ys[0], &ws[0], ys.shape[0])
         elif self.loss_type == LossFunction.POISSON:
@@ -67,10 +67,10 @@ cdef class Loss:
                 <GammaDeviance_t*>self.loss_type, &ys[0], &ws[0], ys.shape[0]
             )
 
-    cdef size_t get_size(self) noexcept nogil:
+    cdef inline size_t get_size(self) noexcept nogil:
         return (<__BasicLoss_t*>self.loss_ptr).n
 
-    cdef void join(self, Loss other) noexcept nogil:
+    cdef inline void join(self, Loss other) noexcept nogil:
         if self.loss_type == LossFunction.MSE:
             join_mse(<MSE_t*>self.loss_ptr, <MSE_t*>other.loss_ptr)
         elif self.loss_type == LossFunction.POISSON:
@@ -84,7 +84,7 @@ cdef class Loss:
                 <GammaDeviance_t*>other.loss_ptr
             )
 
-    cdef void unjoin(self, Loss other) noexcept nogil:
+    cdef inline void unjoin(self, Loss other) noexcept nogil:
         if self.loss_type == LossFunction.MSE:
             unjoin_mse(<MSE_t*>self.loss_ptr, <MSE_t*>other.loss_ptr)
         elif self.loss_type == LossFunction.POISSON:
