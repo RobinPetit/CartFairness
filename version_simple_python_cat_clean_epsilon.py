@@ -76,9 +76,9 @@ class CARTRegressor_python:
         The fairness constraint are the epsilon (proportion difference between men and women allowed within each node),
         margin (str) if the epsilon is computed in relative or absolute way.
         The matrices X_train, ... and vectors y_train, p_train (being the protected variable => here gender=men/women) are declared
-        here as used in the fit function before calling build_tree.
+        here as used in the fit function before calling build_tree_depth_first.
         """
-    def __init__(self, epsilon=0, id=0, nb_cov=1, replacement=False, prop_sample=1.0, frac_valid=0.2, max_depth=0, max_interaction_depth=0, minobs=1, delta_loss=0, loss="MSE", name=None, parallel="Yes", pruning="No", bootstrap="No", **kwargs):
+    def __init__(self, epsilon=0, id=0, nb_cov=1, replacement=False, prop_sample=1.0, frac_valid=0.2, max_depth=0, max_interaction_depth=0, minobs=1, delta_loss=0, loss="MSE", name=None, parallel="Yes", pruning="No", bootstrap="No", split='depth', **kwargs):
         self.root = None
 
         # Initialisation of tree constraint parameters
@@ -380,7 +380,12 @@ class CARTRegressor_python:
         self.J += 1
         return node
 
-    def _build_tree(self, X, y, p, parent_node, position):
+    def _build_tree_best_first(self, X, y, p, parent_node, position):
+        feature_index, threshold, dloss, dic_map, inv_map = self._find_best_split(X, y, p)
+        root = Node("Root", 0)
+        nodes = [root]
+
+    def _build_tree_depth_first(self, X, y, p, parent_node, position):
         """
         Function building recursively the full tree by first finding the best split for the given node, then split data
         accordingly (execute back the mapping to ensure that the X which will be used get back it modality in str).
@@ -466,11 +471,11 @@ class CARTRegressor_python:
                       f", Mean_value: {node.average_value},  N={node.nb_samples}")
 
                 # Reiterate procedure for child nodes
-                left_child = self._build_tree(X_left, y_left, p_left, node, "left")
+                left_child = self._build_tree_depth_first(X_left, y_left, p_left, node, "left")
                 node.left_child = left_child
                 left_child.parent_node = node
 
-                right_child = self._build_tree(X_right, y_right, p_right, node, "right")
+                right_child = self._build_tree_depth_first(X_right, y_right, p_right, node, "right")
                 node.right_child = right_child
                 right_child.parent_node = node
 
@@ -502,7 +507,7 @@ class CARTRegressor_python:
 
     def fit(self, X, y, p, dic_cov):
         """
-        Function using the X_train, y_train, p_train, sample it (boostrap process) and then call build_tree to start
+        Function using the X_train, y_train, p_train, sample it (boostrap process) and then call build_tree_depth_first to start
         building the tree.
         """
 
@@ -548,7 +553,10 @@ class CARTRegressor_python:
 
         # Start building the tree
         #print(f"Starting building the tree ...")
-        self.tree = self._build_tree(X_train, y_train, p_train, self.root, None)
+        if self.split == 'depth':
+            self.tree = self._build_tree_depth_first(X_train, y_train, p_train, self.root, None)
+        else:
+            self.tree = self._build_tree_best_first(X_train, y_train, p_train, self.root, None)
         self.tree_depth = max([c.depth for c in self.nodes])
         self.interaction_depth = len([c for c in self.nodes if c.kind=='Node'])+1
 
