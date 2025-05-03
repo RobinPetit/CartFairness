@@ -226,7 +226,7 @@ cdef class SplitChoice:
             self.threshold = threshold
 
     cdef bint is_better_than(self, SplitChoice other):
-        return other is None or other.dloss < self.dloss
+        return other is None or self.dloss - other.dloss > 1e-10
 
 cdef void _compute_first_idx(
         np.float64_t[::1] Xs, np.float64_t[::1] ys,  # in
@@ -435,7 +435,11 @@ cdef class CART:
             split.dloss <= self.delta_loss or split.loss <= 0 or
             self.nb_splitting_nodes > self.max_interaction_depth
         ):
-            ret.loss = 0.
+            if np.isinf(loss):
+                ret.loss = self._loss(data.y, data.w)
+            else:
+                ret.loss = loss
+            ret.dloss = 0.
             ret.feature_idx = -1
             return ret
         ret.feature_idx = split.feature_idx
@@ -768,6 +772,7 @@ cdef class CART:
             data, feature_idx
         )
         cdef int max_modality = <int>sorted_data.get_max()
+        cdef int idx
         cdef np.int32_t[::1] first_idx = np.zeros(max_modality+2, dtype=np.int32)
         cdef np.float64_t[::1] mean_ys = np.zeros(max_modality+1, np.float64)
         _compute_first_idx(sorted_data.X, sorted_data.y, first_idx, mean_ys)

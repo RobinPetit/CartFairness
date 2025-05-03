@@ -99,8 +99,11 @@ cdef class Dataset:
             self, np.ndarray[object, ndim=2] X, np.float64_t[:, :] out,
             int col_idx, bint compute_mapping=True):
         cdef int counter = 0
+        cdef tuple uniques
         if compute_mapping:
-            self._reverse_mapping[col_idx] = np.unique(X[:, col_idx])
+            uniques = np.unique(X[:, col_idx], return_index=True)
+            # Slight twist for reproducibility
+            self._reverse_mapping[col_idx] = uniques[0][np.argsort(uniques[1])]
         cdef np.ndarray filled_indices = np.zeros(X.shape[0], dtype=bool)
         cdef np.ndarray indices
         for value in self._reverse_mapping[col_idx]:
@@ -201,3 +204,6 @@ cdef class Dataset:
             return np.mean(1-np.asarray(self.p))
         else:
             return np.average(1-np.asarray(self.p), weights=self.w)
+
+    cdef str _reverse(self, int feature_idx, int id_):
+        return self._reverse_mapping[feature_idx][id_]

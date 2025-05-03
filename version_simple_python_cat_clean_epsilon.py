@@ -78,7 +78,11 @@ class CARTRegressor_python:
         The matrices X_train, ... and vectors y_train, p_train (being the protected variable => here gender=men/women) are declared
         here as used in the fit function before calling build_tree_depth_first.
         """
-    def __init__(self, epsilon=0, id=0, nb_cov=1, replacement=False, prop_sample=1.0, frac_valid=0.2, max_depth=0, max_interaction_depth=0, minobs=1, delta_loss=0, loss="MSE", name=None, parallel="Yes", pruning="No", bootstrap="No", split='depth', **kwargs):
+
+    def __init__(self, epsilon=0, id=0, nb_cov=1, replacement=False, prop_sample=1.0, frac_valid=0.2,
+                 max_depth=0, max_interaction_depth=0, minobs=1, delta_loss=0, loss="MSE", name=None,
+                 parallel="Yes", pruning="No", bootstrap="No", split='depth', **kwargs):
+        self.split_type = split
         self.root = None
 
         # Initialisation of tree constraint parameters
@@ -200,6 +204,7 @@ class CARTRegressor_python:
             means = y[idx_samp_cat]
             tuples_cat.append((cat, np.mean(means)))
 
+        tuples_cat.sort(key=lambda x: np.where(X[:, feature_index] == x[0])[0][0])
         # Sort categories based on the mean
         sorted_cat = sorted(tuples_cat, key=lambda x: x[1])
 
@@ -553,7 +558,7 @@ class CARTRegressor_python:
 
         # Start building the tree
         #print(f"Starting building the tree ...")
-        if self.split == 'depth':
+        if self.split_type == 'depth':
             self.tree = self._build_tree_depth_first(X_train, y_train, p_train, self.root, None)
         else:
             self.tree = self._build_tree_best_first(X_train, y_train, p_train, self.root, None)
