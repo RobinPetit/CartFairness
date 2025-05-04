@@ -24,7 +24,7 @@ VERBOSE = False
 PLOT = False
 
 # load dataset and make sure that all numerical variable are in float64
-nb_observation = 500_000
+nb_observation = 100_000
 df_fictif, col_features, col_response, col_protected = load_dataset(nb_obs=nb_observation, verbose=VERBOSE)
 df_fictif.dropna(inplace=True)
 
@@ -85,7 +85,7 @@ if VERBOSE:
 margin = 1.0
 nb_cov = len(col_features)
 it = 1
-depth = 100
+depth = 1000
 minobs = 10
 range_nb_obs = [1000*k for k in range(1, 6)]
 # bootstrap = "Yes"  # "No" # For model replication (dataset is not boostraped so we must end up with same trees) => for benchmarking computation time is better to let it True
@@ -102,7 +102,7 @@ timers = [list() for _ in range(len(models))]
 # values, counts = np.unique(X_train[:, 2], return_counts=True)
 # values, counts = zip(*sorted(list(zip(values, counts)), key=lambda e: e[1]))
 # cdf = np.cumsum(counts) * 100 / X_train.shape[0]
-# idx = np.where(cdf >= 10.)[0][0]
+# idx = np.where(cdf >= 3.)[0][0]
 # indices = np.zeros(X_train.shape[0], dtype=bool)
 # for i in range(idx, len(values)):
 #     indices[X_train[:, 2] == values[i]] = True
@@ -111,6 +111,7 @@ timers = [list() for _ in range(len(models))]
 # p_train = p_train[indices]
 
 dataset = Dataset(X_train, y_train, p_train, dtypes)
+print(len(dataset))
 print(dataset.nb_features, 'features')
 print('Categorical:')
 print(np.where(np.array([dataset.is_categorical(j) for j in range(len(dtypes))]))[0])
@@ -121,27 +122,29 @@ print(col_features)
 def mse(y, y_pred):
     return np.mean((y-y_pred)**2)
 
-cart_best = NewCART(
+cart_heuristic = NewCART(
     epsilon=margin, margin="absolute", id=1, nb_cov=nb_cov,
     replacement=True, prop_sample=0.5, frac_valid=1.0,
     max_interaction_depth=depth, minobs=minobs,
     name="DiscriTree_cython", loss="poisson", parallel="No",
-    pruning="No", bootstrap=bootstrap, split='best'
+    pruning="No", bootstrap=bootstrap, split='best',
+    exact_categorical_splits=False
 )
-cart_depth = NewCART(
+cart_heuristic.fit(dataset)
+exit()
+cart_exact = NewCART(
     epsilon=margin, margin="absolute", id=1, nb_cov=nb_cov,
     replacement=True, prop_sample=0.5, frac_valid=1.0,
     max_interaction_depth=depth, minobs=minobs,
     name="DiscriTree_cython", loss="poisson", parallel="No",
-    pruning="No", bootstrap=bootstrap, split='depth'
+    pruning="No", bootstrap=bootstrap, split='best',
+    exact_categorical_splits=True
 )
-cart_best.fit(dataset)
-cart_depth.fit(dataset)
-dataset_test = Dataset(X_test, y_test, p_test, dtypes)
-y_pred_best = cart_best.predict(np.asarray(dataset_test.X))
-y_pred_depth = cart_depth.predict(np.asarray(dataset_test.X))
-print(f'For depth first: {poisson_deviance(y_test, y_pred_depth)}')
-print(f'For best first: {poisson_deviance(y_test, y_pred_best)}')
+cart_exact.fit(dataset)
+y_pred_exact = cart_exact.predict(X_test)
+print('Deviance on exact splits:    ', poisson_deviance(y_test, y_pred_exact))
+y_pred_heuristic = cart_heuristic.predict(X_test)
+print('Deviance on heuristic splits:', poisson_deviance(y_test, y_pred_heuristic))
 exit()
 
 importances = []
