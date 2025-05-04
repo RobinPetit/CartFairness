@@ -278,7 +278,7 @@ cdef class CART:
     def __init__(
             self,
             *,
-            epsilon=0.,
+            epsilon=1.,
             prop_root_p0=-1.,
             id=0,
             nb_cov=1,  # TODO: handle a proportion rather than an integer

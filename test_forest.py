@@ -49,12 +49,14 @@ dic_cov = {col: str(df_fictif[col].dtype) for col in col_features}
 
 dataset = Dataset(X_train, y_train, p_train, dtypes)
 
-rf = RandomForestRegressor(100, n_jobs=2, interaction_depth=25, max_depth=10)
+rf = RandomForestRegressor(100, n_jobs=2, interaction_depth=25, max_depth=10,
+                           nb_cov=len(dtypes), split='best', loss='poisson')
 rf.fit(dataset)
 y_pred_rf = rf.predict(X_test)
 
 
-dt = CART(max_interaction_depth=25, max_depth=10)
+dt = CART(max_interaction_depth=25, max_depth=10, nb_cov=len(dtypes),
+          split='best', epsilon=1., loss='poisson')
 dt.fit(dataset)
 y_pred_dt = dt.predict(X_test)
 

@@ -1,5 +1,5 @@
 import threading
-from typing import Self
+# from typing import Self
 
 import numpy as np
 from joblib import Parallel as _Parallel, delayed
@@ -93,7 +93,7 @@ class RandomForestRegressor:
             for id_ in range(self.nb_trees_)
         )
 
-    def fit(self, dataset: Dataset, sample_weights=None) -> Self:
+    def fit(self, dataset: Dataset, sample_weights=None) -> 'Self':
         Parallel(n_jobs=self.n_jobs_)(
             delayed(_regressor_fit)(self.trees_[i].fit, dataset, sample_weights)
             for i in range(self.nb_trees_)
