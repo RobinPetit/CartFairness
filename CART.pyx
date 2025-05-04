@@ -264,30 +264,53 @@ cdef class __SortedFeatureData:
 
 MAX_NB_MODALITIES = 38
 
+cdef inline bint _as_bool(x: bool | str, name: str):
+    if isinstance(x, str):
+        x = x.lower()
+        if x not in ('yes', 'no'):
+            raise ValueError(f'Unknown value "{x} for attribute {name}')
+        return x == 'yes'
+    else:
+        return bool(x)
+
 @cython.final
 cdef class CART:
     def __init__(
-            self, epsilon=0., prop_root_p0=-1., id=0, nb_cov=1,
-            replacement=False, prop_sample=1.0, frac_valid=0.2,
-            max_interaction_depth=0, max_depth=<size_t>(-1),
+            self,
+            *,
+            epsilon=0.,
+            prop_root_p0=-1.,
+            id=0,
+            nb_cov=1,  # TODO: handle a proportion rather than an integer
+            replacement=False,  # when could this be False?
+            prop_sample=1.0,
+            frac_valid=0.2,
+            max_interaction_depth=0,
+            max_depth=<size_t>(-1),
             margin="absolute",
-            minobs=1, delta_loss=0, loss="MSE", name=None,
-            parallel="Yes", pruning="No", bootstrap="No",
-            split='best', min_nb_new_instances=1,
-            normalized_loss=False, exact_categorical_splits=False
+            minobs=1,
+            loss="MSE",
+            name=None,
+            parallel="Yes",
+            pruning="No",
+            bootstrap="No",  # TODO: use only prop_sample
+            split='best',
+            min_nb_new_instances=1,
+            normalized_loss=False,  # TODO: do better
+            exact_categorical_splits=False,
+            verbose=True
     ):
         self.prop_p0 = prop_root_p0
-        self.bootstrap = (bootstrap == 'Yes')
-        self.pruning = (pruning == 'Yes')
+        self.bootstrap = _as_bool(bootstrap, 'bootstrap')
+        self.pruning = _as_bool(pruning, 'pruning')
         self.relative_margin = (margin == 'relative')
         self.normalized_loss = normalized_loss
         self.replacement = replacement
-        self._epsilon = epsilon
+        self.epsilon = epsilon
         self.nb_cov = nb_cov
         self.id = id
         self.prop_sample = prop_sample
-        self.delta_loss = delta_loss
-        self._minobs = minobs
+        self.minobs = minobs
         self.max_depth = max_depth
         self.depth = 0
         self.nb_nodes = 0
@@ -311,6 +334,67 @@ cdef class CART:
             raise ValueError('Unknown split type: ' + str(split))
         self.min_nb_new_instances = min_nb_new_instances
         self.exact_categorical_splits = exact_categorical_splits
+        self.fitted = False
+        self._verbose = verbose
+
+    def __getstate__(self):
+        return {
+            'bootstrap':                self.bootstrap,
+            'replacement':              self.replacement,
+            'normalized_loss':          self.normalized_loss,
+            'pruning':                  self.pruning,
+            'relative_margin':          self.relative_margin,
+            'exact_categorical_splits': self.exact_categorical_splits,
+            'fitted':                   self.fitted,
+            'verbose':                 self._verbose,
+            'epsilon':                  self.epsilon,
+            'prop_sample':              self.prop_sample,
+            'prop_margin':              self.prop_margin,
+            'prop_p0':                  self.prop_p0,
+            'prop_root_p0':             self.prop_root_p0,
+            'nb_cov':                   self.nb_cov,
+            'id':                       self.id,
+            'minobs':                   self.minobs,
+            'depth':                    self.depth,
+            'max_depth':                self.max_depth,
+            'interaction_depth':        self.max_interaction_depth,
+            # 'nb_nodes': nb_nodes,
+            'nb_splitting_nodes':       self.nb_splitting_nodes,
+            'min_nb_new_instances':     self.min_nb_new_instances,
+            # 'idx_nodes': idx_nodes,
+            'root':                     <unsigned long long>(<void*>self.root),
+            'data':                     self.data,
+            'split_type':               self.split_type,
+            'loss_fct':                 self.loss_fct,
+            # 'all_nodes': all_nodes
+        }
+
+    def __setstate__(self, data):
+        self.bootstrap = data['bootstrap']
+        self.replacement = data['replacement']
+        self.normalized_loss = data['normalized_loss']
+        self.pruning = data['pruning']
+        self.relative_margin = data['relative_margin']
+        self.exact_categorical_splits = data['exact_categorical_splits']
+        self.fitted = data['fitted']
+        self._verbose = data['verbose']
+        self.epsilon = data['epsilon']
+        self.prop_sample = data['prop_sample']
+        self.prop_margin = data['prop_margin']
+        self.prop_p0 = data['prop_p0']
+        self.prop_root_p0 = data['prop_root_p0']
+        self.nb_cov = data['nb_cov']
+        self.id = data['id']
+        self.minobs = data['minobs']
+        self.depth = data['depth']
+        self.max_depth = data['max_depth']
+        self.max_interaction_depth = data['interaction_depth']
+        self.nb_splitting_nodes = data['nb_splitting_nodes']
+        self.min_nb_new_instances = data['min_nb_new_instances']
+        self.root = <_Node*>(<unsigned long long>(data['root']))
+        self.data = data['data']
+        self.split_type = data['split_type']
+        self.loss_fct = data['loss_fct']
 
     def fit(self, dataset: Dataset,
             np.ndarray[np.float64_t, ndim=1] samples_weights=None):
@@ -319,7 +403,8 @@ cdef class CART:
         start = time()
         self.data = dataset
         if self.bootstrap:
-            print('Bootstrapping...')
+            if self._verbose:
+                print('Bootstrapping...')
             self.data = self.data.sample(self.prop_sample, self.replacement)
         # split train vs test ?!
         if self.prop_p0 < 0:
@@ -327,7 +412,7 @@ cdef class CART:
                 1-np.asarray(self.data.p),
                 weights=np.asarray(self.data.w)
             )
-        self.prop_margin = self._epsilon
+        self.prop_margin = self.epsilon
         if self.relative_margin:
             self.prop_margin *= self.prop_root_p0
         if self.exact_categorical_splits:
@@ -342,20 +427,24 @@ cdef class CART:
                     )
         self.all_nodes = []
         self.root = self._build_tree(self.data)
+        self.fitted = True
         if self.pruning:
             raise TODOError()
         time_elapsed = time() - start
-        print("\n")
-        print('*******************************')
-        print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
-        print(f"Time elapsed: {time_elapsed}")
-        print(f"Tree depth:{self.depth}")
-        print(f"Nb nodes: {len(self.nodes)}")
-        print('*******************************')
-        print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
+        if self._verbose:
+            print("\n")
+            print('*******************************')
+            print(f"Tree {self.id}: Params(id={self.max_interaction_depth}, cov={self.nb_cov})")
+            print(f"Time elapsed: {time_elapsed}")
+            print(f"Tree depth:{self.depth}")
+            print(f"Nb nodes: {len(self.nodes)}")
+            print('*******************************')
+            print(f'\t\t{100 * PROBE / time_elapsed:3.2f}%')
         return self.nodes
 
     def predict(self, X):
+        if not self.fitted:
+            raise ValueError('Predicting on non-trained DecisionTree')
         cdef np.float64_t[:, ::1] data
         if X.dtype.kind.lower()== 'o':
             data = self.data.transform(X)
@@ -380,7 +469,7 @@ cdef class CART:
 
     property minobs:
         def __get__(self):
-            return self._minobs
+            return self.minobs
 
     property margin:
         def __get__(self):
@@ -388,11 +477,7 @@ cdef class CART:
 
     property epsilon:
         def __get__(self):
-            return self._epsilon
-
-    property delta_loss:
-        def __get__(self):
-            return self.delta_loss
+            return self.epsilon
 
     property loss:
         def __get__(self):
@@ -435,9 +520,9 @@ cdef class CART:
         cdef _Node* ret = self._create_node(data, depth, split.loss)
         if (
             split is None or
-            split.left_data.size() <= self._minobs or
-            split.right_data.size() <= self._minobs or
-            split.dloss <= self.delta_loss or split.loss <= 0 or
+            split.left_data.size() <= self.minobs or
+            split.right_data.size() <= self.minobs or
+            split.dloss <= 0 or split.loss <= 0 or
             self.nb_splitting_nodes > self.max_interaction_depth
         ):
             if np.isinf(loss):
@@ -458,11 +543,12 @@ cdef class CART:
             ret.threshold = split.threshold_idx + .5
         else:
             ret.threshold = split.threshold
-        print(f"{'  ' * ret.depth} Node ({ret.idx}), "
-              f"Depth: {ret.depth}, "
-              f"Feature: {ret.feature_idx}, "
-              f"Threshold: {ret.threshold}, DLoss: {ret.dloss}"
-              f", Mean_value: {ret.avg_value},  N={ret.nb_samples}")
+        if self._verbose:
+            print(f"{'  ' * ret.depth} Node ({ret.idx}), "
+                  f"Depth: {ret.depth}, "
+                  f"Feature: {ret.feature_idx}, "
+                  f"Threshold: {ret.threshold}, DLoss: {ret.dloss}"
+                  f", Mean_value: {ret.avg_value},  N={ret.nb_samples}")
         if depth < self.max_depth:
             _set_left_child(
                 ret, self._build_tree_depth_first(
@@ -520,11 +606,12 @@ cdef class CART:
             _set_right_child(node, right)
             pq_insert(&pq, left)
             pq_insert(&pq, right)
-            print(f"{'  ' * node.depth} {'Leaf' if _is_leaf(node) else 'Node'} "
-                  f"({node.idx}), Depth: {node.depth}, "
-                  f"Feature: {node.feature_idx}, "
-                  f"Threshold: {node.threshold}, DLoss: {node.dloss}"
-                  f", Mean_value: {node.avg_value},  N={node.nb_samples}")
+            if self._verbose:
+                print(f"{'  ' * node.depth} {'Leaf' if _is_leaf(node) else 'Node'} "
+                      f"({node.idx}), Depth: {node.depth}, "
+                      f"Feature: {node.feature_idx}, "
+                      f"Threshold: {node.threshold}, DLoss: {node.dloss}"
+                      f", Mean_value: {node.avg_value},  N={node.nb_samples}")
         while not pq_empty(&pq):
             node = pq_pop(&pq)
             Py_XDECREF(<PyObject*>node.extra_data)
@@ -560,7 +647,7 @@ cdef class CART:
                 usable[j] = False
         cdef np.ndarray covariates = np.where(usable)[0]
         cdef np.ndarray indices
-        if covariates.shape[0] > self.nb_cov:  # TODO: Should not be here!
+        if <size_t>covariates.shape[0] > self.nb_cov:
             indices = np.random.choice(covariates.shape[0], self.nb_cov, replace=False)
             covariates = covariates[indices]
 
@@ -647,9 +734,9 @@ cdef class CART:
             for threshold_idx in range(values.shape[0]-1):
                 threshold = (values[threshold_idx] + values[threshold_idx+1])/2
                 base_idx = _masks(sorted_data.X, threshold, base_idx)
-                if base_idx <= self._minobs:
+                if base_idx <= self.minobs:
                     continue
-                if nb_samples-base_idx <= self._minobs:
+                if nb_samples-base_idx <= self.minobs:
                     break
                 if base_idx - prev_base_idx < self.min_nb_new_instances:
                     continue
@@ -824,7 +911,7 @@ cdef class CART:
                 )
                 if nb_added_left < self.min_nb_new_instances:
                     continue
-                if nb_samples - nb_left <= self._minobs:
+                if nb_samples - nb_left <= self.minobs:
                     break
                 dloss = current_loss - (loss_left.get() + loss_right.get())
                 prop_left_p0 = sum_p0_left / sum_weights_p0_left
@@ -832,7 +919,7 @@ cdef class CART:
                 if fabs(prop_left_p0 - prop_p0) > self.prop_margin or \
                         fabs(prop_right_p0 - prop_p0) > self.prop_margin:
                     continue
-                if nb_left <= self._minobs:
+                if nb_left <= self.minobs:
                     continue
                 if dloss > best_dloss:
                     best_dloss = dloss

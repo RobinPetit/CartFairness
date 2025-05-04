@@ -116,34 +116,38 @@ cdef class __SortedFeatureData:
 
 @cython.final
 cdef class CART:
-    cdef bint bootstrap
-    cdef bint replacement
-    cdef LossFunction loss_fct
-    cdef np.float64_t _epsilon
-    cdef int nb_cov
-    cdef int id
+    cdef bint         bootstrap
+    cdef bint         replacement
+    cdef bint         normalized_loss
+    cdef bint         pruning
+    cdef bint         relative_margin
+    cdef bint         exact_categorical_splits
+    cdef bint         fitted
+    cdef bint         _verbose
+
+    cdef np.float64_t epsilon
     cdef np.float64_t prop_sample
-    cdef np.float64_t delta_loss
-    cdef size_t _minobs
-    cdef size_t depth
-    cdef size_t max_depth
-    cdef int max_interaction_depth
-    cdef int nb_nodes
-    cdef int nb_splitting_nodes
-    cdef bint normalized_loss
-    cdef bint pruning
-    cdef bint relative_margin
     cdef np.float64_t prop_margin
     cdef np.float64_t prop_p0
-    cdef Dataset data
-    cdef _Node* root
-    cdef _SplitType split_type
-    cdef size_t min_nb_new_instances
     cdef np.float64_t prop_root_p0
-    cdef bint exact_categorical_splits
-    cdef int idx_nodes
 
-    cdef list all_nodes
+    cdef size_t       nb_cov
+    cdef size_t       id
+    cdef size_t       minobs
+    cdef size_t       depth
+    cdef size_t       max_depth
+    cdef size_t       max_interaction_depth
+    cdef size_t       nb_nodes
+    cdef size_t       nb_splitting_nodes
+    cdef size_t       min_nb_new_instances
+    cdef size_t       idx_nodes
+
+    cdef _Node*       root
+    cdef Dataset      data
+    cdef _SplitType   split_type
+    cdef LossFunction loss_fct
+
+    cdef list         all_nodes
 
     cdef np.float64_t _loss(self, np.float64_t[::1] ys, np.float64_t[::1] ws)
     cdef _Node* _build_tree(self, Dataset data)

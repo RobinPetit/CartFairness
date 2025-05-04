@@ -46,8 +46,8 @@ cdef class Dataset:
         self._reverse_mapping = [[] for _ in range(X.shape[1])]
         cdef size_t nb_cols = X.shape[1]
         cdef bint categorical, is_pd_categorical, is_np_categorical
-        self.sum_of_weights_p0 = np.asarray(self._w)[p == 0].sum()
-        self.sum_of_weights_p1 = np.asarray(self._w)[p == 1].sum()
+        self.sum_of_weights_p0 = self._w[p == 0].sum()
+        self.sum_of_weights_p1 = self._w[p == 1].sum()
 
         cdef int col_idx
         for col_idx in range(len(dtypes)):
@@ -66,7 +66,37 @@ cdef class Dataset:
                 assert isinstance(dtype, np.dtype) \
                         and dtype.kind in 'fiu'
                 self._is_categorical[col_idx] = False
-                np.asarray(self._X)[:, col_idx] = X[:, col_idx]
+                self._X[:, col_idx] = X[:, col_idx]
+
+    def __getstate__(self):
+        return (
+            self._X,
+            self._y,
+            self._p,
+            self._w,
+            self._is_categorical,
+            self._indices,
+            self._size,
+            self._reverse_mapping,
+            self.sum_of_weights_p0,
+            self.sum_of_weights_p1,
+        )
+
+    def __setstate__(self, data):
+        self._X = data[0]
+        self._y = data[1]
+        self._p = data[2]
+        self._w = data[3]
+        self._is_categorical = data[4]
+        self._indices = data[5]
+        self._size = data[6]
+        self._reverse_mapping = data[7]
+        self.sum_of_weights_p0 = data[8]
+        self.sum_of_weights_p1 = data[9]
+        self._indexed_X = None
+        self._indexed_y = None
+        self._indexed_p = None
+        self._indexed_w = None
 
     def __len__(self) -> int:
         return self.size()
@@ -79,7 +109,7 @@ cdef class Dataset:
         ret._p = self._p
         ret._w = self._w
         ret._is_categorical = self._is_categorical
-        ret._indices = np.asarray(self._indices)[indices]
+        ret._indices = self._indices[indices]
         ret._size = ret._indices.shape[0]
         ret._reverse_mapping = self._reverse_mapping
         ret._indexed_X = None
@@ -147,10 +177,13 @@ cdef class Dataset:
         return self[indices]
 
     cdef bint not_all_equal(self, int col_idx) noexcept nogil:
-        cdef size_t i = 0
-        cdef np.float64_t val = self._X[self._indices[i], col_idx]
+        cdef size_t i = 1
+        cdef np.float64_t[:, ::1] X
+        with gil:
+            X = self._get_X()
+        cdef np.float64_t val = X[0, col_idx]
         while i < self._size:
-            if self._X[self._indices[i], col_idx] != val:
+            if X[i, col_idx] != val:
                 return True
             i += 1
         return False
@@ -162,27 +195,39 @@ cdef class Dataset:
 
     @property
     def X(self):
-        if self._indexed_X is None:
-            self._indexed_X = np.asarray(self._X)[np.asarray(self._indices), :]
-        return self._indexed_X
+        return self._get_X()
 
     @property
     def y(self):
-        if self._indexed_y is None:
-            self._indexed_y = np.asarray(self._y)[np.asarray(self._indices)]
-        return self._indexed_y
+        return self._get_y()
 
     @property
     def p(self):
-        if self._indexed_p is None:
-            self._indexed_p = np.asarray(self._p)[np.asarray(self._indices)]
-        return self._indexed_p
+        return self._get_p()
 
     @property
     def w(self):
+        return self._get_w()
+
+    cdef np.float64_t[:, ::1] _get_X(self) noexcept:
+        if self._indexed_X is None:
+            self._indexed_X = self._X[self._indices, :]
+        return self._indexed_X
+
+    cdef np.float64_t[::1] _get_y(self) noexcept:
+        if self._indexed_y is None:
+            self._indexed_y = self._y[self._indices]
+        return self._indexed_y
+
+    cdef np.float64_t[::1] _get_w(self) noexcept:
         if self._indexed_w is None:
-            self._indexed_w = np.asarray(self._w)[np.asarray(self._indices)]
+            self._indexed_w = self._w[self._indices]
         return self._indexed_w
+
+    cdef np.float64_t[::1] _get_p(self) noexcept:
+        if self._indexed_p is None:
+            self._indexed_p = self._p[self._indices]
+        return self._indexed_p
 
     cdef np.ndarray transform(self, np.ndarray X):
         cdef np.ndarray[np.float64_t, ndim=2] ret = np.empty_like(

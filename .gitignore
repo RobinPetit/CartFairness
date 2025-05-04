@@ -9,6 +9,7 @@
 *.zip
 *.txt
 *.json
+*.sh
 
 build/
 __pycache__/

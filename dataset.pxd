@@ -17,19 +17,19 @@ cdef void _extract_mean_ys(
 
 @cython.final
 cdef class Dataset:
-    cdef np.float64_t[:, :] _X
-    cdef np.float64_t[:] _y
-    cdef np.float64_t[:] _p
-    cdef np.float64_t[:] _w
-    cdef np.uint8_t[:] _is_categorical
-    cdef np.int_t[:] _indices
+    cdef np.ndarray _X
+    cdef np.ndarray _y
+    cdef np.ndarray _p
+    cdef np.ndarray _w
+    cdef np.ndarray _is_categorical
+    cdef np.ndarray _indices
     cdef size_t _size
     cdef list _reverse_mapping
 
-    cdef np.float64_t[:, :] _indexed_X
-    cdef np.float64_t[:] _indexed_y
-    cdef np.float64_t[:] _indexed_p
-    cdef np.float64_t[:] _indexed_w
+    cdef np.float64_t[:, ::1] _indexed_X
+    cdef np.float64_t[::1] _indexed_y
+    cdef np.float64_t[::1] _indexed_p
+    cdef np.float64_t[::1] _indexed_w
 
     cdef np.float64_t sum_of_weights_p0
     cdef np.float64_t sum_of_weights_p1
@@ -48,3 +48,8 @@ cdef class Dataset:
     cpdef int nb_modalities_of(self, int feature_idx)
     cdef np.float64_t get_prop_p0(self)
     cdef str _reverse(self, int, int)
+
+    cdef np.float64_t[:, ::1] _get_X(self) noexcept
+    cdef np.float64_t[::1] _get_y(self) noexcept
+    cdef np.float64_t[::1] _get_w(self) noexcept
+    cdef np.float64_t[::1] _get_p(self) noexcept
