@@ -587,6 +587,124 @@ class CARTRegressor_python:
             print("New Tree depth: %s" % self.tree_depth)
             print('*******************************')
 
+    def prune(self):
+        # sort nodes by loss reduction
+        tuple_nodes = [(c, c.loss_decrease) for c in self.nodes if c.kind != 'Leaf']
+        sorted_tuples = sorted(tuple_nodes, key=lambda x: x[1], reverse=True)
+        sorted_nodes = [c[0] for c in sorted_tuples]
+
+        #print(sorted_nodes)
+
+        #quit()
+        # construct each subtree
+        list_IS = []
+        list_OOS = []
+        nb_del_nodes = []
+        structure = []
+
+        print([(c.kind, c.index, c.parent_node, c.left_child, c.right_child) for c in self.nodes])
+
+        for i in range(1, len(sorted_nodes)):
+            # construct each subtree
+            link_nodes = []
+
+            def identify_children_nodes(node):
+                if node.left_child is not None:
+                    link_nodes.append(node.left_child.index)
+                    identify_children_nodes(node.left_child)
+                if node.right_child is not None:
+                    link_nodes.append(node.right_child.index)
+                    identify_children_nodes(node.right_child)
+
+            # identify nodes linked to deleted nodes
+            deleted_node = sorted_nodes[-i]
+            #deleted_nodes = sorted_nodes[-i]
+            #for del_node in deleted_nodes:
+                #identify_children_nodes(del_node)
+
+            identify_children_nodes(deleted_node)
+
+            nodes_subtree = [c for c in self.nodes if c.index not in link_nodes]
+            print('\n')
+            #print(sorted_tuples)
+            #print(sorted_nodes)
+            #print([c.index for c in deleted_node])
+            #print(deleted_node.index)
+            #print(link_nodes)
+            #print([c.index for c in nodes_subtree])
+
+            #cart = CART(nodes_subtree)
+            #print(len(cart.nodes))
+
+            subtree = CARTRegressor(margin=self.epsilon, frac_valid=self.frac_valid, loss=self.loss, nb_cov=self.nb_cov, prop_sample=self.prop_sample,
+                                    max_depth=self.max_depth, max_interaction_depth=self.max_interaction_depth, minobs=self.minobs, delta_loss=self.delta_loss, name="Subtree", parallel="No", pruning="No")
+            subtree.nodes = nodes_subtree
+            #subtree.df_valid
+
+            # when the tree have been cut under a node, transform this node as a leaf
+            for node in subtree.nodes:
+                if node==deleted_node and node.kind!='Root':
+                    node.kind = 'Leaf'
+
+            print('\n')
+            #print([(c.kind, c.index, c.parent_node, c.left_child, c.right_child) for c in nodes_subtree])
+            #print([(c.kind, c.index, c.parent_node, c.left_child, c.right_child) for c in subtree.nodes])
+            #print([(c.kind, c.index, c.parent_node, c.left_child, c.right_child) for c in self.nodes])
+
+            epsilon = 10 ** -12
+
+            y_IS = self.df[self.col_y].values.reshape(-1)
+            pred_IS = subtree.predict(self.df[self.col_X].values)
+            y_OOS = self.df_test[self.col_y].values.reshape(-1)
+            pred_OOS = subtree.predict(self.df_test[self.col_X].values)
+
+            # print(y_IS)
+            # print(pred_IS)
+
+            dev_IS = 2 / len(self.df) * np.sum(
+                y_IS * np.log((y_IS + epsilon) / (np.array(pred_IS) + epsilon)) - y_IS + np.array(pred_IS))
+            dev_OOS = 2 / len(self.df_test) * np.sum(
+                y_OOS * np.log((y_OOS + epsilon) / (np.array(pred_OOS) + epsilon)) - y_OOS + np.array(pred_OOS))
+
+            #print(dev_IS)
+            #print(dev_OOS)
+
+            list_IS.append(dev_IS)
+            list_OOS.append(dev_OOS)
+            nb_del_nodes.append(len(link_nodes))
+            structure.append(nodes_subtree)
+
+        print(list_OOS)
+        dloss = [max(list_OOS[i - 1] - list_OOS[i], 0) for i in range(1, len(list_OOS))]
+        print(dloss)
+        dloss_min = np.where(np.array(dloss) >= 10**-6, np.array(dloss), 0)
+        dloss_min = [c for c in dloss_min if c > 0]
+
+        if len(dloss_min)>0:
+        #print(list_OOS)
+            min_loss = min(list_OOS)
+            #min_loss = dloss_min[-1]
+            #print(min_loss)
+
+            #idx_min = dloss.index(min_loss)
+            idx_min = list_OOS.index(min_loss)
+            #print(idx_min)
+            #print(list_OOS[idx_min])
+
+            #idx_min = list_OOS.index(min_loss)
+            self.nodes = structure[idx_min]
+
+            print([(c.kind, c.index, c.parent_node, c.left_child, c.right_child) for c in self.nodes])
+
+            # Update tree parameters
+            self.tree_depth = max([c.depth for c in self.nodes])
+            self.interaction_depth = len([c for c in self.nodes if c.kind == 'Node']) + 1
+
+            print(f"Best pruned tree of depth {self.tree_depth} obtained after deleting {nb_del_nodes[idx_min]} nodes")
+        else:
+            print(f"Tree has not been pruned")
+
+
     def _predict_instance(self, x, node):
         r"""
         Function used to make a prediction based on a single observation x \in X at a specific node of the tree.

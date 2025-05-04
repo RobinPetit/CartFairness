@@ -262,7 +262,7 @@ cdef class __SortedFeatureData:
     cdef inline np.float64_t get_max(self) noexcept nogil:
         return self.X[self.X.shape[0]-1]
 
-MAX_NB_MODALITIES = 30
+MAX_NB_MODALITIES = 38
 
 @cython.final
 cdef class CART:
@@ -289,6 +289,7 @@ cdef class CART:
         self.delta_loss = delta_loss
         self._minobs = minobs
         self.max_depth = max_depth
+        self.depth = 0
         self.nb_nodes = 0
         self.nb_splitting_nodes = 0
         self.idx_nodes = 0
@@ -404,6 +405,10 @@ cdef class CART:
     property idx_nodes:
         def __get__(self):
             return self.idx_nodes
+
+    property depth:
+        def __get__(self):
+            return self.depth
 
     def __dealloc__(self):
         if self.root != NULL:
