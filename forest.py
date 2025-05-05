@@ -47,14 +47,16 @@ class RandomForestRegressor:
             nb_cov: int = -1,
             prop_sample: float = 0.5,
             verbose: bool = False,
+            bootstrap: str ="No",
+            replacement: bool =False,
             # **kwargs
             # prop_root_p0=-1.,
             # id=0,
             # replacement=False,
             # prop_sample=1.0,
-            # frac_valid=0.2,
+            #frac_valid=0.2,
             # parallel="Yes",
-            # bootstrap="No",
+            #bootstrap="No",
     ):
         self.nb_trees_ = nb_trees
         self.n_jobs_ = n_jobs
@@ -71,6 +73,8 @@ class RandomForestRegressor:
         self.name_ = name
         self.nb_cov_ = _aspositive(nb_cov)
         self.prop_sample_ = prop_sample
+        self.replacement = replacement
+        self.bootstrap = bootstrap
 
         self.fitted_ = False
         self.trees_ = Parallel(n_jobs=self.n_jobs_)(
@@ -85,7 +89,8 @@ class RandomForestRegressor:
                 epsilon=self.epsilon_,
                 nb_cov=self.nb_cov_,
                 prop_sample=self.prop_sample_,
-                bootstrap=True,
+                bootstrap=self.bootstrap,
+                replacement=self.replacement,
                 id=id_,
                 verbose=verbose
                 # TODO: name

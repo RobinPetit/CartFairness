@@ -3,6 +3,7 @@ from loss import poisson_deviance
 from dataset import Dataset
 from forest import RandomForestRegressor
 from CART import CART
+from sklearn.model_selection import GridSearchCV
 
 import numpy as np
 
@@ -50,13 +51,15 @@ dic_cov = {col: str(df_fictif[col].dtype) for col in col_features}
 dataset = Dataset(X_train, y_train, p_train, dtypes)
 
 rf = RandomForestRegressor(100, n_jobs=2, interaction_depth=25, max_depth=10,
-                           nb_cov=len(dtypes), split='best', loss='poisson')
+                           nb_cov=len(dtypes), split='best', loss='poisson', bootstrap="No", replacement=False)#, verbose=True)
+
+
 rf.fit(dataset)
 y_pred_rf = rf.predict(X_test)
 
-
 dt = CART(max_interaction_depth=25, max_depth=10, nb_cov=len(dtypes),
           split='best', epsilon=1., loss='poisson')
+
 dt.fit(dataset)
 y_pred_dt = dt.predict(X_test)
 
