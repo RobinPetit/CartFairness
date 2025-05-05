@@ -53,3 +53,5 @@ cdef class Dataset:
     cdef np.float64_t[::1] _get_y(self) noexcept
     cdef np.float64_t[::1] _get_w(self) noexcept
     cdef np.float64_t[::1] _get_p(self) noexcept
+
+    cdef void _clear(self) noexcept

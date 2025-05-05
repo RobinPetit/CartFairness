@@ -252,3 +252,9 @@ cdef class Dataset:
 
     cdef str _reverse(self, int feature_idx, int id_):
         return self._reverse_mapping[feature_idx][id_]
+
+    cdef void _clear(self) noexcept:
+        self._indexed_X = None
+        self._indexed_y = None
+        self._indexed_w = None
+        self._indexed_p = None

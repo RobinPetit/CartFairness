@@ -427,6 +427,7 @@ cdef class CART:
                     )
         self.all_nodes = []
         self.root = self._build_tree(self.data)
+        self._clear_references()
         self.fitted = True
         if self.pruning:
             raise TODOError()
@@ -581,6 +582,8 @@ cdef class CART:
             split = self._find_best_split(
                 <Dataset>(<object>node.extra_data), node.loss
             )
+            Py_XDECREF(<PyObject*>node.extra_data)
+            node.extra_data = NULL
             if split is None:
                 continue
             node.feature_idx = split.feature_idx
@@ -593,8 +596,6 @@ cdef class CART:
                 node.threshold = split.threshold_idx + .5
             else:
                 node.threshold = split.threshold
-            Py_XDECREF(<PyObject*>node.extra_data)
-            node.extra_data = NULL
             self.nb_splitting_nodes += 1
             left = self._create_node(
                 split.left_data, node.depth+1, split.loss_left
@@ -616,6 +617,7 @@ cdef class CART:
             node = pq_pop(&pq)
             Py_XDECREF(<PyObject*>node.extra_data)
             node.extra_data = NULL
+        destroy_pq_node(&pq)
         return ret
 
     cdef _Node* _create_node(
@@ -987,3 +989,9 @@ cdef class CART:
         importances *= 100. / importances.sum()
         return importances
 
+    cdef void _clear_references(self):
+        cdef Node node
+        for node in self.all_nodes:
+            Py_XDECREF(<PyObject*>node.node.extra_data)
+            node.node.extra_data = NULL
+        self.data._clear()
