@@ -989,6 +989,24 @@ cdef class CART:
         importances *= 100. / importances.sum()
         return importances
 
+    def compute_importance_sum(self):
+        return self.get_node_sum_importances()
+
+    cpdef np.ndarray get_node_sum_importances(self):
+        # Attention si on subsample les covariables!
+        cdef np.ndarray importances = np.zeros(
+            self.data.nb_features, dtype=np.float64
+        )
+        cdef int feature_idx
+        cdef Node node
+        for node in self.all_nodes:
+            if node.is_leaf:
+                continue
+            feature_idx = node.feature_idx
+            importances[feature_idx] += node.dloss
+
+        return importances
+
     cdef void _clear_references(self):
         cdef Node node
         for node in self.all_nodes:
