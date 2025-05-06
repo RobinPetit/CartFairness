@@ -188,4 +188,7 @@ cdef class CART:
         self, np.float64_t[::1] x
     ) noexcept nogil
     cpdef np.ndarray get_node_importances(self)
+
+    cpdef np.ndarray get_node_sum_importances(self)
+
     cdef void _clear_references(self)

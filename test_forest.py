@@ -50,8 +50,8 @@ dic_cov = {col: str(df_fictif[col].dtype) for col in col_features}
 
 dataset = Dataset(X_train, y_train, p_train, dtypes)
 
-rf = RandomForestRegressor(100, n_jobs=-1, interaction_depth=25, max_depth=10,
-                           nb_cov=len(dtypes), split='best', loss='poisson', bootstrap="Yes", replacement=True)#, verbose=True)
+rf = RandomForestRegressor(1, n_jobs=-1, interaction_depth=25, max_depth=10,
+                           nb_cov=len(dtypes), split='best', loss='poisson', bootstrap="No", replacement=False)#, verbose=True)
 
 
 rf.fit(dataset)
@@ -61,15 +61,19 @@ matrix_pred_rf = rf.predict_incremental(X_test)
 print(f"Pred full RF: {y_pred_rf}")
 print(f"Incremental pred RF: {matrix_pred_rf}")
 
-print(f'Poisson Deviance of RF: {poisson_deviance(y_test, y_pred_rf)}')
+#print(f'Poisson Deviance of RF: {poisson_deviance(y_test, y_pred_rf)}')
 
-quit()
 
 dt = CART(max_interaction_depth=25, max_depth=10, nb_cov=len(dtypes),
           split='best', epsilon=1., loss='poisson')
 
 dt.fit(dataset)
 y_pred_dt = dt.predict(X_test)
+
+print(f'Importance RF: {rf.compute_importance(X_train.shape[1])}')
+print(f'Importance DT: {dt.compute_importance2()}')
+quit()
+
 
 print(f'Poisson Deviance of RF: {poisson_deviance(y_test, y_pred_rf)}')
 print(f'Poisson Deviance of DT: {poisson_deviance(y_test, y_pred_dt)}')

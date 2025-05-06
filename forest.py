@@ -22,7 +22,7 @@ def _regresor_predict(callback, X, out, lock):
         out += prediction
 
 def _regresor_importance(callback, out, lock):
-    importance = callback.compute_importance_sum()
+    importance = callback()
     with lock:
         out += importance
 
@@ -80,6 +80,8 @@ class RandomForestRegressor:
         self.prop_sample_ = prop_sample
         self.replacement = replacement
         self.bootstrap = bootstrap
+
+        #self.nb_total_cov =
 
         self.fitted_ = False
         self.trees_ = Parallel(n_jobs=self.n_jobs_)(
@@ -144,10 +146,16 @@ class RandomForestRegressor:
 
         return out
 
-    def importance_forest(self):
-        total_imp = Parallel(n_jobs=self.n_jobs_)(
-                delayed(_regresor_importance)(self.trees_[i].predict, out, lock)
+    def compute_importance(self, nb_cov):
+        if not self.fitted_:
+            raise ValueError('Unable to give importance on Forest before training')
+        out = np.zeros(nb_cov, dtype=np.float64)
+        lock = threading.Lock()
+
+        Parallel(n_jobs=self.n_jobs_)(
+                delayed(_regresor_importance)(self.trees_[i].compute_importance_sum, out, lock)
                 for i in range(self.nb_trees_)
             )
-        total_imp *= 100. / total_imp.sum()
-        return total_imp
+        print(f"Importance: {out}")
+        out *= 100. / out.sum()
+        return out
