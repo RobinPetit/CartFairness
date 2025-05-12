@@ -80,7 +80,6 @@ class RandomForestRegressor:
         self.prop_sample_ = prop_sample
         self.replacement = replacement
         self.bootstrap = bootstrap
-
         #self.nb_total_cov =
 
         self.fitted_ = False
@@ -99,6 +98,8 @@ class RandomForestRegressor:
                 bootstrap=self.bootstrap,
                 replacement=self.replacement,
                 id=id_,
+                split = self.split_,
+                margin = self.margin_,
                 verbose=verbose
                 # TODO: name
             )
@@ -143,6 +144,24 @@ class RandomForestRegressor:
                     out[:, incr] += self.trees_[i].predict(X)
 
             out[:, incr]  /= (incr+1)
+
+        return out
+
+    def predict_matrix(self, X):
+        if not self.fitted_:
+            raise ValueError('Unable to predict on Forest before training')
+        out = np.zeros((X.shape[0], self.nb_trees_), dtype=np.float64)
+        lock = threading.Lock()
+
+        Parallel(n_jobs=self.n_jobs_)(
+            delayed(_regresor_predict)(self.trees_[i].predict, X, out[:, i], lock)
+            for i in range(0, self.nb_trees_)
+        )
+
+        out = np.cumsum(out, axis=1)
+        column_indices = np.arange(1, out.shape[1] + 1)
+        out /= column_indices
+        #out[:, incr]  /= (incr+1)
 
         return out
 
