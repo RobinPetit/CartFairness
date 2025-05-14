@@ -130,6 +130,7 @@ cdef class CART:
     cdef np.float64_t prop_margin
     cdef np.float64_t prop_p0
     cdef np.float64_t prop_root_p0
+    cdef np.float64_t min_dloss
 
     cdef size_t       nb_cov
     cdef size_t       id

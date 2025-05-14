@@ -13,6 +13,9 @@ from math import log
 import matplotlib.patches as patches
 np.set_printoptions(precision=18)
 
+DEBUG = False
+NODE_IDX = 62
+
 
 class Node:
     """
@@ -21,12 +24,11 @@ class Node:
     The average value denotes the prediction associated with this node as the mean response observed on the training observations.
     Mapping categorical denotes the mapping (dictionary) between modalities of the categorical variable and integer value used for splitting.
     Integer values are determined in ordering the mean response for each modality in ascending order. Note that The mapping
-    or a same variable could be different at each node of the tree depending on the modalities present (depending on observations)
     in the nodes as well as mean response observed that could be different based on the observations. Other attributes are
     saved as the number of observations in the node, the depth of the node in the tree, the parent node and children nodes
     of the current node.
     """
-    def __init__(self, kind=None, depth=None, feature_index=None, threshold=None, loss=None, average_value=None, loss_decrease=None, mapping=None, nb_samples=None):
+    def __init__(self, kind=None, depth=None, feature_index=None, threshold=None, loss=None, average_value=None, loss_decrease=None, mapping=None, nb_samples=None, prop_p0=None):
         # Main characteristic of the node (kind=Node/Leaf) split feature, split threshold, split mse, split samples)
         self.kind = kind
         self.feature_index = feature_index
@@ -44,6 +46,8 @@ class Node:
         self.position = None
         self.index = None
         self.loss_decrease = loss_decrease
+
+        self.prop_p0 = prop_p0
 
 
 def all_combinations(strings):
@@ -81,7 +85,8 @@ class CARTRegressor_python:
 
     def __init__(self, epsilon=0, id=0, nb_cov=1, replacement=False, prop_sample=1.0, frac_valid=0.2,
                  max_depth=0, max_interaction_depth=0, minobs=1, delta_loss=0, loss="MSE", name=None,
-                 parallel="Yes", pruning="No", bootstrap="No", split='depth', margin='absolute', **kwargs):
+                 parallel="Yes", pruning="No", bootstrap="No", split='depth', margin='absolute',
+                 min_dloss=1e-5, **kwargs):
         self.split_type = split
         self.root = None
 
@@ -131,6 +136,7 @@ class CARTRegressor_python:
         self.margin = margin.lower()
         # proportion to the discrimination
         self.epsilon = epsilon
+        self.min_dloss = min_dloss
 
     def _loss(self, y):
         # compute loss function chosen
@@ -205,9 +211,12 @@ class CARTRegressor_python:
             means = y[idx_samp_cat]
             tuples_cat.append((cat, np.mean(means)))
 
-        tuples_cat.sort(key=lambda x: np.where(X[:, feature_index] == x[0])[0][0])
+        tuples_cat.sort(key=lambda x: np.where(self._original_X[:, feature_index] == x[0])[0][0])
         # Sort categories based on the mean
         sorted_cat = sorted(tuples_cat, key=lambda x: x[1])
+
+        if DEBUG and self.idx == NODE_IDX:
+            print(sorted_cat)
 
         dic_mapping = {sorted_cat[i][0]: float(i) for i in range(len(sorted_cat))}
         inv_mapping = {v: k for k, v in dic_mapping.items()}
@@ -267,7 +276,7 @@ class CARTRegressor_python:
         epsilon constraint (for fairness) is fulfilled.
         """
         best_loss = np.inf
-        best_dloss = 0.0
+        best_dloss = 0.
         best_feature_index = None
         best_threshold = None
         best_feature_mapping = None
@@ -297,6 +306,8 @@ class CARTRegressor_python:
             # check if the variable is categorical and if it is the case get the mapping of modalities.
             if feature_type == 'category':
                 X, y, dic_map, inv_map = self.order_categorical_at_node(X, y, feature_index)
+                if DEBUG and self.idx == NODE_IDX:
+                    print(dic_map)
             else:
                 dic_map, inv_map = None, None
 
@@ -340,14 +351,18 @@ class CARTRegressor_python:
                         prop_right_p0=0
 
                     prop_root_p0 = np.sum((np.array(self.p) == 0) * 1) / self.n
-                    epsilon = self.epsilon
                     if self.margin == 'relative':
-                        epsilon *= prop_root_p0
+                        epsilon = self.epsilon * prop_root_p0
+                    else:
+                        epsilon = self.epsilon
 
-                    if dloss > best_dloss_for_j and \
-                            (np.abs(prop_left_p0 - prop_root_p0) <= epsilon) and \
-                            (np.abs(prop_right_p0 - prop_root_p0) <= epsilon):
-                        best_dloss_for_j = dloss
+                    if DEBUG and self.idx == NODE_IDX:
+                        print(f'Potential split on feature {feature_index} and threshold {threshold}. {prop_left_p0=}, {prop_right_p0=} ({dloss=}) [{y_left.shape[0]} obs left]')
+
+                    # if dloss > best_dloss_for_j and \
+                    #         (np.abs(prop_left_p0 - prop_root_p0) <= epsilon) and \
+                    #         (np.abs(prop_right_p0 - prop_root_p0) <= epsilon):
+                    #     best_dloss_for_j = dloss
                     # print(dloss, best_dloss, prop_left_p0, prop_root_p0, prop_root_p0, end=''); input()
                     if dloss > best_dloss and \
                             (np.abs(prop_left_p0 - prop_root_p0) <= epsilon) and \
@@ -402,6 +417,7 @@ class CARTRegressor_python:
         left node and recall this function (a random uniform variable is sampled to determine if we are starting to
         split again on left or right node).
         """
+        prop_p0 = 1 - p.mean()
 
         # Determine if the node is the root one or not
         if parent_node is None:
@@ -416,8 +432,9 @@ class CARTRegressor_python:
         #print("Best split: ", feature_index, threshold, dloss)
 
         # Check if a best split has been found
-        if (feature_index is None or threshold is None): # or loss ==0 or loss is None
+        if feature_index is None or threshold is None or dloss < self.min_dloss:
             node = self._create_leaf_node(y, parent_node, position)
+            node.prop_p0 = prop_p0
 
         # Then, split the observations
         else:
@@ -465,7 +482,7 @@ class CARTRegressor_python:
 
                 node = Node(feature_index=feature_index, threshold=threshold, loss=loss*y.shape[0], kind=kind,
                             average_value=np.mean(y, dtype="float64"), depth=depth, loss_decrease=loss_decrease,
-                            mapping=dic_map, nb_samples=y.shape[0])
+                            mapping=dic_map, nb_samples=y.shape[0], prop_p0=prop_p0)
 
                 node.parent_node = parent_node
                 node.position = position
@@ -491,6 +508,7 @@ class CARTRegressor_python:
             # If not grow a leaf
             else:
                 node = self._create_leaf_node(y, parent_node, position)
+                node.prop_p0 = prop_p0
 
         return node
 
@@ -522,6 +540,7 @@ class CARTRegressor_python:
 
         time_start = time.time()
 
+        self._original_X = X
         self.root = None
 
         #X = np.asarray(X, dtype=np.float64)

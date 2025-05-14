@@ -132,7 +132,7 @@ print(p_train)
 print("\n")
 print("*************************************************************")
 
-margin = 1.0 #0.001
+margin = 1e-3
 nb_cov = len(dtypes)
 it = 1
 interaction_depth = 1000
@@ -150,9 +150,10 @@ nb_trees = 100
 print(f"Prop women training: {p_train.mean()} / Men: {1-p_train.mean()}")
 print(f"Prop women testing: {p_test.mean()} / Men: {1-p_test.mean()}")
 if kind_margin == "relative":
-    print(f"Tolerate margin: {(1-p_test.mean())*margin*100}%")
+    _margin = (1-p_train.mean()) * margin
 else:
-    print(f"Tolerate margin: {margin * 100}%")
+    _margin = margin
+print(f"Tolerate margin: {_margin * 100}%")
 #quit()
 
 print(pd.Series(X_train[:, 0]).value_counts())
@@ -163,6 +164,21 @@ print("\n")
 
 # check consistance => same tree if no bootstrap
 start_time = time.perf_counter()
+dataset = Dataset(X_train, y_train, p_train, dtypes, np.ones(p_train.shape))
+start_time = time.perf_counter()
+cart3 = NewCART(epsilon=margin, margin=kind_margin, id=0, nb_cov=nb_cov,
+                replacement=replacement, prop_sample=1.0, frac_valid=1.0,
+                max_interaction_depth=interaction_depth, minobs=minobs,
+                name="DiscriTree", loss="poisson", parallel="No",
+                pruning="No", bootstrap=bootstrap,
+                split=split, exact_categorical_splits=all_modalities)
+
+cart3.fit(dataset)
+running_time_cython = time.perf_counter() - start_time
+
+print("*************************************************************")
+print("\n")
+
 cart0 = CARTRegressor_python(epsilon=margin, margin=kind_margin, id=0, nb_cov=nb_cov,
                 replacement=replacement, prop_sample=1.0, frac_valid=1.0,
                 max_interaction_depth=interaction_depth, minobs=minobs,
@@ -183,19 +199,6 @@ list_nodes0 = [c.index for c in cart0.nodes]
 #quit()
 
 
-print("*************************************************************")
-print("\n")
-dataset = Dataset(X_train, y_train, p_train, dtypes, np.ones(p_train.shape))
-start_time = time.perf_counter()
-cart3 = NewCART(epsilon=margin, margin=kind_margin, id=0, nb_cov=nb_cov,
-                replacement=replacement, prop_sample=1.0, frac_valid=1.0,
-                max_interaction_depth=interaction_depth, minobs=minobs,
-                name="DiscriTree", loss="poisson", parallel="No",
-                pruning="No", bootstrap=bootstrap,
-                split=split, exact_categorical_splits=all_modalities)
-
-cart3.fit(dataset)
-
 # for node in cart3.nodes:
 #     print(node.loss)
 #
@@ -203,7 +206,6 @@ cart3.fit(dataset)
 
 #cart3.path = "Test_save/"
 nb_nodes_cython = len(cart3.nodes)
-running_time_cython = time.perf_counter() - start_time
 #cart3.display_tree(cart3.tree_depth)
 
 # print([c.feature_idx for c in cart3.nodes])
@@ -504,6 +506,16 @@ print(f"Check {average_value_node_python == average_value_node_cython}")
 if list(average_value_node_python) != list(average_value_node_cython):
     print(find_index_difference(list(average_value_node_python), list(average_value_node_cython)))
 
+prop_p0s_python = [node.prop_p0 for node in cart0.nodes]
+prop_p0s_cython = [node.prop_p0 for node in cart3.nodes]
+print(f'Prop p0 in Python: {prop_p0s_python}')
+print(f'Prop p0 in Cython: {prop_p0s_cython}')
+print(f"Check {average_value_node_python == average_value_node_cython}")
+if list(prop_p0s_python) != list(prop_p0s_cython):
+    print(find_index_difference(list(prop_p0s_python), list(prop_p0s_cython)))
+print(list(np.asarray(prop_p0s_cython) - np.asarray(prop_p0s_python)))
+
+
 print("\n")
 print(f"Predictions python :{list(cart0.predict(X_train[:100, :]))}, {list(cart0.predict(X_train[:100, :]))}")
 print(pd.Series(cart0.predict(X_train)).value_counts())
@@ -524,9 +536,9 @@ if list(cart0.predict(X_test))!=list(cart3.predict(X_test)):
     print(find_index_difference(list(cart0.predict(X_test)), list(cart3.predict(X_test))))
 
 
-print(f"E[Y]={np.mean(y_train)}")
-print(f"E[pi_0]={np.mean(cart0.predict(X_test))}")
-print(f"E[pi_3]={np.mean(cart3.predict(X_test))}")
+print(f"E[Y]    = {np.mean(y_train)}")
+print(f"E[pi_0] = {np.mean(cart0.predict(X_test))}")
+print(f"E[pi_3] = {np.mean(cart3.predict(X_test))}")
 
 
 print("\n")

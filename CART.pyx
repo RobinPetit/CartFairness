@@ -18,6 +18,9 @@ from dataset cimport Dataset
 # include "loss.pyx"
 # include "dataset.pyx"
 
+cdef bint DEBUG = False
+cdef size_t NODE_IDX = 62
+
 @cython.final
 cdef class Node:
     @staticmethod
@@ -298,6 +301,7 @@ cdef class CART:
             min_nb_new_instances=1,
             normalized_loss=False,  # TODO: do better
             exact_categorical_splits=False,
+            min_dloss=1e-5,
             verbose=True
     ):
         self.prop_p0 = prop_root_p0
@@ -332,6 +336,7 @@ cdef class CART:
             self.split_type = _SplitType.DEPTH
         else:
             raise ValueError('Unknown split type: ' + str(split))
+        self.min_dloss = min_dloss
         self.min_nb_new_instances = min_nb_new_instances
         self.exact_categorical_splits = exact_categorical_splits
         self.fitted = False
@@ -346,7 +351,7 @@ cdef class CART:
             'relative_margin':          self.relative_margin,
             'exact_categorical_splits': self.exact_categorical_splits,
             'fitted':                   self.fitted,
-            'verbose':                 self._verbose,
+            'verbose':                  self._verbose,
             'epsilon':                  self.epsilon,
             'prop_sample':              self.prop_sample,
             'prop_margin':              self.prop_margin,
@@ -523,7 +528,7 @@ cdef class CART:
             split is None or
             split.left_data.size() <= self.minobs or
             split.right_data.size() <= self.minobs or
-            split.dloss <= 0 or split.loss <= 0 or
+            split.dloss <= self.min_dloss or split.loss <= 0 or
             self.nb_splitting_nodes > self.max_interaction_depth
         ):
             if np.isinf(loss):
@@ -584,7 +589,13 @@ cdef class CART:
             )
             Py_XDECREF(<PyObject*>node.extra_data)
             node.extra_data = NULL
-            if split is None:
+            if (
+                split is None or
+                split.left_data.size() <= self.minobs or
+                split.right_data.size() <= self.minobs or
+                split.dloss <= self.min_dloss or split.loss <= 0 or
+                self.nb_splitting_nodes > self.max_interaction_depth
+            ):
                 continue
             node.feature_idx = split.feature_idx
             node.dloss = split.dloss
@@ -648,6 +659,9 @@ cdef class CART:
             if usable[j] and not data.not_all_equal(j):
                 usable[j] = False
         cdef np.ndarray covariates = np.where(usable)[0]
+        if DEBUG and self.idx_nodes == NODE_IDX:
+            print(covariates)
+            print(np.where([data.is_categorical(j) for j in range(data.X.shape[1])])[0])
         cdef np.ndarray indices
         if <size_t>covariates.shape[0] > self.nb_cov:
             indices = np.random.choice(covariates.shape[0], self.nb_cov, replace=False)
@@ -732,6 +746,8 @@ cdef class CART:
         cdef size_t best_base_idx = 0
         cdef double best_threshold = 0
 
+        if DEBUG and self.idx_nodes == NODE_IDX:
+            print(f'Feature idx: {feature_idx}')
         with nogil:  # Yeepee! It is all nogil!
             for threshold_idx in range(values.shape[0]-1):
                 threshold = (values[threshold_idx] + values[threshold_idx+1])/2
@@ -758,6 +774,9 @@ cdef class CART:
                 prev_base_idx = base_idx
                 dloss = current_loss - (loss_left.get() + loss_right.get())
 
+                if DEBUG and self.idx_nodes == NODE_IDX:
+                    with gil:
+                        print(f'Potential split on feature {feature_idx} and threshold {threshold}. {prop_left_p0=}, {prop_right_p0=} ({dloss=}) [{base_idx} obs left]')
                 if fabs(prop_left_p0 - prop_p0) > self.prop_margin or \
                         fabs(prop_right_p0 - prop_p0) > self.prop_margin:
                     continue
@@ -870,9 +889,14 @@ cdef class CART:
         cdef np.int32_t[::1] first_idx = np.zeros(max_modality+2, dtype=np.int32)
         cdef np.float64_t[::1] mean_ys = np.zeros(max_modality+1, np.float64)
         _compute_first_idx(sorted_data.X, sorted_data.y, first_idx, mean_ys)
-        cdef np.int32_t[::1] ordered = np.argsort(mean_ys).astype(np.int32)
+        cdef np.int32_t[::1] ordered = np.argsort(mean_ys, kind='stable').astype(np.int32)
         cdef size_t nb_samples = data.size()
         cdef double sum_of_weights = np.sum(sorted_data.w)
+        if DEBUG and self.idx_nodes == NODE_IDX:
+            print([
+                (self.data._reverse(feature_idx, ordered[i]), mean_ys[ordered[i]])
+                for i in range(ordered.shape[0])
+            ])
 
         cdef np.float64_t prop_left_p0
         cdef np.float64_t prop_right_p0
@@ -893,6 +917,8 @@ cdef class CART:
         cdef size_t nb_left = 0
         cdef size_t nb_added_left = 0
         cdef size_t beg_idx, end_idx
+        if DEBUG and self.idx_nodes == NODE_IDX:
+            print([self.data._reverse(feature_idx, ordered[i]) for i in range(ordered.shape[0])])
         with nogil:  # Hell yeah baby!
             for idx in range(max_modality):
                 threshold_idx = ordered[idx]
@@ -918,10 +944,13 @@ cdef class CART:
                 dloss = current_loss - (loss_left.get() + loss_right.get())
                 prop_left_p0 = sum_p0_left / sum_weights_p0_left
                 prop_right_p0 = sum_p0_right / sum_weights_p0_right
+                if nb_left <= self.minobs:
+                    continue
+                if DEBUG and self.idx_nodes == NODE_IDX:
+                    with gil:
+                        print(f'Potential split on feature {feature_idx} and threshold {idx}. {prop_left_p0=}, {prop_right_p0=} ({dloss=}) [{nb_left} obs left]')
                 if fabs(prop_left_p0 - prop_p0) > self.prop_margin or \
                         fabs(prop_right_p0 - prop_p0) > self.prop_margin:
-                    continue
-                if nb_left <= self.minobs:
                     continue
                 if dloss > best_dloss:
                     best_dloss = dloss

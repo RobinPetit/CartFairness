@@ -24,7 +24,7 @@ VERBOSE = False
 PLOT = False
 
 # load dataset and make sure that all numerical variable are in float64
-nb_observation = 100_000
+nb_observation = 10_000
 df_fictif, col_features, col_response, col_protected = load_dataset(nb_obs=nb_observation, verbose=VERBOSE)
 df_fictif.dropna(inplace=True)
 
