@@ -60,7 +60,7 @@ cdef extern from "_CART.h" nogil:
         Vector data
         size_t n
 
-    void   init_node_pq(NodePq_t*, size_t)
+    void   init_node_pq(NodePq_t*, size_t, bint)
     void   destroy_pq_node(NodePq_t*)
     void   pq_insert(NodePq_t*, _Node*)
     _Node* pq_top(NodePq_t*)

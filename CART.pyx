@@ -299,7 +299,7 @@ cdef class CART:
             bootstrap="No",  # TODO: use only prop_sample
             split='best',
             min_nb_new_instances=1,
-            normalized_loss=False,  # TODO: do better
+            normalized_loss=True,  # TODO: do better
             exact_categorical_splits=False,
             min_dloss=1e-5,
             verbose=True
@@ -506,7 +506,7 @@ cdef class CART:
             clear_node(self.root)
 
     cdef np.float64_t _loss(self, np.float64_t[::1] ys, np.float64_t[::1] ws):
-        cdef Loss loss = Loss(self.loss_fct, self.normalized_loss)
+        cdef Loss loss = Loss(self.loss_fct)
         loss.augment(ys, ws)
         return loss.get()
 
@@ -574,7 +574,7 @@ cdef class CART:
         cdef _Node* left
         cdef _Node* right
         cdef NodePq_t pq
-        init_node_pq(&pq, self.max_interaction_depth)
+        init_node_pq(&pq, self.max_interaction_depth, self.normalized_loss)
         pq_insert(&pq, node)
         cdef SplitChoice
         while (
@@ -729,8 +729,8 @@ cdef class CART:
         cdef np.float64_t prop_left_p0
         cdef np.float64_t prop_right_p0
         cdef np.float64_t dloss
-        cdef Loss loss_left = Loss(self.loss_fct, self.normalized_loss)
-        cdef Loss loss_right = Loss(self.loss_fct, self.normalized_loss)
+        cdef Loss loss_left = Loss(self.loss_fct)
+        cdef Loss loss_right = Loss(self.loss_fct)
         loss_right.augment(data.y, data.w)
 
         cdef np.float64_t sum_p0_left = 0
@@ -901,8 +901,8 @@ cdef class CART:
         cdef np.float64_t prop_left_p0
         cdef np.float64_t prop_right_p0
         cdef np.float64_t dloss = 0
-        cdef Loss loss_left = Loss(self.loss_fct, self.normalized_loss)
-        cdef Loss loss_right = Loss(self.loss_fct, self.normalized_loss)
+        cdef Loss loss_left = Loss(self.loss_fct)
+        cdef Loss loss_right = Loss(self.loss_fct)
         loss_right.augment(data.y, data.w)
 
         cdef np.float64_t sum_p0_left = 0

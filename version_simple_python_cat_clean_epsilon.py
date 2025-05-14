@@ -584,7 +584,9 @@ class CARTRegressor_python:
         if self.split_type == 'depth':
             self.tree = self._build_tree_depth_first(X_train, y_train, p_train, self.root, None)
         else:
-            self.tree = self._build_tree_best_first(X_train, y_train, p_train, self.root, None)
+            self.tree = self._build_tree_depth_first(X_train, y_train, p_train, self.root, None)
+            # No best first yet
+            # self.tree = self._build_tree_best_first(X_train, y_train, p_train, self.root, None)
         self.tree_depth = max([c.depth for c in self.nodes])
         self.interaction_depth = len([c for c in self.nodes if c.kind=='Node'])+1
 

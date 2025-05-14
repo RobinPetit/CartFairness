@@ -11,9 +11,8 @@ import numpy as np
 
 @cython.final
 cdef class Loss:
-    def __cinit__(self, LossFunction loss_type, bint normalized):
+    def __cinit__(self, LossFunction loss_type):
         self.loss_type = loss_type
-        self.normalized = normalized
         if loss_type == LossFunction.MSE:
             self.loss_ptr = create_mse()
         elif loss_type == LossFunction.POISSON:
@@ -33,7 +32,7 @@ cdef class Loss:
         elif self.loss_type == LossFunction.GAMMA:
             destroy_gamma_deviance(&self.loss_ptr)
 
-    cdef inline double get(self) noexcept nogil:
+    cdef inline double get(self, bint normalized=False) noexcept nogil:
         cdef double ret = 0
         if self.loss_type == LossFunction.MSE:
             ret = evaluate_mse(<MSE_t*>self.loss_ptr)
@@ -41,7 +40,7 @@ cdef class Loss:
             ret = evaluate_poisson_deviance(<PoissonDeviance_t*>self.loss_ptr)
         elif self.loss_type == LossFunction.GAMMA:
             ret = evaluate_gamma_deviance(<GammaDeviance_t*>self.loss_ptr)
-        if self.normalized:
+        if normalized:
             ret /= (<__BasicLoss_t*>self.loss_ptr).n
         return ret
 

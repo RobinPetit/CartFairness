@@ -21,6 +21,7 @@ typedef struct Vector {
 
 typedef struct NodePq_t {
     Vector data;
+    bool normalized_loss;
 } NodePq_t;
 
 struct _Node {
@@ -28,7 +29,7 @@ struct _Node {
     struct _Node* left_child;
     struct _Node* right_child;
 
-    double     prop_p0, avg_value, threshold, loss, dloss;
+    double     prop_p0, avg_value, threshold, loss, dloss, normalized_loss;
     size_t     nb_samples, depth, feature_idx, idx;
     bool       is_categorical;
     Vector     categorical_values_left;
@@ -118,7 +119,8 @@ static inline int32_t Vector_int32_at(const Vector* vec, size_t i) {
 
 /********** PQ **********/
 
-static inline void init_node_pq(NodePq_t* pq, size_t n) {
+static inline void init_node_pq(NodePq_t* pq, size_t n, bool normalized) {
+    pq->normalized_loss = normalized;
     init_vector(&pq->data, n+1);
     pq->data.n = 1;  // start indexing at 1
 }
@@ -131,16 +133,8 @@ static inline double __get_pq_loss(NodePq_t* pq, size_t i) {
     return ((struct _Node**)pq->data._base)[i]->loss;
 }
 
-static inline double __get_pq_dloss(NodePq_t* pq, size_t i) {
-    return ((struct _Node**)pq->data._base)[i]->dloss;
-}
-
-static inline bool _pq_less_loss(NodePq_t* pq, size_t i, size_t j) {
-    return __get_pq_loss(pq, i) < __get_pq_loss(pq, j);
-}
-
-static inline bool _pq_less_dloss(NodePq_t* pq, size_t i, size_t j) {
-    return __get_pq_dloss(pq, i) < __get_pq_dloss(pq, j);
+static inline double __get_pq_loss_normalized(NodePq_t* pq, size_t i) {
+    return ((struct _Node**)pq->data._base)[i]->normalized_loss;
 }
 
 static inline void _pq_swap(NodePq_t* pq, size_t i, size_t j) {
@@ -149,10 +143,18 @@ static inline void _pq_swap(NodePq_t* pq, size_t i, size_t j) {
     ((void**)pq->data._base)[j] = ptr_i;
 }
 
-#define PQ_LESS _pq_less_loss
+static inline bool pq_less(NodePq_t* pq, size_t i, size_t j) {
+    const double first = pq->normalized_loss
+        ? __get_pq_loss_normalized(pq, i)
+        : __get_pq_loss(pq, i);
+    const double second = pq->normalized_loss
+        ? __get_pq_loss_normalized(pq, j)
+        : __get_pq_loss(pq, j);
+    return first < second;
+}
 
 static inline void _pq_swim(NodePq_t* pq, size_t i) {
-    while(i > 1 && PQ_LESS(pq, i/2, i)) {
+    while(i > 1 && pq_less(pq, i/2, i)) {
         _pq_swap(pq, i, i/2);
         i /= 2;
     }
@@ -163,9 +165,9 @@ static inline void _pq_sink(NodePq_t* pq, size_t i) {
         size_t left_child = 2*i;
         size_t right_child = left_child+1;
         size_t biggest_child = left_child;
-        if(right_child < pq->data.n && PQ_LESS(pq, left_child, right_child))
+        if(right_child < pq->data.n && pq_less(pq, left_child, right_child))
             biggest_child = right_child;
-        if(PQ_LESS(pq, biggest_child, i))
+        if(pq_less(pq, biggest_child, i))
             break;
         _pq_swap(pq, i, biggest_child);
         i = biggest_child;
@@ -222,6 +224,7 @@ static inline void _set_ys_ps(
     node->idx = idx;
     node->avg_value = avg;
     node->loss = loss;
+    node->normalized_loss = loss / size;
     node->nb_samples = size;
     node->prop_p0 = prop_p0;
 }
