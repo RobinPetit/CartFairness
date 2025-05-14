@@ -81,7 +81,7 @@ class CARTRegressor_python:
 
     def __init__(self, epsilon=0, id=0, nb_cov=1, replacement=False, prop_sample=1.0, frac_valid=0.2,
                  max_depth=0, max_interaction_depth=0, minobs=1, delta_loss=0, loss="MSE", name=None,
-                 parallel="Yes", pruning="No", bootstrap="No", split='depth', **kwargs):
+                 parallel="Yes", pruning="No", bootstrap="No", split='depth', margin='absolute', **kwargs):
         self.split_type = split
         self.root = None
 
@@ -128,6 +128,7 @@ class CARTRegressor_python:
         self.id = id
         self.frac_valid = frac_valid
 
+        self.margin = margin.lower()
         # proportion to the discrimination
         self.epsilon = epsilon
 
@@ -339,15 +340,18 @@ class CARTRegressor_python:
                         prop_right_p0=0
 
                     prop_root_p0 = np.sum((np.array(self.p) == 0) * 1) / self.n
+                    epsilon = self.epsilon
+                    if self.margin == 'relative':
+                        epsilon *= prop_root_p0
 
                     if dloss > best_dloss_for_j and \
-                            (np.abs(prop_left_p0 - prop_root_p0) <= self.epsilon * prop_root_p0) and \
-                            (np.abs(prop_right_p0 - prop_root_p0) <= self.epsilon * prop_root_p0):
+                            (np.abs(prop_left_p0 - prop_root_p0) <= epsilon) and \
+                            (np.abs(prop_right_p0 - prop_root_p0) <= epsilon):
                         best_dloss_for_j = dloss
                     # print(dloss, best_dloss, prop_left_p0, prop_root_p0, prop_root_p0, end=''); input()
                     if dloss > best_dloss and \
-                            (np.abs(prop_left_p0 - prop_root_p0) <= self.epsilon * prop_root_p0) and \
-                            (np.abs(prop_right_p0 - prop_root_p0) <= self.epsilon * prop_root_p0):
+                            (np.abs(prop_left_p0 - prop_root_p0) <= epsilon) and \
+                            (np.abs(prop_right_p0 - prop_root_p0) <= epsilon):
                         # If the loss variation is higher than the best one saved and the fairness constraint fullfilled update best split.
                         best_loss = loss
                         best_feature_index = feature_index

@@ -113,7 +113,7 @@ def prepare_dataset(nb_observation):
 
 
 VERBOSE = False
-X_train, y_train, p_train, X_test, y_test, p_test, dtypes, dic_cov = prepare_dataset(10000)#000)
+X_train, y_train, p_train, X_test, y_test, p_test, dtypes, dic_cov = prepare_dataset(10_000)#000)
 print(X_train.shape[1])
 #quit()
 
@@ -196,9 +196,9 @@ cart3 = NewCART(epsilon=margin, margin=kind_margin, id=0, nb_cov=nb_cov,
 
 cart3.fit(dataset)
 
-for node in cart3.nodes:
-    print(node.loss)
-
+# for node in cart3.nodes:
+#     print(node.loss)
+#
 #quit()
 
 #cart3.path = "Test_save/"
@@ -206,8 +206,8 @@ nb_nodes_cython = len(cart3.nodes)
 running_time_cython = time.perf_counter() - start_time
 #cart3.display_tree(cart3.tree_depth)
 
-print([c.feature_idx for c in cart3.nodes])
-print([c.feature_index for c in cart0.nodes])
+# print([c.feature_idx for c in cart3.nodes])
+# print([c.feature_index for c in cart0.nodes])
 
 #quit()
 
@@ -336,11 +336,11 @@ print("\n")
 #print(index_node_cython)
 
 
-print([c for c in cart0.nodes])
-print([c for c in cart3.nodes])
+# print([c for c in cart0.nodes])
+# print([c for c in cart3.nodes])
 
-print([c.index for c in cart0.nodes])
-print([c.index for c in cart3.nodes])
+# print([c.index for c in cart0.nodes])
+# print([c.index for c in cart3.nodes])
 
 #quit()
 
@@ -393,13 +393,13 @@ def find_index_difference(list1, list2):
     #print(diff_indices)
     return diff_indices
 
-print(f"Index node python :{list([c.index for c in cart0.nodes])}")
-print(f"Index node python :{list(index_node_python)}")
-print(f"Index node cython :{list(index_node_cython)}")
-print(f"Check {list(index_node_python)==list(index_node_cython)}")
-if list(index_node_python)!=list(index_node_cython):
-    print(find_index_difference(list(index_node_python), list(index_node_cython)))
-print("\n")
+# print(f"Index node python :{list([c.index for c in cart0.nodes])}")
+# print(f"Index node python :{list(index_node_python)}")
+# print(f"Index node cython :{list(index_node_cython)}")
+# print(f"Check {list(index_node_python)==list(index_node_cython)}")
+# if list(index_node_python)!=list(index_node_cython):
+#     print(find_index_difference(list(index_node_python), list(index_node_cython)))
+# print("\n")
 
 def not_working_currently():
     index_parent_node_python = [c.parent_node.index if c.kind != "Root" else None for c in cart0.nodes]
@@ -442,7 +442,7 @@ if list(feature_index_node_python)!=list(feature_index_node_cython):
 
 boolean_index = find_index_difference(list(feature_index_node_python), list(feature_index_node_cython))
 
-print(f"Index categorical node cython :{[c.is_categorical for c in cart3.nodes]}")
+# print(f"Index categorical node cython :{[c.is_categorical for c in cart3.nodes]}")
 
 print("\n")
 print(f"Threshold node python :{threshold_node_python}")
@@ -453,8 +453,8 @@ if list(threshold_node_python)!=list(threshold_node_cython):
 print("\n")
 
 print("\n")
-print(f"Threshold node python :{nb_samples_node_python}")
-print(f"Threshold node cython :{nb_samples_node_cython}")
+print(f"Nb of samples node python :{nb_samples_node_python}")
+print(f"Nb of samples node cython :{nb_samples_node_cython}")
 print(f"Check {nb_samples_node_python==nb_samples_node_cython}")
 if list(nb_samples_node_python)!=list(nb_samples_node_cython):
     print(find_index_difference(list(nb_samples_node_python), list(nb_samples_node_cython)))
