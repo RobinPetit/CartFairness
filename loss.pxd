@@ -54,7 +54,7 @@ cdef class Loss:
     cdef bint normalized
     cdef void* loss_ptr
 
-    cdef inline double get(self, bint normalized=*) noexcept nogil
+    cdef inline double get(self) noexcept nogil
     cdef inline void augment(self, double[::1] ys, double[::1] ws) noexcept nogil
     cdef inline void diminish(self, double[::1] ys, double[::1] ws) noexcept nogil
     cdef inline size_t get_size(self) noexcept nogil
@@ -63,3 +63,4 @@ cdef class Loss:
     cdef inline void unjoin(self, Loss other) noexcept nogil
 
 cpdef float poisson_deviance(np.ndarray y1, np.ndarray y2)
+cpdef float poisson_deviance_weight(np.ndarray y1, np.ndarray y2, np.ndarray w)
